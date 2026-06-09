@@ -185,6 +185,18 @@ select option{background:var(--bg2)}
     <!-- DASHBOARD -->
     <div class="panel on" id="p-dashboard">
       <div class="mg" id="dash-kpis"></div>
+
+      <!-- Metas Orion -->
+      <div id="dash-metas-wrap" style="margin-bottom:18px;display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:14px;font-weight:600">🎯 Meta Comercial — <span id="dash-meta-mes">Junho 2026</span></div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;color:var(--txt3)" id="dash-meta-atualizado"></span>
+            <button class="btn btn-s btn-sm" onclick="carregarMetas()">🔄</button>
+          </div>
+        </div>
+        <div id="dash-metas-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px"></div>
+      </div>
       <div class="g31" style="margin-bottom:18px">
         <div class="card">
           <div class="ch"><div><div class="ct">Evolução do Onboarding</div><div class="cs">Revendas por mês</div></div></div>
@@ -217,6 +229,7 @@ select option{background:var(--bg2)}
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-s" onclick="go('importacao')">📥 Importar Excel</button>
+          <button class="btn btn-s" id="btn-leads-orion" onclick="openMo('mo-leads-orion')" style="display:none">🔗 Leads Orion <span id="badge-leads-orion" class="badge bg-ok bg-sm">0</span></button>
           <button class="btn btn-p" onclick="openMo('mo-rev')">+ Nova Revenda</button>
         </div>
       </div>
@@ -576,6 +589,26 @@ select option{background:var(--bg2)}
 </main>
 
 <!-- MODALS -->
+<!-- Modal: Leads pendentes da Orion -->
+<div class="mo-ov" id="mo-leads-orion">
+  <div class="mo" style="width:640px">
+    <div class="moh">
+      <div>
+        <div class="mot">🔗 Leads vindos da Orion</div>
+        <div style="font-size:12px;color:var(--txt3);margin-top:2px">Cards marcados como Vendido — aguardando ativação no pipeline</div>
+      </div>
+      <button class="btn btn-s btn-sm" onclick="closeMo('mo-leads-orion')">✕</button>
+    </div>
+    <div class="mob">
+      <div id="leads-orion-list"><div class="empty"><div class="empty-ic">🔗</div><div>Carregando...</div></div></div>
+    </div>
+    <div class="mof">
+      <button class="btn btn-s" onclick="closeMo('mo-leads-orion')">Fechar</button>
+      <button class="btn btn-p" onclick="importarTodosLeadsOrion()">✅ Importar todos para o Pipeline</button>
+    </div>
+  </div>
+</div>
+
 <!-- Detalhe / Histórico do Card -->
 <div class="mo-ov" id="mo-card">
   <div class="mo" style="width:680px;max-height:92vh">
@@ -1062,6 +1095,7 @@ function renderDashboard(){
 
   drawOnbChart();
   drawPipelineChart();
+  carregarMetas();
 }
 
 function drawOnbChart(){
@@ -2257,6 +2291,208 @@ function renderAiHistory(){
     </div>`).join(''):`<div style="font-size:12px;color:var(--txt3)">Nenhum pedido enviado ainda.</div>`;
 }
 
+// ─── METAS ORION ───────────────────────────────────────────────────
+const FUNC_URL = 'https://vykhskaayukmodnglujc.supabase.co/functions/v1/webhook-orion';
+const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+               'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+async function carregarMetas(){
+  try {
+    const now   = new Date();
+    const mes   = now.getMonth() + 1;
+    const ano   = now.getFullYear();
+
+    // Busca metas direto do Supabase (RLS garante acesso só a autenticados)
+    const {data, error} = await sb
+      .from('orion_metas')
+      .select('*')
+      .eq('mes', mes)
+      .eq('ano', ano)
+      .order('percentual', {ascending: true});
+
+    if(error || !data?.length){
+      document.getElementById('dash-metas-wrap').style.display='none';
+      return;
+    }
+
+    // Mostra o bloco
+    document.getElementById('dash-metas-wrap').style.display='block';
+    document.getElementById('dash-meta-mes').textContent = `${MESES[mes]} ${ano}`;
+    document.getElementById('dash-meta-atualizado').textContent =
+      `Atualizado: ${new Date(data[0].atualizado_em||data[0].criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}`;
+
+    const cards = document.getElementById('dash-metas-cards');
+    cards.innerHTML = data.map(m => {
+      const pct  = Math.min(Math.round(m.percentual || 0), 100);
+      const faltam = Math.max(0, m.valor_meta - m.valor_atual);
+      const cfg  = m.status === 'atingida'
+        ? {cor:'var(--ok)',   bg:'var(--okl)',   icone:'🟢', label:'Atingida'}
+        : m.status === 'atencao'
+        ? {cor:'var(--warn)', bg:'var(--warnl)', icone:'🟡', label:'Atenção'}
+        : {cor:'var(--err)',  bg:'var(--errl)',  icone:'🔴', label:'Crítica'};
+
+      return `<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--rl);
+                padding:18px;border-left:4px solid ${cfg.cor}">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">
+          <div>
+            <div style="font-size:13px;font-weight:700">${m.nome}</div>
+            <div style="font-size:11px;color:var(--txt3);margin-top:2px">Meta mensal · ${m.tipo}</div>
+          </div>
+          <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;
+            background:${cfg.bg};color:${cfg.cor}">
+            ${cfg.icone} ${cfg.label}
+          </span>
+        </div>
+        <div style="font-size:32px;font-weight:800;color:${cfg.cor};margin-bottom:8px">${pct}%</div>
+        <div style="background:var(--bg2);border-radius:3px;height:8px;overflow:hidden;margin-bottom:10px">
+          <div style="height:100%;border-radius:3px;background:${cfg.cor};
+            width:${pct}%;transition:width .6s ease"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <div style="text-align:center;padding:8px;background:var(--bg2);border-radius:var(--r)">
+            <div style="font-size:18px;font-weight:700">${m.valor_meta}</div>
+            <div style="font-size:10px;color:var(--txt3)">Meta</div>
+          </div>
+          <div style="text-align:center;padding:8px;background:${cfg.bg};border-radius:var(--r)">
+            <div style="font-size:18px;font-weight:700;color:${cfg.cor}">${m.valor_atual}</div>
+            <div style="font-size:10px;color:var(--txt3)">Atual</div>
+          </div>
+          <div style="text-align:center;padding:8px;background:var(--errl);border-radius:var(--r)">
+            <div style="font-size:18px;font-weight:700;color:var(--err)">${faltam}</div>
+            <div style="font-size:10px;color:var(--txt3)">Faltam</div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+  } catch(e) {
+    console.warn('Metas Orion:', e.message);
+  }
+}
+
+// ─── LEADS ORION ──────────────────────────────────────────────────
+async function abrirLeadsOrion(){
+  openMo('mo-leads-orion');
+  const {data} = await sb
+    .from('orion_leads_vendidos')
+    .select('*')
+    .eq('processado', false)
+    .order('criado_em', {ascending: false});
+
+  const el = document.getElementById('leads-orion-list');
+  if(!el) return;
+  if(!data?.length){
+    el.innerHTML='<div class="empty" style="padding:24px"><div class="empty-ic">✅</div><div>Nenhum lead pendente</div></div>';
+    return;
+  }
+  el.innerHTML = data.map(l=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:12px;
+      border:1px solid var(--bdr);border-radius:var(--r);margin-bottom:8px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600">${l.nome||'Sem nome'}</div>
+        <div style="font-size:11px;color:var(--txt3)">${l.email||''} ${l.telefone?'· '+l.telefone:''}</div>
+        <div style="font-size:11px;color:var(--txt3)">${l.cidade||''}${l.uf?' · '+l.uf:''} ${l.cs?'· CS: '+l.cs:''}</div>
+        <div style="font-size:10px;color:var(--txt3);margin-top:2px">
+          Recebido: ${new Date(l.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
+        </div>
+      </div>
+      <button class="btn btn-ok btn-sm" onclick="ativarLeadOrion('${l.id}')">
+        ✅ Ativar no Pipeline
+      </button>
+    </div>`).join('');
+}
+
+async function ativarLeadOrion(leadId){
+  const {data:lead} = await sb
+    .from('orion_leads_vendidos')
+    .select('*').eq('id', leadId).single();
+  if(!lead) return;
+
+  // Verifica se já existe
+  const {data:existe} = await sb
+    .from('revendas')
+    .select('id').eq('id_origem', lead.id_origem||lead.id).single();
+
+  if(!existe){
+    const {data:nova, error} = await sb.from('revendas').insert({
+      nome:      lead.nome,
+      email:     lead.email,
+      tel:       lead.telefone,
+      cidade:    lead.cidade,
+      uf:        lead.uf,
+      cs:        lead.cs,
+      obs:       lead.obs,
+      id_origem: lead.id_origem||lead.id,
+      status:    'Nova Revenda',
+      ingresso:  new Date().toISOString().slice(0,10),
+      criado_por: sessaoAtual?.user?.id,
+    }).select().single();
+
+    if(!error && nova){
+      await sb.from('historico_cards').insert({
+        revenda_id:   nova.id,
+        tipo:         'Integração Orion',
+        descricao:    `Lead ativado manualmente a partir da Orion CRM.`,
+        manual:       false,
+        usuario_id:   sessaoAtual?.user?.id,
+        usuario_nome: perfilAtual?.nome || 'Sistema',
+      });
+      logAuditoria('CREATE','revendas',nova.id,{origem:'orion',nome:lead.nome});
+    }
+  }
+
+  // Marca como processado
+  await sb.from('orion_leads_vendidos')
+    .update({processado: true})
+    .eq('id', leadId);
+
+  toast(`${lead.nome} ativado no pipeline!`);
+  abrirLeadsOrion();
+  verificarLeadsOrion();
+}
+
+async function importarTodosLeadsOrion(){
+  const {data} = await sb
+    .from('orion_leads_vendidos')
+    .select('*').eq('processado', false);
+  if(!data?.length){ toast('Nenhum lead pendente','warn'); return; }
+  for(const l of data) await ativarLeadOrion(l.id);
+  closeMo('mo-leads-orion');
+  toast(`${data.length} lead(s) importado(s) para o pipeline!`);
+  renderRevendas(); renderDashboard();
+}
+
+async function verificarLeadsOrion(){
+  try {
+    const {data} = await sb
+      .from('orion_leads_vendidos')
+      .select('id')
+      .eq('processado', false)
+      .limit(99);
+
+    const count = data?.length || 0;
+    const btnOrion  = document.getElementById('btn-leads-orion');
+    const badgeOrion= document.getElementById('badge-leads-orion');
+    if(btnOrion){
+      btnOrion.style.display = count > 0 ? '' : 'none';
+      if(badgeOrion) badgeOrion.textContent = count;
+    }
+    // Badge no nav
+    document.querySelectorAll('[onclick*="revendas"] .orion-badge')
+      .forEach(b=>b.remove());
+    if(count > 0){
+      const navRev = document.querySelector('[onclick*="revendas"]');
+      if(navRev){
+        const badge = document.createElement('span');
+        badge.className = 'orion-badge badge bg-ok bg-sm';
+        badge.style.cssText = 'margin-left:auto;font-size:10px';
+        badge.textContent = count;
+        navRev.appendChild(badge);
+      }
+    }
+  } catch(e) {}
+}
+
 // ─── AUDITORIA ────────────────────────────────────────────────────
 async function renderAuditoria(){
   if(!perfilAtual || perfilAtual.perfil !== 'Administrador'){
@@ -2319,6 +2555,34 @@ function initApp(){
       const panel=document.querySelector('.panel.on');
       if(panel)renderPanel(panel.id.replace('p-',''));
     });
+
+    // Atualiza metas a cada 5 minutos
+    setInterval(carregarMetas, 5 * 60 * 1000);
+
+    // Verifica novos leads Orion a cada 2 minutos
+    setInterval(verificarLeadsOrion, 2 * 60 * 1000);
+    verificarLeadsOrion();
+
+    // Realtime: ouve mudanças nas metas
+    sb.channel('orion_metas')
+      .on('postgres_changes',
+        {event:'*', schema:'public', table:'orion_metas'},
+        ()=>{ carregarMetas(); }
+      )
+      .subscribe();
+
+    // Realtime: ouve novos leads da Orion
+    sb.channel('orion_leads')
+      .on('postgres_changes',
+        {event:'INSERT', schema:'public', table:'orion_leads_vendidos'},
+        (payload)=>{
+          toast(`🎉 Novo lead da Orion: ${payload.new?.nome||'Lead'}`, 'ok');
+          verificarLeadsOrion();
+          renderDashboard();
+        }
+      )
+      .subscribe();
+
   }); // end initAuth
 }
 
