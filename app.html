@@ -917,10 +917,15 @@ function saveRevenda(){
 
 function editRevenda(id){
   const r=DB.revendas.find(x=>x.id===id);if(!r)return;
+  if(perfilAtual?.pode_ver_cnpj && r.cnpj){
+    logAuditoria('VIEW_CNPJ','revendas',r.id,{nome:r.nome});
+  }
   document.getElementById('mo-rev-title').textContent='Editar Revenda';
   document.getElementById('rev-edit-id').value=r.id;
   document.getElementById('r-nome').value=r.nome;
-  document.getElementById('r-cnpj').value=r.cnpj||'';
+  document.getElementById('r-cnpj').value = perfilAtual?.pode_ver_cnpj ? (r.cnpj||'') : '';
+  document.getElementById('r-cnpj').placeholder = perfilAtual?.pode_ver_cnpj ? '00.000.000/0001-00' : '🔒 Acesso restrito';
+  document.getElementById('r-cnpj').readOnly = !perfilAtual?.pode_ver_cnpj;
   document.getElementById('r-cidade').value=r.cidade||'';
   document.getElementById('r-uf').value=r.uf||'';
   document.getElementById('r-email').value=r.email||'';
@@ -976,7 +981,7 @@ function renderRevendas(){
   }
   tb.innerHTML=data.map(r=>`<tr>
     <td><div class="tdp">${r.nome}</div><div style="font-size:11px;color:var(--txt3)">${r.email||''}</div></td>
-    <td style="font-size:11px">${r.cnpj||'—'}</td>
+    <td style="font-size:11px">${perfilAtual?.pode_ver_cnpj ? (r.cnpj||'—') : (r.cnpj ? '••••••/••-••' : '—')}</td>
     <td>${r.cidade||'—'}${r.uf?' · '+r.uf:''}</td>
     <td>${r.cs||'—'}</td>
     <td><span class="st ${stMap[r.status]||'st-on'}" style="color:${stColor[r.status]||'var(--acc)'}">${r.status||'Nova Revenda'}</span></td>
