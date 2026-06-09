@@ -770,7 +770,13 @@ select option{background:var(--bg2)}
 // ─── Supabase ──────────────────────────────────────────────────────
 const SUPABASE_URL  = 'https://vykhskaayukmodnglujc.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ5a2hza2FheXVrbW9kbmdsdWpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTY3MjksImV4cCI6MjA5NjU5MjcyOX0.Wlw_PW6aUrgvCRwolB1x8td4PWJaBxsXWfhiZH-Dl6E';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  }
+});
 
 // Sessão e usuário atual
 let sessaoAtual = null;
@@ -852,12 +858,15 @@ async function loadFromSupabase(){
       sb.from('treinamentos').select('*').order('criado_em',{ascending:false}),
       sb.from('handovers').select('*').order('criado_em',{ascending:false}),
     ]);
+    if(revs.error)  console.warn('revendas:', revs.error.message);
+    if(users.error) console.warn('perfis:',   users.error.message);
     if(revs.data)   DB.revendas     = revs.data.map(normalizeRevenda);
     if(users.data)  DB.usuarios     = users.data.map(normalizeUsuario);
     if(tasks.data)  DB.tarefas      = tasks.data.map(normalizeTask);
     if(ativs.data)  DB.atividades   = ativs.data.map(normalizeAtiv);
     if(trains.data) DB.treinamentos = trains.data;
     if(handov.data) DB.handovers    = handov.data.map(normalizeHandover);
+    console.log(`✅ Supabase: ${DB.revendas.length} revendas, ${DB.tarefas.length} tarefas, ${DB.usuarios.length} usuários`);
   } catch(e){ console.warn('loadFromSupabase:', e.message); }
 }
 
@@ -2167,6 +2176,7 @@ function handleFileImport(e){
 }
 
 function showImportPreview(rows,filename){
+  window._importRows = rows;  // salva para uso no confirmImport
   const prev=document.getElementById('import-preview');
   if(!prev)return;
   const sample=rows.slice(0,5);
@@ -2177,12 +2187,20 @@ function showImportPreview(rows,filename){
       <tbody>${sample.map(r=>`<tr>${headers.slice(0,6).map(h=>`<td>${r[h]||'—'}</td>`).join('')}</tr>`).join('')}</tbody></table>
     </div>
     <div style="display:flex;gap:8px">
-      <button class="btn btn-p" onclick="confirmImport(${JSON.stringify(rows).replace(/"/g,'&quot;')})">✅ Importar ${rows.length} registro(s)</button>
+      <button class="btn btn-p" onclick="confirmImport(window._importRows)">✅ Importar ${rows.length} registro(s)</button>
       <button class="btn btn-s" onclick="document.getElementById('import-preview').innerHTML='<div class=empty><div class=empty-ic>📄</div><div>Cancelado</div></div>'">Cancelar</button>
     </div>`;
 }
 
 async function confirmImport(rows){
+  if(!rows||!rows.length){toast('Nenhum dado para importar','err');return}
+  // Feedback visual
+  const prevEl = document.getElementById('import-preview');
+  if(prevEl) prevEl.innerHTML = `<div style="text-align:center;padding:24px">
+    <div style="font-size:32px;margin-bottom:10px">⏳</div>
+    <div style="font-size:14px;font-weight:600">Importando ${rows.length} registros...</div>
+    <div style="font-size:12px;color:var(--txt3);margin-top:6px">Aguarde, isso pode levar alguns segundos</div>
+  </div>`;
   let ok=0,err=0;
   const errs=[];
   const batch=[];
@@ -2239,19 +2257,31 @@ async function confirmImport(rows){
     batch.push(obj);ok++;
   });
   if(batch.length){
-    // Insere em lotes de 100
-    for(let i=0;i<batch.length;i+=100){
-      const slice=batch.slice(i,i+100).map(r=>({
-        nome:r.nome, cnpj:r.cnpj||null, cidade:r.cidade||null, uf:r.uf||null,
-        email:r.email||null, tel:r.tel||null, cs:r.cs||null,
-        status:r.status||'Nova Revenda', segmento:r.segmento||null,
-        porte:r.porte||null, contratos:r.contratos?parseInt(r.contratos)||0:null,
-        curva:r.curva||null, ingresso:r.ingresso||today(),
-        id_origem:r.idOrigem||null, obs:r.obs||null,
-        criado_por:sessaoAtual?.user?.id,
+    // Insere em lotes de 50
+    for(let i=0;i<batch.length;i+=50){
+      const slice=batch.slice(i,i+50).map(r=>({
+        nome:r.nome,
+        cnpj:       r.cnpj       || null,
+        cidade:     r.cidade     || null,
+        uf:         r.uf         || null,
+        email:      r.email      || null,
+        tel:        r.tel        || null,
+        cs:         r.cs         || null,
+        status:     'Nova Revenda',
+        segmento:   r.segmento   || null,
+        porte:      r.porte      || null,
+        contratos:  r.contratos  ? (parseInt(r.contratos)||0) : null,
+        curva:      r.curva      || null,
+        ingresso:   r.ingresso   || today(),
+        id_origem:  r.idOrigem   || null,
+        obs:        r.obs        || null,
+        criado_por: sessaoAtual?.user?.id || null,
       }));
-      const {error}=await sb.from('revendas').upsert(slice,{onConflict:'id_origem',ignoreDuplicates:true});
-      if(error) errs.push('Lote '+(i/100+1)+': '+error.message);
+      const {error} = await sb.from('revendas').insert(slice);
+      if(error){
+        console.warn('Erro lote importação:', error.message);
+        errs.push('Lote '+(Math.floor(i/50)+1)+': '+error.message);
+      }
     }
   }
   // Salva histórico de importação
@@ -2260,8 +2290,17 @@ async function confirmImport(rows){
     detalhes:{errs}, usuario_id:sessaoAtual?.user?.id,
   });
   logAuditoria('IMPORT','revendas',null,{total:rows.length,ok,err});
-  toast(`Importação concluída: ${ok} importada(s)${err?' · '+err+' erro(s)':''}`,'ok');
   await loadFromSupabase();
+  const msg = `✅ ${ok} revenda(s) importada(s)${err?' · ⚠️ '+err+' com erro':''}`;
+  toast(msg, err>0?'warn':'ok');
+  // Mostra resultado no preview
+  if(prevEl) prevEl.innerHTML = `<div style="padding:16px">
+    <div class="alert ${err>0?'al-warn':'al-ok'}" style="margin-bottom:12px">
+      <span>${err>0?'⚠️':'✅'}</span>
+      <span>${msg}</span>
+    </div>
+    ${errs.length?`<div style="font-size:12px;color:var(--err)">${errs.slice(0,5).map(e=>'• '+e).join('<br>')}</div>`:''}
+  </div>`;
   renderImport();renderRevendas();renderDashboard();
 }
 
