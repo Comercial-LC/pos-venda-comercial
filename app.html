@@ -2381,58 +2381,41 @@ async function confirmImport(rows){
 
   // ── INSERÇÃO de novos ──────────────────────────────────────
   if(toInsert.length){
-    const userId2 = session.user.id;
-    // Testa com 1 registro primeiro
-    const teste = {
-      nome: batch[0].nome,
-      email: batch[0].email || null,
-      tel: batch[0].tel || null,
-      cidade: batch[0].cidade || null,
-      uf: batch[0].uf || null,
-      cs: batch[0].cs || null,
-      status: 'Nova Revenda',
-      contratos: batch[0].contratos ? (parseInt(batch[0].contratos)||0) : null,
-      curva: batch[0].curva || null,
-      ingresso: batch[0].ingresso || today(),
-      id_origem: batch[0].idOrigem || null,
-      criado_por: userId,
-    };
-    const {error:testeErr} = await sb.from('revendas').insert([teste]);
-    if(testeErr){
-      console.error('Teste de inserção falhou:', testeErr);
-      if(prevEl) prevEl.innerHTML = `<div class="alert al-warn" style="margin:16px">
-        <span>⚠️</span>
-        <div>
-          <div style="font-weight:600">Erro ao inserir no banco:</div>
-          <div style="font-size:12px;margin-top:4px">${testeErr.message}</div>
-          <div style="font-size:11px;color:var(--txt3);margin-top:8px">
-            Verifique o console do browser (F12) para mais detalhes.
-          </div>
-        </div>
-      </div>`;
-      return;
-    }
-    ok++; // primeiro registro inserido com sucesso
+    const LOTE = 25; // lotes pequenos para não travar
+    const total = toInsert.length;
 
-    // Insere o restante em lotes de 100
-    for(let i=1;i<toInsert.length;i+=100){
-      const slice = toInsert.slice(i, i+100).map(makeRow);
-      // Atualiza progresso
-      if(prevEl){
-        try{
-          const pct = Math.round((i/toInsert.length)*100);
-          const el = prevEl.querySelector('div > div:nth-child(2)');
-          if(el) el.textContent = `Importando ${Math.min(i+100,toInsert.length)} de ${toInsert.length}... (${pct}%)`;
-        }catch(e){}
-      }
+    const atualizaProgresso = (i) => {
+      if(!prevEl) return;
+      const pct = Math.round((i/total)*100);
+      prevEl.innerHTML = `<div style="text-align:center;padding:24px">
+        <div style="font-size:28px;margin-bottom:10px">⏳</div>
+        <div style="font-size:14px;font-weight:600">Importando ${Math.min(i+LOTE,total)} de ${total} registros...</div>
+        <div style="background:var(--bdr);border-radius:4px;height:8px;margin:12px 0;overflow:hidden">
+          <div style="background:var(--acc);height:100%;width:${pct}%;transition:width .3s;border-radius:4px"></div>
+        </div>
+        <div style="font-size:13px;font-weight:600;color:var(--acc)">${pct}%</div>
+      </div>`;
+    };
+
+    atualizaProgresso(0);
+
+    for(let i=0; i<total; i+=LOTE){
+      const slice = toInsert.slice(i, i+LOTE).map(makeRow);
       const {error} = await sb.from('revendas').insert(slice);
       if(error){
-        console.warn('Erro lote:', error.message);
-        err += slice.length;
-        errs.push(error.message);
+        console.warn('Erro lote', i, error.message);
+        // Tenta 1 a 1 para identificar o problema
+        for(const reg of slice){
+          const {error:e2} = await sb.from('revendas').insert([reg]);
+          if(!e2) ok++;
+          else { err++; errs.push(`"${reg.nome}": ${e2.message}`); }
+        }
       } else {
         ok += slice.length;
       }
+      atualizaProgresso(i+LOTE);
+      // Pausa de 100ms entre lotes para não sobrecarregar
+      await new Promise(r=>setTimeout(r,100));
     }
   }
 
