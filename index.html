@@ -265,6 +265,14 @@ select option{background:var(--bg2)}
           <span>até</span>
           <input type="date" id="kb-date-to" onchange="renderKanban()" style="width:130px;padding:7px 8px;font-size:12px">
         </div>
+        <select id="kb-contratos" onchange="renderKanban()" style="width:180px;padding:7px 10px;font-size:12px">
+          <option value="">Todos contratos</option>
+          <option value="sem">⚠️ Sem contratos (0)</option>
+          <option value="1-10">1 a 10 contratos</option>
+          <option value="11-50">11 a 50 contratos</option>
+          <option value="51-200">51 a 200 contratos</option>
+          <option value="200+">Mais de 200</option>
+        </select>
         <button class="btn btn-s btn-sm" onclick="clearKbFilters()">✕ Limpar</button>
       </div>
 
@@ -968,11 +976,12 @@ function getKbFilters(){
     cs:document.getElementById('kb-cs')?.value||'',
     dateFrom:document.getElementById('kb-date-from')?.value||'',
     dateTo:document.getElementById('kb-date-to')?.value||'',
+    contratos:document.getElementById('kb-contratos')?.value||'',
   };
 }
 
 function clearKbFilters(){
-  ['kb-search','kb-cs','kb-date-from','kb-date-to'].forEach(id=>{
+  ['kb-search','kb-cs','kb-date-from','kb-date-to','kb-contratos'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
   renderKanban();
@@ -1052,6 +1061,14 @@ function renderKanban(){
       if(f.cs&&r.cs!==f.cs)return false;
       if(f.dateFrom&&r.ingresso&&r.ingresso<f.dateFrom)return false;
       if(f.dateTo&&r.ingresso&&r.ingresso>f.dateTo)return false;
+      if(f.contratos){
+        const c=parseInt(r.contratos||'0',10)||0;
+        if(f.contratos==='sem'&&c>0)return false;
+        if(f.contratos==='1-10'&&(c<1||c>10))return false;
+        if(f.contratos==='11-50'&&(c<11||c>50))return false;
+        if(f.contratos==='51-200'&&(c<51||c>200))return false;
+        if(f.contratos==='200+'&&c<=200)return false;
+      }
       return true;
     });
 
