@@ -1763,8 +1763,7 @@ Seja direto, prático e técnico. Responda em português.`;
         .replace(/```([\s\S]*?)```/g, '<pre style="background:var(--inp);padding:10px;border-radius:var(--r);font-size:11px;overflow-x:auto;margin:8px 0"><code>$1</code></pre>')
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/^(\d+\. )/gm, '<span style="color:var(--acc);font-weight:600">$1</span>')
-        .replace(/
-/g, '<br>');
+        .replace(/\n/g, '<br>');
       respEl.innerHTML=`<div style="font-size:13px;line-height:1.7;color:var(--txt2)">${html}</div>`;
       if(copyBtn){copyBtn.style.display='';copyBtn.dataset.resp=text;}
     }
