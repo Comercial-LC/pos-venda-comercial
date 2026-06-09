@@ -10,9 +10,14 @@ const ORION_WEBHOOK_SECRET = Deno.env.get('ORION_WEBHOOK_SECRET')!  // chave sec
 
 // ── Chave gerada (SHA-256 HMAC) ──────────────────────────────────
 async function verificarAssinatura(req: Request, body: string): Promise<boolean> {
+  // Aceita token via header OU via query string (?token=...)
+  const url = new URL(req.url)
   const sigHeader = req.headers.get('x-orion-signature') ||
                     req.headers.get('x-webhook-secret')  ||
-                    req.headers.get('authorization')?.replace('Bearer ','')
+                    req.headers.get('authorization')?.replace('Bearer ','') ||
+                    url.searchParams.get('token')         ||
+                    url.searchParams.get('secret')        ||
+                    url.searchParams.get('key')
   if (!sigHeader) return false
 
   // Suporta dois modos:
