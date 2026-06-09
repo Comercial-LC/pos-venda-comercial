@@ -219,16 +219,20 @@ select option{background:var(--bg2)}
           <input type="text" id="rev-search" placeholder="Buscar por nome, CNPJ, cidade..." oninput="renderRevendas()" style="padding-left:32px">
           <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--txt3)">🔍</span>
         </div>
-        <select id="rev-status" onchange="renderRevendas()" style="width:150px"><option value="">Todos status</option><option>Onboarding</option><option>Ativo</option><option>Trial</option><option>Inativo</option><option>Concluído</option></select>
+        <select id="rev-status" onchange="renderRevendas()" style="width:180px"><option value="">Todos status</option><option>Nova Revenda</option><option>Implantação</option><option>Liberação Web</option><option>Academy</option><option>Decola Instalação</option><option>Decola Produtos</option><option>Primeiro Cliente</option><option>Handover</option></select>
         <select id="rev-uf" onchange="renderRevendas()" style="width:100px"><option value="">Todos UF</option><option>SP</option><option>RJ</option><option>MG</option><option>PR</option><option>SC</option><option>RS</option><option>CE</option><option>BA</option><option>GO</option><option>DF</option></select>
         <select id="rev-cs" onchange="renderRevendas()" style="width:160px"><option value="">Todos CS</option></select>
       </div>
       <div class="fp" id="rev-filters">
         <button class="fp-p on" onclick="setRevFilter('')">Todas</button>
-        <button class="fp-p" onclick="setRevFilter('Onboarding')">Onboarding</button>
-        <button class="fp-p" onclick="setRevFilter('Ativo')">Ativo</button>
-        <button class="fp-p" onclick="setRevFilter('Trial')">Trial</button>
-        <button class="fp-p" onclick="setRevFilter('Inativo')">Inativo</button>
+        <button class="fp-p" onclick="setRevFilter('Nova Revenda')">🆕 Nova Revenda</button>
+        <button class="fp-p" onclick="setRevFilter('Implantação')">🔧 Implantação</button>
+        <button class="fp-p" onclick="setRevFilter('Liberação Web')">🌐 Liberação Web</button>
+        <button class="fp-p" onclick="setRevFilter('Academy')">🎓 Academy</button>
+        <button class="fp-p" onclick="setRevFilter('Decola Instalação')">🚀 Decola Instalação</button>
+        <button class="fp-p" onclick="setRevFilter('Decola Produtos')">📦 Decola Produtos</button>
+        <button class="fp-p" onclick="setRevFilter('Primeiro Cliente')">👤 Primeiro Cliente</button>
+        <button class="fp-p" onclick="setRevFilter('Handover')">🤝 Handover</button>
       </div>
       <div class="card">
         <div style="overflow-x:auto">
@@ -557,7 +561,7 @@ select option{background:var(--bg2)}
       <div class="fr"><div class="fg"><label>Nome da Revenda *</label><input id="r-nome" placeholder="Ex: TechSol Soluções LTDA"></div><div class="fg"><label>CNPJ</label><input id="r-cnpj" placeholder="00.000.000/0001-00"></div></div>
       <div class="fr"><div class="fg"><label>Cidade *</label><input id="r-cidade" placeholder="São Paulo"></div><div class="fg"><label>UF *</label><select id="r-uf"><option value="">Selecione</option><option>SP</option><option>RJ</option><option>MG</option><option>PR</option><option>SC</option><option>RS</option><option>CE</option><option>BA</option><option>GO</option><option>DF</option><option>ES</option><option>PE</option><option>RN</option><option>PB</option><option>AM</option><option>PA</option><option>MT</option><option>MS</option><option>TO</option><option>MA</option></select></div></div>
       <div class="fr"><div class="fg"><label>E-mail</label><input id="r-email" type="email" placeholder="contato@empresa.com"></div><div class="fg"><label>Telefone</label><input id="r-tel" placeholder="(11) 99999-9999"></div></div>
-      <div class="fr"><div class="fg"><label>Responsável CS *</label><select id="r-cs"><option value="">Selecione o CS</option></select></div><div class="fg"><label>Status *</label><select id="r-status"><option>Onboarding</option><option>Trial</option><option>Ativo</option><option>Inativo</option><option>Concluído</option></select></div></div>
+      <div class="fr"><div class="fg"><label>Responsável CS *</label><select id="r-cs"><option value="">Selecione o CS</option></select></div><div class="fg"><label>Status *</label><select id="r-status"><option>Nova Revenda</option><option>Implantação</option><option>Liberação Web</option><option>Academy</option><option>Decola Instalação</option><option>Decola Produtos</option><option>Primeiro Cliente</option><option>Handover</option></select></div></div>
       <div class="fr"><div class="fg"><label>Segmento</label><select id="r-seg"><option value="">Selecione</option><option>Tecnologia</option><option>Varejo</option><option>Serviços</option><option>Indústria</option><option>Saúde</option><option>Educação</option><option>Financeiro</option><option>Outros</option></select></div><div class="fg"><label>Porte</label><select id="r-porte"><option value="">Selecione</option><option>Pequeno</option><option>Médio</option><option>Grande</option></select></div></div>
       <div class="fr"><div class="fg"><label>Nº de Vendedores</label><input id="r-vend" type="number" placeholder="0"></div><div class="fg"><label>Data de Ingresso</label><input id="r-ingresso" type="date"></div></div>
       <div class="fg"><label>Observações</label><textarea id="r-obs" rows="3" placeholder="Informações adicionais..."></textarea></div>
@@ -817,7 +821,7 @@ function renderRevendas(){
   const pages=Math.ceil(total/revPageSize)||1;
   if(revPage>=pages)revPage=pages-1;
   const slice=data.slice(revPage*revPageSize,(revPage+1)*revPageSize);
-  const stMap={Onboarding:'st-on',Ativo:'st-ok',Trial:'st-tr',Inativo:'st-off',Concluído:'st-dn'};
+  const stMap={'Nova Revenda':'st-tr','Implantação':'st-on','Liberação Web':'st-on','Academy':'st-on','Decola Instalação':'st-on','Decola Produtos':'st-on','Primeiro Cliente':'st-ok','Handover':'st-dn'};
   const tb=document.getElementById('rev-tbody');
   if(!tb)return;
   if(!slice.length){tb.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="empty-ic">🏢</div><div>Nenhuma revenda encontrada</div></div></td></tr>`;return}
@@ -857,12 +861,16 @@ function renderDashboard(){
   const tAtras=task.filter(t=>t.status!=='Concluída'&&t.vencimento&&t.vencimento<today()).length;
   const tpcs=rv.filter(r=>r.tpc).map(r=>+r.tpc);
   const tpcMed=tpcs.length?Math.round(tpcs.reduce((a,b)=>a+b,0)/tpcs.length):0;
+  const emJornada = rv.filter(r=>!['Primeiro Cliente','Handover'].includes(r.status)).length;
+  const primeiroCliente = rv.filter(r=>r.status==='Primeiro Cliente').length;
+  const handoverEtapa = rv.filter(r=>r.status==='Handover').length;
+  const decolaProd = rv.filter(r=>r.status==='Decola Produtos').length;
   const kpis=[
-    {label:'Revendas Ativas',val:ativ,cls:'bl',icon:'🏢'},
-    {label:'Em Onboarding',val:onb,cls:'gn',icon:'🚀'},
-    {label:'TPC Médio (dias)',val:tpcMed||'—',cls:'yw',icon:'⏱'},
-    {label:'Total de Tarefas',val:task.length,cls:'tl',icon:'✅'},
-    {label:'Handovers',val:DB.handovers.length,cls:'pu',icon:'🤝'},
+    {label:'Total de Revendas',val:rv.length,cls:'bl',icon:'🏢'},
+    {label:'Em Jornada',val:emJornada,cls:'gn',icon:'🚀'},
+    {label:'Decola Produtos',val:decolaProd,cls:'yw',icon:'📦'},
+    {label:'Primeiro Cliente',val:primeiroCliente,cls:'tl',icon:'👤'},
+    {label:'Handover',val:handoverEtapa,cls:'pu',icon:'🤝'},
     {label:'Tarefas Atrasadas',val:tAtras,cls:'rd',icon:'⚠️'},
   ];
   const kEl=document.getElementById('dash-kpis');
@@ -871,27 +879,37 @@ function renderDashboard(){
   // Recent revendas table
   const dRev=document.getElementById('dash-revendas');
   if(dRev){
-    const stMap={Onboarding:'st-on',Ativo:'st-ok',Trial:'st-tr',Inativo:'st-off',Concluído:'st-dn'};
+    const stMap={'Nova Revenda':'st-tr','Implantação':'st-on','Liberação Web':'st-on','Academy':'st-on','Decola Instalação':'st-on','Decola Produtos':'st-on','Primeiro Cliente':'st-ok','Handover':'st-dn'};
     const recent=[...rv].sort((a,b)=>new Date(b.criadoEm||0)-new Date(a.criadoEm||0)).slice(0,5);
     dRev.innerHTML=recent.length?recent.map(r=>`<tr><td><div class="tdp">${r.nome}</div><div style="font-size:11px;color:var(--txt3)">${r.cidade||''} ${r.uf?'· '+r.uf:''}</div></td><td>${r.cs||'—'}</td><td><span class="st ${stMap[r.status]||'st-on'}">${r.status}</span></td><td>${r.tpc?`<span class="badge ${r.tpc<=15?'bg-ok':r.tpc<=30?'bg-warn':'bg-err'} bg-sm">${r.tpc}d</span>`:'—'}</td></tr>`).join(''):`<tr><td colspan="4"><div class="empty" style="padding:20px"><div>Nenhuma revenda cadastrada</div></div></td></tr>`;
   }
 
-  // TPC panel
+  // Pipeline funil por etapa
   const tpcEl=document.getElementById('dash-tpc');
   if(tpcEl){
-    const ideal=rv.filter(r=>r.tpc&&+r.tpc<=15).length;
-    const alert=rv.filter(r=>r.tpc&&+r.tpc>15&&+r.tpc<=30).length;
-    const crit=rv.filter(r=>r.tpc&&+r.tpc>30).length;
-    const tot=rv.filter(r=>r.tpc).length||1;
-    tpcEl.innerHTML=[
-      {label:'≤15 dias — Meta ideal',count:ideal,pct:Math.round(ideal/tot*100),cls:'ok',color:'var(--ok)'},
-      {label:'16–30 dias — Alerta',count:alert,pct:Math.round(alert/tot*100),cls:'warn',color:'var(--warn)'},
-      {label:'>30 dias — Crítico',count:crit,pct:Math.round(crit/tot*100),cls:'err',color:'var(--err)'},
-    ].map(t=>`<div style="padding:12px;background:var(--${t.cls}l);border-radius:var(--r);border:1px solid ${t.color}">
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px">${t.label}</span><span style="font-weight:700;color:${t.color}">${t.count}</span></div>
-      <div class="pbar"><div class="pfill" style="width:${t.pct}%;background:${t.color}"></div></div>
-    </div>`).join('');
-  }
+    const ETAPAS_DASH=[
+      {id:'Nova Revenda',icon:'🆕',color:'var(--txt2)'},
+      {id:'Implantação',icon:'🔧',color:'var(--acc)'},
+      {id:'Liberação Web',icon:'🌐',color:'var(--pur)'},
+      {id:'Academy',icon:'🎓',color:'#ec4899'},
+      {id:'Decola Instalação',icon:'🚀',color:'var(--warn)'},
+      {id:'Decola Produtos',icon:'📦',color:'#f97316'},
+      {id:'Primeiro Cliente',icon:'👤',color:'var(--ok)'},
+      {id:'Handover',icon:'🤝',color:'var(--tel)'},
+    ];
+    const maxRev = Math.max(...ETAPAS_DASH.map(e=>rv.filter(r=>r.status===e.id).length), 1);
+    tpcEl.innerHTML = ETAPAS_DASH.map(e=>{
+      const cnt = rv.filter(r=>r.status===e.id).length;
+      const pct = Math.round(cnt/maxRev*100);
+      return `<div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:13px;width:20px;text-align:center">${e.icon}</span>
+        <span style="font-size:11px;color:var(--txt2);width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.id}</span>
+        <div class="pbar" style="flex:1"><div class="pfill" style="width:${pct}%;background:${e.color}"></div></div>
+        <span style="font-size:12px;font-weight:700;color:${e.color};width:24px;text-align:right">${cnt}</span>
+      </div>`;
+    }).join('');
+    return; // skip old TPC code below
+  } // end if(tpcEl)
 
   drawOnbChart();
   drawPipelineChart();
@@ -939,9 +957,11 @@ function drawPipelineChart(){
   const canvas=document.getElementById('chartPipeline');
   if(!canvas)return;
   const rv=DB.revendas;
-  const counts={Onboarding:0,Ativo:0,Trial:0,Inativo:0,Concluído:0};
+  const ETAPAS=['Nova Revenda','Implantação','Liberação Web','Academy','Decola Instalação','Decola Produtos','Primeiro Cliente','Handover'];
+  const counts={};
+  ETAPAS.forEach(e=>counts[e]=0);
   rv.forEach(r=>{if(counts[r.status]!==undefined)counts[r.status]++});
-  const colors=['#3b82f6','#10b981','#f59e0b','#ef4444','#14b8a6'];
+  const colors=['#6b7280','#3b82f6','#8b5cf6','#ec4899','#f59e0b','#f97316','#10b981','#14b8a6'];
   const labels=Object.keys(counts);
   const vals=Object.values(counts);
   const total=vals.reduce((a,b)=>a+b,0)||1;
@@ -963,7 +983,10 @@ function drawPipelineChart(){
   ctx.font='10px system-ui';ctx.fillStyle=document.documentElement.getAttribute('data-theme')==='light'?'#4a5880':'#8899bb';
   ctx.fillText('total',S/2,S/2+12);
   const lg=document.getElementById('pipelineLegend');
-  if(lg)lg.innerHTML=labels.map((l,i)=>`<div style="display:flex;align-items:center;gap:8px;font-size:12px"><div style="width:8px;height:8px;border-radius:2px;background:${colors[i]};flex-shrink:0"></div><span style="color:var(--txt2);flex:1">${l}</span><span style="font-weight:600">${counts[l]}</span></div>`).join('');
+  if(lg)lg.innerHTML=labels.filter((_,i)=>vals[i]>0).map((l,i)=>{
+    const ci=labels.indexOf(l);
+    return`<div style="display:flex;align-items:center;gap:8px;font-size:11px"><div style="width:8px;height:8px;border-radius:2px;background:${colors[ci]};flex-shrink:0"></div><span style="color:var(--txt2);flex:1">${l}</span><span style="font-weight:600">${counts[l]}</span></div>`;
+  }).join('');
 }
 
 // ─── KANBAN ────────────────────────────────────────────────────────
@@ -1062,76 +1085,123 @@ function batchMove(newStatus){
 }
 
 function renderKanban(){
-  const cols=['Onboarding','Trial','Ativo','Inativo','Concluído'];
-  const colColors={Onboarding:'var(--acc)',Trial:'var(--warn)',Ativo:'var(--ok)',Inativo:'var(--err)',Concluído:'var(--tel)'};
-  const colIcons={Onboarding:'🚀',Trial:'⏳',Ativo:'✅',Inativo:'❌',Concluído:'🎉'};
-  const board=document.getElementById('kanban-board');
-  if(!board)return;
+  const COLS = [
+    {id:'Nova Revenda',    icon:'🆕', color:'var(--txt2)'},
+    {id:'Implantação',     icon:'🔧', color:'var(--acc)'},
+    {id:'Liberação Web',   icon:'🌐', color:'var(--pur)'},
+    {id:'Academy',         icon:'🎓', color:'#ec4899'},
+    {id:'Decola Instalação',icon:'🚀',color:'var(--warn)'},
+    {id:'Decola Produtos', icon:'📦', color:'#f97316'},
+    {id:'Primeiro Cliente',icon:'👤', color:'var(--ok)'},
+    {id:'Handover',        icon:'🤝', color:'var(--tel)'},
+  ];
+  const PRODUTOS = ['Portal da Revenda','LC Pay','Smart TEF','Imendes','Balcão','Gourmet','Dashboard','Shipay','Força de Vendas'];
+
+  const board = document.getElementById('kanban-board');
+  if(!board) return;
 
   // Popula select de CS no filtro
-  const kbCs=document.getElementById('kb-cs');
-  if(kbCs&&kbCs.options.length<=1){
-    const csSet=[...new Set(DB.revendas.map(r=>r.cs).filter(Boolean))].sort();
-    csSet.forEach(cs=>{const o=document.createElement('option');o.value=cs;o.textContent=cs;kbCs.appendChild(o)});
+  const kbCs = document.getElementById('kb-cs');
+  if(kbCs && kbCs.options.length <= 1){
+    const csSet = [...new Set(DB.revendas.map(r=>r.cs).filter(Boolean))].sort();
+    csSet.forEach(cs=>{ const o=document.createElement('option'); o.value=cs; o.textContent=cs; kbCs.appendChild(o); });
   }
 
-  const f=getKbFilters();
+  const f = getKbFilters();
 
-  board.innerHTML=cols.map(col=>{
-    // Filtra apenas os cards que passam nos filtros ativos desta coluna
-    let cards=DB.revendas.filter(r=> r.status===col && matchesKbFilter(r, f));
+  board.innerHTML = COLS.map(col => {
+    const cards = DB.revendas.filter(r => r.status === col.id && matchesKbFilter(r, f));
+    const totalCol = DB.revendas.filter(r => r.status === col.id).length;
 
-    const cardsHTML=cards.length
-      ? cards.map(r=>{
-          const isSel=kbSelected.has(r.id);
+    const cardsHTML = cards.length
+      ? cards.map(r => {
+          const isSel = kbSelected.has(r.id);
+          // Checklist de produtos (só na etapa Decola Produtos)
+          const prodCheck = col.id === 'Decola Produtos'
+            ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">
+                ${PRODUTOS.map(p => {
+                  const done = (r.produtos||[]).includes(p);
+                  return `<span onclick="toggleProduto('${r.id}','${p}',event)"
+                    style="padding:2px 7px;border-radius:20px;font-size:10px;cursor:pointer;
+                    background:${done?'var(--ok)':'var(--bdr)'};
+                    color:${done?'#fff':'var(--txt3)'};
+                    border:1px solid ${done?'var(--ok)':'var(--bdr)'};
+                    transition:all .15s">${done?'✓ ':''}${p}</span>`;
+                }).join('')}
+              </div>
+              <div style="font-size:10px;color:var(--txt3);margin-top:5px">${(r.produtos||[]).length}/${PRODUTOS.length} produtos</div>`
+            : '';
+          // Barra de progresso por etapa
+          const etapaIdx = COLS.findIndex(c=>c.id===col.id);
+          const pct = Math.round((etapaIdx/(COLS.length-1))*100);
           return `<div class="kcard"
-            draggable="true"
-            data-id="${r.id}"
-            ondragstart="kDragStart(event,'${r.id}')"
-            ondragend="kDragEnd(event)"
-            onclick="kCardClick(event,'${r.id}')"
-            style="cursor:grab;position:relative;border:${isSel?'2px solid var(--acc)':'1px solid var(--bdr)'};background:${isSel?'var(--accl)':''}">
+              draggable="true"
+              data-id="${r.id}"
+              ondragstart="kDragStart(event,'${r.id}')"
+              ondragend="kDragEnd(event)"
+              onclick="kCardClick(event,'${r.id}')"
+              style="cursor:grab;position:relative;
+                border:${isSel?'2px solid var(--acc)':'1px solid var(--bdr)'};
+                background:${isSel?'var(--accl)':''}">
+            <!-- Checkbox seleção -->
             <div style="position:absolute;top:8px;right:8px;z-index:2">
               <div class="kb-chk" onclick="toggleKbSelect('${r.id}',event)"
-                style="width:18px;height:18px;border-radius:4px;background:${isSel?'var(--acc)':'var(--bdr)'};display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;color:#fff;transition:background .15s">
+                style="width:18px;height:18px;border-radius:4px;
+                  background:${isSel?'var(--acc)':'var(--bdr)'};
+                  display:flex;align-items:center;justify-content:center;
+                  cursor:pointer;font-size:11px;color:#fff;transition:background .15s">
                 ${isSel?'✓':''}
               </div>
             </div>
-            <div style="font-size:13px;font-weight:500;margin-bottom:4px;padding-right:24px">${r.nome}</div>
+            <div style="font-size:13px;font-weight:600;margin-bottom:3px;padding-right:24px">${r.nome}</div>
             <div style="font-size:11px;color:var(--txt3)">· ${r.cs||'Sem CS'}</div>
-            ${r.cidade||r.uf?`<div style="font-size:11px;color:var(--txt3)">${r.cidade||''}${r.uf?' · '+r.uf:''}</div>`:''}
-            ${r.contratos?`<div style="font-size:11px;color:var(--txt3)">${r.contratos} contratos${r.curva?' · Curva '+r.curva:''}</div>`:''}
-            <div class="pbar" style="margin-top:8px"><div class="pfill" style="width:${col==='Concluído'?100:col==='Ativo'?75:col==='Trial'?50:col==='Onboarding'?25:10}%;background:${colColors[col]}"></div></div>
-            <div style="margin-top:6px;display:flex;justify-content:space-between;align-items:center">
-              <span style="font-size:11px;color:var(--txt3)">${fmtDate(r.ingresso)}</span>
-              ${r.tpc?`<span class="badge ${+r.tpc<=15?'bg-ok':+r.tpc<=30?'bg-warn':'bg-err'} bg-sm">${r.tpc}d TPC</span>`:''}
+            ${r.contratos ? `<div style="font-size:11px;color:var(--txt3)">${r.contratos} contratos${r.curva?' · Curva '+r.curva:''}</div>` : ''}
+            ${prodCheck}
+            <!-- Barra de progresso da jornada -->
+            <div style="margin-top:8px">
+              <div class="pbar"><div class="pfill" style="width:${pct}%;background:${col.color}"></div></div>
+              <div style="display:flex;justify-content:space-between;margin-top:3px">
+                <span style="font-size:10px;color:var(--txt3)">${fmtDate(r.ingresso)}</span>
+                <span style="font-size:10px;color:${col.color};font-weight:600">${pct}%</span>
+              </div>
             </div>
           </div>`;
         }).join('')
-      : `<div style="font-size:12px;color:var(--txt3);text-align:center;padding:24px 12px;border:2px dashed var(--bdr);border-radius:var(--r)">
-          ${f.search||f.cs||f.dateFrom||f.dateTo?'Nenhum resultado':'Solte aqui'}
+      : `<div style="font-size:12px;color:var(--txt3);text-align:center;padding:20px 10px;
+            border:2px dashed var(--bdr);border-radius:var(--r)">
+          ${f.search||f.cs||f.dateFrom||f.dateTo||f.contratos ? 'Nenhum resultado' : 'Nenhuma revenda'}
          </div>`;
 
-    return`<div class="kc"
-        data-col="${col}"
+    return `<div class="kc" data-col="${col.id}"
         ondragover="kDragOver(event)"
-        ondragenter="kDragEnter(event,'${col}')"
+        ondragenter="kDragEnter(event,'${col.id}')"
         ondragleave="kDragLeave(event)"
-        ondrop="kDrop(event,'${col}')"
-        style="transition:background .15s">
-      <div class="kch" style="margin-bottom:10px">
-        <div style="display:flex;align-items:center;gap:6px">
-          <div class="kct" style="color:${colColors[col]}">${colIcons[col]} ${col}</div>
-          <span class="kcc">${cards.length}</span>
+        ondrop="kDrop(event,'${col.id}')"
+        style="transition:background .15s;min-width:230px;width:230px">
+      <div style="margin-bottom:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:14px">${col.icon}</span>
+            <span style="font-size:12px;font-weight:700;color:${col.color}">${col.id}</span>
+            <span class="kcc">${totalCol}</span>
+            ${cards.length !== totalCol ? `<span style="font-size:10px;color:var(--warn)">(${cards.length} filtradas)</span>` : ''}
+          </div>
+          <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--txt3);cursor:pointer">
+            <input type="checkbox" style="width:13px;height:13px;accent-color:var(--acc)"
+              onchange="selectAllInCol('${col.id}',this.checked)"> todos
+          </label>
         </div>
-        <label title="Selecionar todos desta coluna" style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--txt3);cursor:pointer">
-          <input type="checkbox" style="width:13px;height:13px;accent-color:var(--acc)" onchange="selectAllInCol('${col}',this.checked)"> todos
-        </label>
+        <div class="pbar" style="margin-top:6px;height:3px">
+          <div class="pfill" style="width:${totalCol>0?100:0}%;background:${col.color};opacity:0.4"></div>
+        </div>
       </div>
-      <div class="k-cards" data-col="${col}" style="display:flex;flex-direction:column;gap:8px;flex:1;min-height:60px">
+      <div class="k-cards" data-col="${col.id}"
+        style="display:flex;flex-direction:column;gap:8px;flex:1;min-height:60px">
         ${cardsHTML}
       </div>
-      <button class="btn btn-s btn-sm" style="width:100%;margin-top:8px;justify-content:center;font-size:12px" onclick="openMo('mo-rev')">+ Adicionar</button>
+      <button class="btn btn-s btn-sm"
+        style="width:100%;margin-top:8px;justify-content:center;font-size:11px"
+        onclick="openMo('mo-rev')">+ Adicionar</button>
     </div>`;
   }).join('');
 }
@@ -1142,6 +1212,22 @@ function selectAllInCol(col, checked){
     .filter(r=> r.status===col && matchesKbFilter(r, f))
     .forEach(r=>{ if(checked) kbSelected.add(r.id); else kbSelected.delete(r.id); });
   updateBatchBar();
+  renderKanban();
+}
+
+function toggleProduto(revId, produto, e){
+  e.stopPropagation();
+  const rev = DB.revendas.find(r=>r.id===revId);
+  if(!rev) return;
+  if(!rev.produtos) rev.produtos = [];
+  const idx = rev.produtos.indexOf(produto);
+  if(idx > -1) rev.produtos.splice(idx,1);
+  else rev.produtos.push(produto);
+  persist('revendas');
+  // Atualiza só o card sem re-renderizar tudo
+  const tags = document.querySelectorAll(`.kcard[data-id="${revId}"] span[onclick]`);
+  const done = rev.produtos.includes(produto);
+  // Re-render kanban para atualizar contadores
   renderKanban();
 }
 
