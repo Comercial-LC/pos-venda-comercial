@@ -419,7 +419,33 @@ select option{background:var(--bg2)}
       <div class="g2">
         <div>
           <div class="card" style="margin-bottom:16px">
-            <div class="ct" style="margin-bottom:14px">📤 Upload de Planilha</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div class="ct">📤 Upload de Planilha</div>
+              <button class="btn btn-d btn-sm" onclick="abrirLimparDados()">🗑️ Limpar todos os dados</button>
+            </div>
+
+            <!-- Controle anti-duplicata -->
+            <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;margin-bottom:14px">
+              <div style="font-size:12px;font-weight:600;margin-bottom:8px">🛡️ Controle de duplicatas</div>
+              <div style="display:flex;gap:16px;flex-wrap:wrap">
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;color:var(--txt2)">
+                  <input type="radio" name="import-mode" value="skip" checked style="accent-color:var(--acc)">
+                  <span><strong>Ignorar</strong> duplicatas (recomendado)</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;color:var(--txt2)">
+                  <input type="radio" name="import-mode" value="update" style="accent-color:var(--acc)">
+                  <span><strong>Atualizar</strong> existentes</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;color:var(--txt2)">
+                  <input type="radio" name="import-mode" value="replace" style="accent-color:var(--warn)">
+                  <span><strong>Substituir tudo</strong> (apaga e reimporta)</span>
+                </label>
+              </div>
+              <div style="font-size:11px;color:var(--txt3);margin-top:8px">
+                Duplicata detectada por: <strong>nome da revenda</strong> ou <strong>ID de origem</strong>
+              </div>
+            </div>
+
             <div class="uz" onclick="document.getElementById('fileInput').click()">
               <div style="font-size:38px;margin-bottom:10px">📊</div>
               <div style="font-weight:500;margin-bottom:6px">Clique ou arraste o arquivo aqui</div>
@@ -750,6 +776,41 @@ select option{background:var(--bg2)}
       <div class="fg"><label>Senha inicial</label><input id="u-senha" type="password" placeholder="Senha temporária"></div>
     </div>
     <div class="mof"><button class="btn btn-s" onclick="closeMo('mo-user')">Cancelar</button><button class="btn btn-p" onclick="saveUser()">👤 Salvar Usuário</button></div>
+  </div>
+</div>
+
+<!-- Modal: Limpar todos os dados -->
+<div class="mo-ov" id="mo-limpar">
+  <div class="mo" style="width:480px">
+    <div class="moh">
+      <div class="mot" style="color:var(--err)">🗑️ Limpar dados do sistema</div>
+      <button class="btn btn-s btn-sm" onclick="closeMo('mo-limpar')">✕</button>
+    </div>
+    <div class="mob">
+      <div class="alert al-warn" style="margin-bottom:16px">
+        <span>⚠️</span>
+        <span><strong>Atenção:</strong> Esta ação apaga dados permanentemente do banco de dados. Não pode ser desfeita.</span>
+      </div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px">O que deseja apagar?</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+        <label class="cb"><input type="checkbox" id="del-revendas" checked> Todas as revendas e históricos</label>
+        <label class="cb"><input type="checkbox" id="del-tarefas" checked> Todas as tarefas</label>
+        <label class="cb"><input type="checkbox" id="del-atividades"> Timeline e atividades</label>
+        <label class="cb"><input type="checkbox" id="del-handovers"> Handovers</label>
+        <label class="cb"><input type="checkbox" id="del-treinamentos"> Treinamentos</label>
+      </div>
+      <div style="font-size:13px;margin-bottom:8px;color:var(--txt2)">
+        Digite <strong style="color:var(--err)">CONFIRMAR</strong> para prosseguir:
+      </div>
+      <input type="text" id="del-confirm-input" placeholder="Digite CONFIRMAR"
+        oninput="document.getElementById('btn-confirmar-limpeza').disabled=this.value!=='CONFIRMAR'">
+    </div>
+    <div class="mof">
+      <button class="btn btn-s" onclick="closeMo('mo-limpar')">Cancelar</button>
+      <button class="btn btn-d" id="btn-confirmar-limpeza" disabled onclick="executarLimpeza()">
+        🗑️ Apagar dados selecionados
+      </button>
+    </div>
   </div>
 </div>
 
@@ -2207,9 +2268,33 @@ async function confirmImport(rows){
     <div style="font-size:12px;color:var(--txt3);margin-top:6px">Aguarde, isso pode levar alguns segundos</div>
   </div>`;
 
-  let ok=0,err=0;
+  // Modo de importação selecionado
+  const modeEl = document.querySelector('input[name="import-mode"]:checked');
+  const mode = modeEl ? modeEl.value : 'skip'; // skip | update | replace
+
+  // Se modo "substituir tudo": apaga antes de inserir
+  if(mode === 'replace'){
+    const {error:delErr} = await sb.from('revendas')
+      .delete().neq('id','00000000-0000-0000-0000-000000000000');
+    if(delErr){ toast('Erro ao limpar: '+delErr.message,'err'); return; }
+    toast('Dados anteriores removidos. Importando...','warn');
+  }
+
+  // Busca nomes e IDs já existentes para detectar duplicatas
+  let nomesExistentes = new Set();
+  let origensExistentes = new Set();
+  if(mode !== 'replace'){
+    const {data:exist} = await sb.from('revendas').select('nome,id_origem');
+    (exist||[]).forEach(r=>{
+      if(r.nome)      nomesExistentes.add(r.nome.toLowerCase().trim());
+      if(r.id_origem) origensExistentes.add(r.id_origem.toString().trim());
+    });
+  }
+
+  let ok=0, skip=0, updated=0, err=0;
   const errs=[];
-  const batch=[];
+  const toInsert=[];
+  const toUpdate=[];
   rows.forEach((row,i)=>{
     // Aceita colunas do relatório nativo ("revenda") ou nomes alternativos
     const nome=(
@@ -2260,10 +2345,43 @@ async function confirmImport(rows){
       ingresso,
       criadoEm:new Date().toISOString(),
     };
-    batch.push(obj);ok++;
+    // Verifica duplicata
+    const nomeNorm = obj.nome.toLowerCase().trim();
+    const origemStr = (obj.idOrigem||'').toString().trim();
+    const isDup = nomesExistentes.has(nomeNorm) ||
+                  (origemStr && origensExistentes.has(origemStr));
+
+    if(isDup && mode === 'skip'){
+      skip++;
+    } else if(isDup && mode === 'update'){
+      toUpdate.push(obj);
+    } else {
+      toInsert.push(obj);
+    }
   });
-  if(batch.length){
-    const userId = session.user.id;
+  const userId = session.user.id;
+  const makeRow = r => ({
+    nome:       r.nome,
+    cnpj:       r.cnpj       || null,
+    cidade:     r.cidade     || null,
+    uf:         r.uf         || null,
+    email:      r.email      || null,
+    tel:        r.tel        || null,
+    cs:         r.cs         || null,
+    status:     'Nova Revenda',
+    segmento:   r.segmento   || null,
+    porte:      r.porte      || null,
+    contratos:  r.contratos  ? (parseInt(r.contratos)||0) : null,
+    curva:      r.curva      || null,
+    ingresso:   r.ingresso   || today(),
+    id_origem:  r.idOrigem   || null,
+    obs:        r.obs        || null,
+    criado_por: userId,
+  });
+
+  // ── INSERÇÃO de novos ──────────────────────────────────────
+  if(toInsert.length){
+    const userId2 = session.user.id;
     // Testa com 1 registro primeiro
     const teste = {
       nome: batch[0].nome,
@@ -2297,39 +2415,43 @@ async function confirmImport(rows){
     ok++; // primeiro registro inserido com sucesso
 
     // Insere o restante em lotes de 100
-    for(let i=1;i<batch.length;i+=100){
-      const slice = batch.slice(i, i+100).map(r=>({
-        nome:       r.nome,
-        cnpj:       r.cnpj       || null,
-        cidade:     r.cidade     || null,
-        uf:         r.uf         || null,
-        email:      r.email      || null,
-        tel:        r.tel        || null,
-        cs:         r.cs         || null,
-        status:     'Nova Revenda',
-        segmento:   r.segmento   || null,
-        porte:      r.porte      || null,
-        contratos:  r.contratos  ? (parseInt(r.contratos)||0) : null,
-        curva:      r.curva      || null,
-        ingresso:   r.ingresso   || today(),
-        id_origem:  r.idOrigem   || null,
-        obs:        r.obs        || null,
-        criado_por: userId,
-      }));
+    for(let i=1;i<toInsert.length;i+=100){
+      const slice = toInsert.slice(i, i+100).map(makeRow);
       // Atualiza progresso
       if(prevEl){
-        const pct = Math.round((i/batch.length)*100);
-        prevEl.querySelector('div div:nth-child(2)').textContent =
-          `Importando ${Math.min(i+100,batch.length)} de ${batch.length} registros... (${pct}%)`;
+        try{
+          const pct = Math.round((i/toInsert.length)*100);
+          const el = prevEl.querySelector('div > div:nth-child(2)');
+          if(el) el.textContent = `Importando ${Math.min(i+100,toInsert.length)} de ${toInsert.length}... (${pct}%)`;
+        }catch(e){}
       }
       const {error} = await sb.from('revendas').insert(slice);
       if(error){
-        console.warn('Erro lote:', error.message, slice[0]);
+        console.warn('Erro lote:', error.message);
         err += slice.length;
         errs.push(error.message);
       } else {
         ok += slice.length;
       }
+    }
+  }
+
+  // ── ATUALIZAÇÃO de existentes (modo "update") ──────────────
+  if(toUpdate.length){
+    for(const r of toUpdate){
+      const {error} = await sb.from('revendas')
+        .update({
+          email:     r.email     || null,
+          tel:       r.tel       || null,
+          cidade:    r.cidade    || null,
+          uf:        r.uf        || null,
+          cs:        r.cs        || null,
+          contratos: r.contratos ? (parseInt(r.contratos)||0):null,
+          curva:     r.curva     || null,
+          atualizado_em: new Date().toISOString(),
+        })
+        .or(`nome.ilike.${r.nome},id_origem.eq.${r.idOrigem||'null'}`);
+      if(!error) updated++;
     }
   }
   // Salva histórico de importação
@@ -2819,6 +2941,53 @@ async function renderAuditoria(){
     <td style="font-size:11px;color:var(--txt2);max-width:180px;overflow:hidden;text-overflow:ellipsis">${a.detalhe?JSON.stringify(a.detalhe).slice(0,60):'—'}</td>
     <td style="font-size:11px;white-space:nowrap">${new Date(a.criado_em).toLocaleString('pt-BR')}</td>
   </tr>`).join('');
+}
+
+// ─── LIMPEZA DE DADOS ──────────────────────────────────────────────
+function abrirLimparDados(){
+  document.getElementById('del-confirm-input').value='';
+  document.getElementById('btn-confirmar-limpeza').disabled=true;
+  openMo('mo-limpar');
+}
+
+async function executarLimpeza(){
+  const delRev  = document.getElementById('del-revendas').checked;
+  const delTask = document.getElementById('del-tarefas').checked;
+  const delAtiv = document.getElementById('del-atividades').checked;
+  const delHand = document.getElementById('del-handovers').checked;
+  const delTrai = document.getElementById('del-treinamentos').checked;
+
+  closeMo('mo-limpar');
+  toast('⏳ Apagando dados...','warn');
+
+  const ops = [];
+  if(delRev){
+    ops.push(sb.from('historico_cards').delete().neq('id','00000000-0000-0000-0000-000000000000'));
+    ops.push(sb.from('revendas').delete().neq('id','00000000-0000-0000-0000-000000000000'));
+    ops.push(sb.from('orion_leads_vendidos').delete().neq('id','00000000-0000-0000-0000-000000000000'));
+  }
+  if(delTask)  ops.push(sb.from('tarefas').delete().neq('id','00000000-0000-0000-0000-000000000000'));
+  if(delAtiv)  ops.push(sb.from('atividades').delete().neq('id','00000000-0000-0000-0000-000000000000'));
+  if(delHand)  ops.push(sb.from('handovers').delete().neq('id','00000000-0000-0000-0000-000000000000'));
+  if(delTrai)  ops.push(sb.from('treinamentos').delete().neq('id','00000000-0000-0000-0000-000000000000'));
+
+  const results = await Promise.all(ops);
+  const erros = results.filter(r=>r.error).map(r=>r.error.message);
+
+  logAuditoria('DELETE_ALL','sistema',null,{
+    tabelas:{revendas:delRev,tarefas:delTask,atividades:delAtiv,handovers:delHand,treinamentos:delTrai}
+  });
+
+  if(erros.length){
+    toast('Erro ao apagar: '+erros[0],'err');
+    console.error('Erros limpeza:', erros);
+  } else {
+    toast('✅ Dados apagados com sucesso!','ok');
+  }
+
+  await loadFromSupabase();
+  renderDashboard();
+  renderRevendas();
 }
 
 // ─── Migração de status das revendas importadas ─────────────────────
