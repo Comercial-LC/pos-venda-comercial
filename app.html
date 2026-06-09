@@ -2194,13 +2194,18 @@ function showImportPreview(rows,filename){
 
 async function confirmImport(rows){
   if(!rows||!rows.length){toast('Nenhum dado para importar','err');return}
-  // Feedback visual
+
+  // Verifica sessão ativa
+  const {data:{session}} = await sb.auth.getSession();
+  if(!session){toast('Sessão expirada. Faça login novamente.','err');return}
+
   const prevEl = document.getElementById('import-preview');
   if(prevEl) prevEl.innerHTML = `<div style="text-align:center;padding:24px">
     <div style="font-size:32px;margin-bottom:10px">⏳</div>
     <div style="font-size:14px;font-weight:600">Importando ${rows.length} registros...</div>
     <div style="font-size:12px;color:var(--txt3);margin-top:6px">Aguarde, isso pode levar alguns segundos</div>
   </div>`;
+
   let ok=0,err=0;
   const errs=[];
   const batch=[];
@@ -2257,10 +2262,43 @@ async function confirmImport(rows){
     batch.push(obj);ok++;
   });
   if(batch.length){
-    // Insere em lotes de 50
-    for(let i=0;i<batch.length;i+=50){
-      const slice=batch.slice(i,i+50).map(r=>({
-        nome:r.nome,
+    const userId = session.user.id;
+    // Testa com 1 registro primeiro
+    const teste = {
+      nome: batch[0].nome,
+      email: batch[0].email || null,
+      tel: batch[0].tel || null,
+      cidade: batch[0].cidade || null,
+      uf: batch[0].uf || null,
+      cs: batch[0].cs || null,
+      status: 'Nova Revenda',
+      contratos: batch[0].contratos ? (parseInt(batch[0].contratos)||0) : null,
+      curva: batch[0].curva || null,
+      ingresso: batch[0].ingresso || today(),
+      id_origem: batch[0].idOrigem || null,
+      criado_por: userId,
+    };
+    const {error:testeErr} = await sb.from('revendas').insert([teste]);
+    if(testeErr){
+      console.error('Teste de inserção falhou:', testeErr);
+      if(prevEl) prevEl.innerHTML = `<div class="alert al-warn" style="margin:16px">
+        <span>⚠️</span>
+        <div>
+          <div style="font-weight:600">Erro ao inserir no banco:</div>
+          <div style="font-size:12px;margin-top:4px">${testeErr.message}</div>
+          <div style="font-size:11px;color:var(--txt3);margin-top:8px">
+            Verifique o console do browser (F12) para mais detalhes.
+          </div>
+        </div>
+      </div>`;
+      return;
+    }
+    ok++; // primeiro registro inserido com sucesso
+
+    // Insere o restante em lotes de 100
+    for(let i=1;i<batch.length;i+=100){
+      const slice = batch.slice(i, i+100).map(r=>({
+        nome:       r.nome,
         cnpj:       r.cnpj       || null,
         cidade:     r.cidade     || null,
         uf:         r.uf         || null,
@@ -2275,12 +2313,21 @@ async function confirmImport(rows){
         ingresso:   r.ingresso   || today(),
         id_origem:  r.idOrigem   || null,
         obs:        r.obs        || null,
-        criado_por: sessaoAtual?.user?.id || null,
+        criado_por: userId,
       }));
+      // Atualiza progresso
+      if(prevEl){
+        const pct = Math.round((i/batch.length)*100);
+        prevEl.querySelector('div div:nth-child(2)').textContent =
+          `Importando ${Math.min(i+100,batch.length)} de ${batch.length} registros... (${pct}%)`;
+      }
       const {error} = await sb.from('revendas').insert(slice);
       if(error){
-        console.warn('Erro lote importação:', error.message);
-        errs.push('Lote '+(Math.floor(i/50)+1)+': '+error.message);
+        console.warn('Erro lote:', error.message, slice[0]);
+        err += slice.length;
+        errs.push(error.message);
+      } else {
+        ok += slice.length;
       }
     }
   }
