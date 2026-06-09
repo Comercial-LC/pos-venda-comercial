@@ -980,6 +980,23 @@ function getKbFilters(){
   };
 }
 
+// Retorna true se a revenda passa em todos os filtros ativos (ignora status/col)
+function matchesKbFilter(r, f){
+  if(f.search && !(r.nome||'').toLowerCase().includes(f.search) && !(r.cs||'').toLowerCase().includes(f.search)) return false;
+  if(f.cs && r.cs !== f.cs) return false;
+  if(f.dateFrom && r.ingresso && r.ingresso < f.dateFrom) return false;
+  if(f.dateTo && r.ingresso && r.ingresso > f.dateTo) return false;
+  if(f.contratos){
+    const c = parseInt(r.contratos||'0', 10) || 0;
+    if(f.contratos==='sem'    && c > 0)          return false;
+    if(f.contratos==='1-10'   && (c<1||c>10))    return false;
+    if(f.contratos==='11-50'  && (c<11||c>50))   return false;
+    if(f.contratos==='51-200' && (c<51||c>200))  return false;
+    if(f.contratos==='200+'   && c <= 200)        return false;
+  }
+  return true;
+}
+
 function clearKbFilters(){
   ['kb-search','kb-cs','kb-date-from','kb-date-to','kb-contratos'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
@@ -1022,10 +1039,15 @@ function toggleKbSelect(id, e){
 
 function batchMove(newStatus){
   if(!kbSelected.size)return;
+  const f=getKbFilters();
   const names=[];
+  const skip=[];
   kbSelected.forEach(id=>{
     const rev=DB.revendas.find(r=>r.id===id);
-    if(!rev||rev.status===newStatus)return;
+    if(!rev)return;
+    // Só move se ainda passa nos filtros ativos E não está já no destino
+    if(!matchesKbFilter(rev, f)){ skip.push(id); return; }
+    if(rev.status===newStatus)return;
     const old=rev.status;
     rev.status=newStatus;
     names.push(rev.nome);
@@ -1034,7 +1056,8 @@ function batchMove(newStatus){
   });
   persist('revendas');persist('atividades');
   kbSelected.clear();
-  toast(`${names.length} revenda(s) movida(s) para ${newStatus}`);
+  if(names.length) toast(`${names.length} revenda(s) movida(s) para ${newStatus}`);
+  else toast('Nenhuma revenda movida — verifique os filtros ativos','warn');
   renderKanban();drawPipelineChart();updateBatchBar();
 }
 
@@ -1055,22 +1078,8 @@ function renderKanban(){
   const f=getKbFilters();
 
   board.innerHTML=cols.map(col=>{
-    let cards=DB.revendas.filter(r=>{
-      if(r.status!==col)return false;
-      if(f.search&&!(r.nome||'').toLowerCase().includes(f.search)&&!(r.cs||'').toLowerCase().includes(f.search))return false;
-      if(f.cs&&r.cs!==f.cs)return false;
-      if(f.dateFrom&&r.ingresso&&r.ingresso<f.dateFrom)return false;
-      if(f.dateTo&&r.ingresso&&r.ingresso>f.dateTo)return false;
-      if(f.contratos){
-        const c=parseInt(r.contratos||'0',10)||0;
-        if(f.contratos==='sem'&&c>0)return false;
-        if(f.contratos==='1-10'&&(c<1||c>10))return false;
-        if(f.contratos==='11-50'&&(c<11||c>50))return false;
-        if(f.contratos==='51-200'&&(c<51||c>200))return false;
-        if(f.contratos==='200+'&&c<=200)return false;
-      }
-      return true;
-    });
+    // Filtra apenas os cards que passam nos filtros ativos desta coluna
+    let cards=DB.revendas.filter(r=> r.status===col && matchesKbFilter(r, f));
 
     const cardsHTML=cards.length
       ? cards.map(r=>{
@@ -1129,14 +1138,9 @@ function renderKanban(){
 
 function selectAllInCol(col, checked){
   const f=getKbFilters();
-  DB.revendas.filter(r=>{
-    if(r.status!==col)return false;
-    if(f.search&&!(r.nome||'').toLowerCase().includes(f.search))return false;
-    if(f.cs&&r.cs!==f.cs)return false;
-    if(f.dateFrom&&r.ingresso&&r.ingresso<f.dateFrom)return false;
-    if(f.dateTo&&r.ingresso&&r.ingresso>f.dateTo)return false;
-    return true;
-  }).forEach(r=>{ if(checked)kbSelected.add(r.id); else kbSelected.delete(r.id); });
+  DB.revendas
+    .filter(r=> r.status===col && matchesKbFilter(r, f))
+    .forEach(r=>{ if(checked) kbSelected.add(r.id); else kbSelected.delete(r.id); });
   updateBatchBar();
   renderKanban();
 }
