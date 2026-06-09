@@ -959,12 +959,11 @@ function initRealtimeSync(){
 // ─── State (gerenciado pelo Supabase — ver loadFromSupabase()) ────
 
 let revPage=0, revPageSize=10, revFilterStatus='';
-// revPage mantido por compatibilidade (paginação removida — lista infinita)
 
 // ─── Theme ─────────────────────────────────────────────────────────
-let isDark=load('theme','dark')==='dark';
+let isDark=(localStorage.getItem('lc_theme')||'dark')==='dark';
 function applyTheme(){document.documentElement.setAttribute('data-theme',isDark?'':'light');document.getElementById('thBtn').textContent=isDark?'🌙':'☀️'}
-function toggleTheme(){isDark=!isDark;save('theme',isDark?'dark':'light');applyTheme()}
+function toggleTheme(){isDark=!isDark;localStorage.setItem('lc_theme',isDark?'dark':'light');applyTheme()}
 applyTheme();
 
 // ─── Nav ───────────────────────────────────────────────────────────
@@ -995,6 +994,8 @@ function closeMo(id){document.getElementById(id).classList.remove('op')}
 document.querySelectorAll('.mo-ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('op')}));
 
 function populateSelects(){
+  if(!DB.usuarios) DB.usuarios=[];
+  if(!DB.revendas) DB.revendas=[];
   const csOpts=DB.usuarios.filter(u=>u.ativo).map(u=>`<option>${u.nome}</option>`).join('');
   const revOpts=DB.revendas.map(r=>`<option>${r.nome}</option>`).join('');
   ['r-cs','t-resp','h-cs'].forEach(id=>{const el=document.getElementById(id);if(el){const cur=el.value;el.innerHTML='<option value="">Selecione</option>'+csOpts;el.value=cur}});
@@ -1120,7 +1121,7 @@ function renderRevendas(){
   const ufF=document.getElementById('rev-uf')?.value||'';
   const csF=document.getElementById('rev-cs')?.value||'';
   const statusFinal=revFilterStatus||stF;
-  const data=DB.revendas.filter(r=>{
+  const data=(DB.revendas||[]).filter(r=>{
     const matchQ=!srch||(r.nome||'').toLowerCase().includes(srch)||(r.cnpj||'').includes(srch)||(r.cidade||'').toLowerCase().includes(srch)||(r.email||'').toLowerCase().includes(srch);
     const matchS=!statusFinal||r.status===statusFinal;
     const matchU=!ufF||r.uf===ufF;
@@ -1159,10 +1160,10 @@ function renderRevendas(){
 
 // ─── DASHBOARD ─────────────────────────────────────────────────────
 function renderDashboard(){
-  const rv=DB.revendas;
+  const rv=DB.revendas||[];
   const onb=rv.filter(r=>r.status==='Onboarding').length;
   const ativ=rv.filter(r=>r.status==='Ativo').length;
-  const task=DB.tarefas;
+  const task=DB.tarefas||[];
   const tAtras=task.filter(t=>t.status!=='Concluída'&&t.vencimento&&t.vencimento<today()).length;
   const tpcs=rv.filter(r=>r.tpc).map(r=>+r.tpc);
   const tpcMed=tpcs.length?Math.round(tpcs.reduce((a,b)=>a+b,0)/tpcs.length):0;
@@ -1372,7 +1373,7 @@ async function batchMove(newStatus){
   const names=[];
   const ids=[...kbSelected];
   for(const id of ids){
-    const rev=DB.revendas.find(r=>r.id===id);
+    const rev=(DB.revendas||[]).find(r=>r.id===id);
     if(!rev) continue;
     if(!matchesKbFilter(rev, f)) continue;
     if(rev.status===newStatus) continue;
@@ -1515,7 +1516,7 @@ function renderKanban(){
 
 function selectAllInCol(col, checked){
   const f=getKbFilters();
-  DB.revendas
+  (DB.revendas||[])
     .filter(r=> r.status===col && matchesKbFilter(r, f))
     .forEach(r=>{ if(checked) kbSelected.add(r.id); else kbSelected.delete(r.id); });
   updateBatchBar();
@@ -1850,8 +1851,8 @@ function renderTasks(){
   const prioF=document.getElementById('task-filter-prio')?.value||'';
   const stF=document.getElementById('task-filter-status')?.value||'';
   const t=today();
-  const urgent=DB.tarefas.filter(task=>task.status!=='Concluída'&&task.vencimento&&task.vencimento<t);
-  const todayT=DB.tarefas.filter(task=>task.status!=='Concluída'&&task.vencimento===t);
+  const urgent=(DB.tarefas||[]).filter(task=>task.status!=='Concluída'&&task.vencimento&&task.vencimento<t);
+  const todayT=(DB.tarefas||[]).filter(task=>task.status!=='Concluída'&&task.vencimento===t);
   const uEl=document.getElementById('urgent-tasks');
   const tEl=document.getElementById('today-tasks');
   const ucEl=document.getElementById('urgent-count');
@@ -1867,7 +1868,7 @@ function renderTasks(){
     <div style="flex:1"><div style="font-size:12px;font-weight:500">${task.titulo}</div><div style="font-size:11px;color:var(--txt3)">${task.revenda||'Sem revenda'}</div></div>
     <button class="btn btn-ok btn-sm" onclick="concludeTask('${task.id}')">✓</button>
   </div>`).join(''):`<div class="empty" style="padding:16px">Nenhuma tarefa vence hoje</div>`;
-  const all=DB.tarefas.filter(t=>(!prioF||t.prioridade===prioF)&&(!stF||t.status===stF));
+  const all=(DB.tarefas||[]).filter(t=>(!prioF||t.prioridade===prioF)&&(!stF||t.status===stF));
   const prioC={Alta:'bg-err',Média:'bg-warn',Baixa:'bg-acc'};
   const stC={Pendente:'st-tr','Em andamento':'st-on',Concluída:'st-dn'};
   const atb=document.getElementById('all-tasks-body');
@@ -1972,11 +1973,11 @@ function renderTreinamentos(){
   const concEl=document.getElementById('tr-conc');
   if(concEl)concEl.textContent='—';
   const revEl=document.getElementById('tr-rev');
-  if(revEl)revEl.textContent=DB.revendas.length;
+  if(revEl)revEl.textContent=(DB.revendas||[]).length;
   const certEl=document.getElementById('tr-cert');
   if(certEl)certEl.textContent='—';
   const prog=document.getElementById('train-prog-tbody');
-  if(prog)prog.innerHTML=DB.revendas.length&&DB.treinamentos.length?DB.revendas.slice(0,8).map(r=>`<tr><td class="tdp">${r.nome}</td><td>${DB.treinamentos[0]?.nome||'—'}</td><td><div style="display:flex;align-items:center;gap:6px"><div class="pbar" style="flex:1"><div class="pfill" style="width:${r.trainProgress||0}%;background:var(--acc)"></div></div><span style="font-size:11px">${r.trainProgress||0}%</span></div></td><td><span class="st ${r.trainProgress===100?'st-ok':r.trainProgress>0?'st-on':'st-tr'}">${r.trainProgress===100?'Concluído':r.trainProgress>0?'Em andamento':'Não iniciado'}</span></td></tr>`).join(''):`<tr><td colspan="4"><div class="empty" style="padding:16px">Cadastre revendas e trilhas para ver o progresso</div></td></tr>`;
+  if(prog)prog.innerHTML=(DB.revendas||[]).length&&(DB.treinamentos||[]).length?DB.revendas.slice(0,8).map(r=>`<tr><td class="tdp">${r.nome}</td><td>${DB.treinamentos[0]?.nome||'—'}</td><td><div style="display:flex;align-items:center;gap:6px"><div class="pbar" style="flex:1"><div class="pfill" style="width:${r.trainProgress||0}%;background:var(--acc)"></div></div><span style="font-size:11px">${r.trainProgress||0}%</span></div></td><td><span class="st ${r.trainProgress===100?'st-ok':r.trainProgress>0?'st-on':'st-tr'}">${r.trainProgress===100?'Concluído':r.trainProgress>0?'Em andamento':'Não iniciado'}</span></td></tr>`).join(''):`<tr><td colspan="4"><div class="empty" style="padding:16px">Cadastre revendas e trilhas para ver o progresso</div></td></tr>`;
 }
 
 // ─── HANDOVER ──────────────────────────────────────────────────────
@@ -2079,7 +2080,7 @@ function deleteHandover(id){
 
 // ─── RELATÓRIOS ────────────────────────────────────────────────────
 function renderRelatorios(){
-  const rv=DB.revendas;
+  const rv=DB.revendas||[];
   const ativ=rv.filter(r=>r.status==='Ativo').length;
   const onb=rv.filter(r=>r.status==='Onboarding').length;
   const tpcs=rv.filter(r=>r.tpc).map(r=>+r.tpc);
@@ -2152,7 +2153,7 @@ function renderRelatorios(){
 
 function exportRelatorio(){
   if(typeof XLSX==='undefined'){toast('Biblioteca XLSX não carregada','err');return}
-  const ws=XLSX.utils.json_to_sheet(DB.revendas.map(r=>({Nome:r.nome,CNPJ:r.cnpj,Cidade:r.cidade,UF:r.uf,Email:r.email,Telefone:r.tel,CS:r.cs,Status:r.status,TPC:r.tpc,Ingresso:fmtDate(r.ingresso),Segmento:r.segmento,Porte:r.porte})));
+  const ws=XLSX.utils.json_to_sheet((DB.revendas||[]).map(r=>({Nome:r.nome,CNPJ:r.cnpj,Cidade:r.cidade,UF:r.uf,Email:r.email,Telefone:r.tel,CS:r.cs,Status:r.status,TPC:r.tpc,Ingresso:fmtDate(r.ingresso),Segmento:r.segmento,Porte:r.porte})));
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Revendas');
   XLSX.writeFile(wb,'relatorio-revendas.xlsx');toast('Relatório exportado!');
 }
@@ -2447,7 +2448,7 @@ function renderUsers(){
   const tb=document.getElementById('user-tbody');
   if(!tb)return;
   const perfClr={Administrador:'var(--pur)',CS_Manager:'var(--acc)',CS_Analyst:'var(--ok)'};
-  tb.innerHTML=DB.usuarios.length?DB.usuarios.map((u,i)=>`<tr>
+  tb.innerHTML=(DB.usuarios||[]).length?(DB.usuarios||[]).map((u,i)=>`<tr>
     <td><div style="display:flex;align-items:center;gap:8px">
       <div class="av" style="background:${avColor(i)}">${u.initials||u.nome.slice(0,2).toUpperCase()}</div>
       <div><div class="tdp">${u.nome}</div><div style="font-size:11px;color:var(--txt3)">${u.email}</div></div>
@@ -2465,8 +2466,8 @@ function renderUsers(){
 }
 
 function updateCurrentUser(){
-  const admins=DB.usuarios.filter(u=>u.perfil==='Administrador'&&u.ativo);
-  const first=admins[0]||DB.usuarios[0];
+  const admins=(DB.usuarios||[]).filter(u=>u.perfil==='Administrador'&&u.ativo);
+  const first=admins[0]||(DB.usuarios||[])[0];
   if(first){
     document.getElementById('currentUserAv').textContent=first.initials||first.nome.slice(0,2).toUpperCase();
     document.getElementById('currentUserName').textContent=first.nome;
@@ -2496,7 +2497,7 @@ document.getElementById('confirm-btn').addEventListener('click',()=>{
 
 
 // ─── ATUALIZAÇÕES IA ────────────────────────────────────────────────
-let aiHistory=load('aiHistory',[]);
+let aiHistory=JSON.parse(localStorage.getItem('lc_aiHistory')||'[]');
 
 function renderAtualizacoes(){
   renderAiHistory();
@@ -2561,7 +2562,7 @@ Seja direto, prático e técnico. Responda em português.`;
     const entry={id:uid(),prompt,response:text,data:new Date().toISOString()};
     aiHistory.push(entry);
     if(aiHistory.length>20)aiHistory=aiHistory.slice(-20);
-    save('aiHistory',aiHistory);
+    localStorage.setItem('lc_aiHistory',JSON.stringify(aiHistory));
     renderAiHistory();
 
   } catch(err) {
