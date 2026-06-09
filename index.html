@@ -235,9 +235,11 @@ select option{background:var(--bg2)}
         <button class="fp-p" onclick="setRevFilter('Handover')">🤝 Handover</button>
       </div>
       <div class="card">
-        <div style="overflow-x:auto">
-          <table>
-            <thead><tr><th>Revenda</th><th>CNPJ</th><th>Cidade/UF</th><th>CS</th><th>Status</th><th>TPC</th><th>Ingresso</th><th>Ações</th></tr></thead>
+        <div style="overflow-x:auto;overflow-y:auto;max-height:70vh">
+          <table style="min-width:800px">
+            <thead style="position:sticky;top:0;background:var(--card);z-index:2">
+              <tr><th>Revenda</th><th>CNPJ</th><th>Cidade/UF</th><th>CS</th><th>Status</th><th>Contratos</th><th>Ingresso</th><th>Ações</th></tr>
+            </thead>
             <tbody id="rev-tbody"></tbody>
           </table>
         </div>
@@ -810,44 +812,39 @@ function renderRevendas(){
   const ufF=document.getElementById('rev-uf')?.value||'';
   const csF=document.getElementById('rev-cs')?.value||'';
   const statusFinal=revFilterStatus||stF;
-  let data=DB.revendas.filter(r=>{
-    const matchQ=!srch||(r.nome||'').toLowerCase().includes(srch)||(r.cnpj||'').includes(srch)||(r.cidade||'').toLowerCase().includes(srch);
+  const data=DB.revendas.filter(r=>{
+    const matchQ=!srch||(r.nome||'').toLowerCase().includes(srch)||(r.cnpj||'').includes(srch)||(r.cidade||'').toLowerCase().includes(srch)||(r.email||'').toLowerCase().includes(srch);
     const matchS=!statusFinal||r.status===statusFinal;
     const matchU=!ufF||r.uf===ufF;
     const matchC=!csF||r.cs===csF;
     return matchQ&&matchS&&matchU&&matchC;
   });
-  const total=data.length;
-  const pages=Math.ceil(total/revPageSize)||1;
-  if(revPage>=pages)revPage=pages-1;
-  const slice=data.slice(revPage*revPageSize,(revPage+1)*revPageSize);
-  const stMap={'Nova Revenda':'st-tr','Implantação':'st-on','Liberação Web':'st-on','Academy':'st-on','Decola Instalação':'st-on','Decola Produtos':'st-on','Primeiro Cliente':'st-ok','Handover':'st-dn'};
+  const stMap={'Nova Revenda':'st-tr','Implantação':'st-on','Liberação Web':'st-on','Academy':'st-on','Decola Instalação':'st-on','Decola Produtos':'st-on','Primeiro Cliente':'st-ok','Handover':'st-dn','Concluído':'st-dn'};
+  const stColor={'Nova Revenda':'var(--txt2)','Implantação':'var(--acc)','Liberação Web':'var(--pur)','Academy':'#ec4899','Decola Instalação':'var(--warn)','Decola Produtos':'#f97316','Primeiro Cliente':'var(--ok)','Handover':'var(--tel)','Concluído':'var(--tel)'};
   const tb=document.getElementById('rev-tbody');
   if(!tb)return;
-  if(!slice.length){tb.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="empty-ic">🏢</div><div>Nenhuma revenda encontrada</div></div></td></tr>`;return}
-  tb.innerHTML=slice.map(r=>`<tr>
+  if(!data.length){
+    tb.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="empty-ic">🏢</div><div>Nenhuma revenda encontrada</div></div></td></tr>`;
+    return;
+  }
+  tb.innerHTML=data.map(r=>`<tr>
     <td><div class="tdp">${r.nome}</div><div style="font-size:11px;color:var(--txt3)">${r.email||''}</div></td>
     <td style="font-size:11px">${r.cnpj||'—'}</td>
     <td>${r.cidade||'—'}${r.uf?' · '+r.uf:''}</td>
     <td>${r.cs||'—'}</td>
-    <td><span class="st ${stMap[r.status]||'st-on'}">${r.status||'Onboarding'}</span></td>
-    <td>${r.tpc?`<span class="badge ${r.tpc<=15?'bg-ok':r.tpc<=30?'bg-warn':'bg-err'} bg-sm">${r.tpc}d</span>`:'—'}</td>
+    <td><span class="st ${stMap[r.status]||'st-on'}" style="color:${stColor[r.status]||'var(--acc)'}">${r.status||'Nova Revenda'}</span></td>
+    <td>${r.contratos?`<span style="font-size:12px;font-weight:600">${r.contratos}</span>`:'—'}</td>
     <td style="font-size:11px">${fmtDate(r.ingresso)}</td>
     <td><div style="display:flex;gap:4px">
       <button class="btn btn-s btn-sm" onclick="editRevenda('${r.id}')">✏️</button>
       <button class="btn btn-d btn-sm" onclick="deleteRevenda('${r.id}')">🗑</button>
     </div></td>
   </tr>`).join('');
+  // Info + sem paginação
   const info=document.getElementById('rev-pag-info');
   const pbtns=document.getElementById('rev-pag-btns');
-  if(info)info.textContent=`Mostrando ${revPage*revPageSize+1}–${Math.min((revPage+1)*revPageSize,total)} de ${total}`;
-  if(pbtns){
-    let html='';
-    if(revPage>0)html+=`<button class="btn btn-s btn-sm" onclick="revPage--;renderRevendas()">← Ant.</button>`;
-    for(let i=0;i<pages;i++)html+=`<button class="btn ${i===revPage?'btn-p':'btn-s'} btn-sm" onclick="revPage=${i};renderRevendas()">${i+1}</button>`;
-    if(revPage<pages-1)html+=`<button class="btn btn-s btn-sm" onclick="revPage++;renderRevendas()">Próx. →</button>`;
-    pbtns.innerHTML=html;
-  }
+  if(info)info.textContent=`Mostrando ${data.length} de ${DB.revendas.length} revendas`;
+  if(pbtns)pbtns.innerHTML='';
   const countEl=document.getElementById('rev-count');
   if(countEl)countEl.textContent=`${DB.revendas.length} revenda(s) cadastrada(s)`;
 }
@@ -1911,9 +1908,32 @@ function renderAiHistory(){
     </div>`).join(''):`<div style="font-size:12px;color:var(--txt3)">Nenhum pedido enviado ainda.</div>`;
 }
 
+// ─── Migração de status das revendas importadas ─────────────────────
+function migrateRevendasStatus(){
+  const oldStatuses = ['Onboarding','Trial','Ativo','Inativo','Concluído'];
+  let changed = 0;
+  DB.revendas.forEach(r=>{
+    // Só migra se o status ainda for um dos antigos OU estiver vazio
+    const isOld = !r.status || oldStatuses.includes(r.status);
+    if(!isOld) return; // já tem etapa nova, não mexe
+    const contratos = parseInt(r.contratos||'0', 10) || 0;
+    if(contratos > 0){
+      r.status = 'Handover';
+    } else {
+      r.status = 'Nova Revenda';
+    }
+    changed++;
+  });
+  if(changed > 0){
+    persist('revendas');
+    console.log(`Migração: ${changed} revenda(s) com status atualizado.`);
+  }
+}
+
 // ─── Init ──────────────────────────────────────────────────────────
 function initApp(){
-  // Se não tem usuário, não cria dados demo — começa vazio
+  // Migra revendas com status antigos para as novas etapas
+  migrateRevendasStatus();
   renderDashboard();
   renderImport();
   updateCurrentUser();
