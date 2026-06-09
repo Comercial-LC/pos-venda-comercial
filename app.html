@@ -829,27 +829,128 @@ async function logAuditoria(acao, tabela='', registroId='', detalhe={}){
   }).catch(()=>{});
 }
 
-// ─── Storage helpers ───────────────────────────────────────────────
-const KEY = 'psr_';
-function load(k,def){try{const v=localStorage.getItem(KEY+k);return v?JSON.parse(v):def}catch{return def}}
-function save(k,v){localStorage.setItem(KEY+k,JSON.stringify(v))}
+// ─── Storage helpers (Supabase como fonte única) ──────────────────
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
-function fmtDate(d){if(!d)return'—';const dt=new Date(d+'T00:00:00');return dt.toLocaleDateString('pt-BR')}
+function fmtDate(d){if(!d)return'—';try{const dt=new Date(d.includes('T')?d:d+'T00:00:00');return dt.toLocaleDateString('pt-BR')}catch{return d}}
 function today(){return new Date().toISOString().slice(0,10)}
 
-// ─── State ─────────────────────────────────────────────────────────
-let DB = {
-  revendas: load('revendas',[]),
-  usuarios: load('usuarios',[]),
-  tarefas:  load('tarefas',[]),
-  atividades: load('atividades',[]),
-  treinamentos: load('treinamentos',[]),
-  handovers: load('handovers',[]),
-  importHistory: load('importHistory',[]),
+// DB em memória — cache local sincronizado com Supabase
+const DB = {
+  revendas:[],usuarios:[],tarefas:[],
+  atividades:[],treinamentos:[],handovers:[],
+  importHistory:[],
 };
-function persist(k){save(k,DB[k])}
+
+// Carrega dados do Supabase para o cache local
+async function loadFromSupabase(){
+  try {
+    const [revs,users,tasks,ativs,trains,handov] = await Promise.all([
+      sb.from('revendas').select('*').order('criado_em',{ascending:false}),
+      sb.from('perfis').select('*').order('nome'),
+      sb.from('tarefas').select('*').order('criado_em',{ascending:false}),
+      sb.from('atividades').select('*').order('criado_em',{ascending:false}).limit(200),
+      sb.from('treinamentos').select('*').order('criado_em',{ascending:false}),
+      sb.from('handovers').select('*').order('criado_em',{ascending:false}),
+    ]);
+    if(revs.data)   DB.revendas     = revs.data.map(normalizeRevenda);
+    if(users.data)  DB.usuarios     = users.data.map(normalizeUsuario);
+    if(tasks.data)  DB.tarefas      = tasks.data.map(normalizeTask);
+    if(ativs.data)  DB.atividades   = ativs.data.map(normalizeAtiv);
+    if(trains.data) DB.treinamentos = trains.data;
+    if(handov.data) DB.handovers    = handov.data.map(normalizeHandover);
+  } catch(e){ console.warn('loadFromSupabase:', e.message); }
+}
+
+// Normaliza campos Supabase → formato do app
+function normalizeRevenda(r){
+  return {...r,
+    id:        r.id,
+    nome:      r.nome||'',
+    cnpj:      r.cnpj||'',
+    cidade:    r.cidade||'',
+    uf:        r.uf||'',
+    email:     r.email||'',
+    tel:       r.tel||'',
+    cs:        r.cs||'',
+    status:    r.status||'Nova Revenda',
+    segmento:  r.segmento||'',
+    porte:     r.porte||'',
+    contratos: r.contratos||'',
+    curva:     r.curva||'',
+    ingresso:  r.ingresso||'',
+    obs:       r.obs||'',
+    produtos:  r.produtos||[],
+    tpc:       r.tpc||'',
+    criadoEm:  r.criado_em,
+  };
+}
+function normalizeUsuario(u){
+  return {...u,
+    id:       u.id,
+    nome:     u.nome||'',
+    email:    u.email||'',
+    perfil:   u.perfil||'CS Analyst',
+    ativo:    u.ativo!==false,
+    initials: u.avatar_iniciais||(u.nome||'??').slice(0,2).toUpperCase(),
+  };
+}
+function normalizeTask(t){
+  return {...t,
+    id:          t.id,
+    titulo:      t.titulo||'',
+    revenda:     t.revenda_nome||'',
+    responsavel: t.responsavel||'',
+    prioridade:  t.prioridade||'Média',
+    vencimento:  t.vencimento||'',
+    tipo:        t.tipo||'',
+    status:      t.status||'Pendente',
+    desc:        t.descricao||'',
+    criadoEm:    t.criado_em,
+  };
+}
+function normalizeAtiv(a){
+  return {...a,
+    id:     a.id,
+    tipo:   a.tipo||'',
+    revenda:a.revenda_nome||'',
+    desc:   a.descricao||'',
+    data:   a.criado_em,
+  };
+}
+function normalizeHandover(h){
+  return {...h,
+    id:         h.id,
+    revenda:    h.revenda_nome||'',
+    cs:         h.cs_nome||'',
+    inicio:     h.inicio||'',
+    prazo:      h.prazo||'',
+    progresso:  h.progresso||0,
+    status:     h.status||'Em andamento',
+    obs:        h.obs||'',
+    checklist:  h.checklist||{},
+  };
+}
+
+// persist() agora salva no Supabase
+async function persist(tabela, id, dados){
+  // Compatibilidade: persist('revendas') sem args → recarrega
+  if(!id){ await loadFromSupabase(); return; }
+}
+
+// Realtime: atualiza cache quando Supabase muda
+function initRealtimeSync(){
+  ['revendas','tarefas','atividades','handovers','perfis'].forEach(tabela => {
+    sb.channel('sync_'+tabela)
+      .on('postgres_changes',{event:'*',schema:'public',table:tabela},
+        async ()=>{ await loadFromSupabase(); renderPanel(document.querySelector('.panel.on')?.id?.replace('p-','')||'dashboard'); }
+      ).subscribe();
+  });
+}
+
+// ─── State (gerenciado pelo Supabase — ver loadFromSupabase()) ────
 
 let revPage=0, revPageSize=10, revFilterStatus='';
+// revPage mantido por compatibilidade (paginação removida — lista infinita)
 
 // ─── Theme ─────────────────────────────────────────────────────────
 let isDark=load('theme','dark')==='dark';
@@ -915,37 +1016,49 @@ function clearAllData(){
 }
 
 // ─── REVENDAS ──────────────────────────────────────────────────────
-function saveRevenda(){
-  const id=document.getElementById('rev-edit-id').value;
-  const nome=document.getElementById('r-nome').value.trim();
+async function saveRevenda(){
+  const editId = document.getElementById('rev-edit-id').value;
+  const nome   = document.getElementById('r-nome').value.trim();
   if(!nome){toast('Nome obrigatório','err');return}
-  const obj={
-    id:id||uid(), nome,
-    cnpj:document.getElementById('r-cnpj').value.trim(),
-    cidade:document.getElementById('r-cidade').value.trim(),
-    uf:document.getElementById('r-uf').value,
-    email:document.getElementById('r-email').value.trim(),
-    tel:document.getElementById('r-tel').value.trim(),
-    cs:document.getElementById('r-cs').value,
-    status:document.getElementById('r-status').value,
-    segmento:document.getElementById('r-seg').value,
-    porte:document.getElementById('r-porte').value,
-    vendedores:document.getElementById('r-vend').value,
-    ingresso:document.getElementById('r-ingresso').value||today(),
-    obs:document.getElementById('r-obs').value.trim(),
-    criadoEm:id?undefined:new Date().toISOString(),
+
+  const payload = {
+    nome,
+    cnpj:      document.getElementById('r-cnpj').value.trim()||null,
+    cidade:    document.getElementById('r-cidade').value.trim()||null,
+    uf:        document.getElementById('r-uf').value||null,
+    email:     document.getElementById('r-email').value.trim()||null,
+    tel:       document.getElementById('r-tel').value.trim()||null,
+    cs:        document.getElementById('r-cs').value||null,
+    status:    document.getElementById('r-status').value||'Nova Revenda',
+    segmento:  document.getElementById('r-seg').value||null,
+    porte:     document.getElementById('r-porte').value||null,
+    obs:       document.getElementById('r-obs').value.trim()||null,
+    ingresso:  document.getElementById('r-ingresso').value||today(),
+    atualizado_em: new Date().toISOString(),
   };
-  if(id){const i=DB.revendas.findIndex(r=>r.id===id);if(i>-1)DB.revendas[i]={...DB.revendas[i],...obj}}
-  else DB.revendas.push(obj);
-  persist('revendas');
+
+  let error, savedId;
+  if(editId){
+    const {error:e} = await sb.from('revendas').update(payload).eq('id',editId);
+    error=e; savedId=editId;
+  } else {
+    payload.criado_por = sessaoAtual?.user?.id;
+    const {data,error:e} = await sb.from('revendas').insert(payload).select('id').single();
+    error=e; savedId=data?.id;
+  }
+
+  if(error){toast('Erro ao salvar: '+error.message,'err');return}
   closeMo('mo-rev');
-  toast(id?'Revenda atualizada!':'Revenda cadastrada com sucesso!');
-  renderRevendas();
-  renderDashboard();
-  // Log atividade e auditoria
-  DB.atividades.push({id:uid(),tipo:'Cadastro',revenda:obj.nome,desc:(id?'Revenda atualizada':'Nova revenda cadastrada')+': '+obj.nome,data:new Date().toISOString()});
-  persist('atividades');
-  logAuditoria(id?'UPDATE':'CREATE','revendas',obj.id,{nome:obj.nome,status:obj.status});
+  toast(editId?'Revenda atualizada!':'Revenda cadastrada com sucesso!');
+  // Log
+  await sb.from('atividades').insert({
+    tipo:'Cadastro', revenda_nome:nome,
+    descricao:(editId?'Revenda atualizada':'Nova revenda cadastrada')+': '+nome,
+    usuario_id:sessaoAtual?.user?.id, usuario_nome:perfilAtual?.nome,
+  });
+  logAuditoria(editId?'UPDATE':'CREATE','revendas',savedId,{nome,status:payload.status});
+  await loadFromSupabase();
+  renderRevendas(); renderDashboard();
 }
 
 function editRevenda(id){
@@ -974,12 +1087,13 @@ function editRevenda(id){
 }
 
 function deleteRevenda(id){
-  confirmAction('Excluir esta revenda permanentemente?',()=>{
-    const revDel=DB.revendas.find(r=>r.id===id);
-    DB.revendas=DB.revendas.filter(r=>r.id!==id);
-    persist('revendas');
+  const revDel=DB.revendas.find(r=>r.id===id);
+  confirmAction('Excluir esta revenda permanentemente?',async()=>{
+    const {error}=await sb.from('revendas').delete().eq('id',id);
+    if(error){toast('Erro ao excluir: '+error.message,'err');return}
     toast('Revenda excluída','warn');
     logAuditoria('DELETE','revendas',id,{nome:revDel?.nome});
+    await loadFromSupabase();
     renderRevendas();renderDashboard();
   });
 }
@@ -1243,26 +1357,25 @@ function toggleKbSelect(id, e){
   }
 }
 
-function batchMove(newStatus){
+async function batchMove(newStatus){
   if(!kbSelected.size)return;
   const f=getKbFilters();
   const names=[];
-  const skip=[];
-  kbSelected.forEach(id=>{
+  const ids=[...kbSelected];
+  for(const id of ids){
     const rev=DB.revendas.find(r=>r.id===id);
-    if(!rev)return;
-    // Só move se ainda passa nos filtros ativos E não está já no destino
-    if(!matchesKbFilter(rev, f)){ skip.push(id); return; }
-    if(rev.status===newStatus)return;
+    if(!rev) continue;
+    if(!matchesKbFilter(rev, f)) continue;
+    if(rev.status===newStatus) continue;
     const old=rev.status;
-    rev.status=newStatus;
+    await sb.from('revendas').update({status:newStatus,atualizado_em:new Date().toISOString()}).eq('id',rev.id);
+    await sb.from('historico_cards').insert({
+      revenda_id:rev.id, tipo:'Mudança de etapa',
+      descricao:`Etapa alterada em lote: ${old} → ${newStatus}`,
+      manual:false, usuario_id:sessaoAtual?.user?.id, usuario_nome:perfilAtual?.nome,
+    });
     names.push(rev.nome);
-    DB.atividades.push({id:uid(),tipo:'Contato realizado',revenda:rev.nome,
-      desc:`Status alterado em lote: ${old} → ${newStatus}`,data:new Date().toISOString()});
-    if(!rev.historico) rev.historico=[];
-    rev.historico.unshift({id:uid(),tipo:'Mudança de etapa',desc:`Etapa alterada em lote: ${old} → ${newStatus}`,data:new Date().toISOString()});
-  });
-  persist('revendas');persist('atividades');
+  }
   kbSelected.clear();
   if(names.length) toast(`${names.length} revenda(s) movida(s) para ${newStatus}`);
   else toast('Nenhuma revenda movida — verifique os filtros ativos','warn');
@@ -1400,19 +1513,15 @@ function selectAllInCol(col, checked){
   renderKanban();
 }
 
-function toggleProduto(revId, produto, e){
+async function toggleProduto(revId, produto, e){
   e.stopPropagation();
-  const rev = DB.revendas.find(r=>r.id===revId);
-  if(!rev) return;
-  if(!rev.produtos) rev.produtos = [];
-  const idx = rev.produtos.indexOf(produto);
-  if(idx > -1) rev.produtos.splice(idx,1);
-  else rev.produtos.push(produto);
-  persist('revendas');
-  // Atualiza só o card sem re-renderizar tudo
-  const tags = document.querySelectorAll(`.kcard[data-id="${revId}"] span[onclick]`);
-  const done = rev.produtos.includes(produto);
-  // Re-render kanban para atualizar contadores
+  const rev=DB.revendas.find(r=>r.id===revId);if(!rev)return;
+  const prods=[...(rev.produtos||[])];
+  const idx=prods.indexOf(produto);
+  if(idx>-1)prods.splice(idx,1); else prods.push(produto);
+  const {error}=await sb.from('revendas').update({produtos:prods,atualizado_em:new Date().toISOString()}).eq('id',revId);
+  if(error){toast('Erro: '+error.message,'err');return}
+  await loadFromSupabase();
   renderKanban();
 }
 
@@ -1446,7 +1555,7 @@ function kDragLeave(e){
   if(!col.contains(e.relatedTarget)){ col.style.background='';col.style.outline=''; }
 }
 
-function kDrop(e, newStatus){
+async function kDrop(e, newStatus){
   e.preventDefault();
   const col=e.currentTarget;
   col.style.background='';col.style.outline='';
@@ -1526,21 +1635,22 @@ function switchCardTab(tab, btn){
   }
 }
 
-function getCardHistorico(id){
-  // Histórico = atividades desta revenda + histórico interno salvo no próprio objeto
-  const rev = DB.revendas.find(r=>r.id===id);
-  const nome = rev ? rev.nome : '';
-  const fromAtiv = DB.atividades.filter(a=>a.revenda===nome);
-  const fromCard = (rev && rev.historico) ? rev.historico : [];
-  return [...fromAtiv.map(a=>({...a,_src:'timeline'})),
-          ...fromCard.map(a=>({...a,_src:'card'}))]
-    .sort((a,b)=>new Date(b.data)-new Date(a.data));
+async function getCardHistorico(id){
+  const rev=DB.revendas.find(r=>r.id===id);
+  const nome=rev?.nome||'';
+  const [{data:hist},{data:ativs}] = await Promise.all([
+    sb.from('historico_cards').select('*').eq('revenda_id',id).order('criado_em',{ascending:false}),
+    sb.from('atividades').select('*').eq('revenda_nome',nome).order('criado_em',{ascending:false}).limit(50),
+  ]);
+  const fromCard=(hist||[]).map(h=>({...h,id:h.id,tipo:h.tipo,desc:h.descricao,data:h.criado_em,_src:'card',manual:h.manual}));
+  const fromAtiv=(ativs||[]).map(a=>({...a,id:a.id,tipo:a.tipo,desc:a.descricao,data:a.criado_em,_src:'timeline'}));
+  return [...fromCard,...fromAtiv].sort((a,b)=>new Date(b.data)-new Date(a.data));
 }
 
-function renderCardHistorico(id){
+async function renderCardHistorico(id){
   const list = document.getElementById('card-historico-list');
   if(!list) return;
-  const hist = getCardHistorico(id);
+  const hist = await getCardHistorico(id);
   const iconMap = {
     'Mudança de etapa':'🔄','📝 Anotação':'📝','📞 Contato realizado':'📞',
     'Contato realizado':'📞','✅ Tarefa concluída':'✅','⚠️ Alerta':'⚠️',
@@ -1570,29 +1680,28 @@ function renderCardHistorico(id){
   }).join('');
 }
 
-function salvarNotaCard(){
-  if(!currentCardId){return;}
-  const txt = document.getElementById('card-nota-txt')?.value.trim();
-  if(!txt){toast('Escreva uma anotação antes de salvar','err');return;}
-  const tipo = document.getElementById('card-nota-tipo')?.value || '📝 Anotação';
-  const rev = DB.revendas.find(r=>r.id===currentCardId);
-  if(!rev) return;
-  if(!rev.historico) rev.historico = [];
-  const entry = {id:uid(), tipo, desc:txt, data:new Date().toISOString()};
-  rev.historico.unshift(entry);
-  persist('revendas');
-  document.getElementById('card-nota-txt').value = '';
+async function salvarNotaCard(){
+  if(!currentCardId)return;
+  const txt=document.getElementById('card-nota-txt')?.value.trim();
+  if(!txt){toast('Escreva uma anotação antes de salvar','err');return}
+  const tipo=document.getElementById('card-nota-tipo')?.value||'📝 Anotação';
+  const {error}=await sb.from('historico_cards').insert({
+    revenda_id:currentCardId, tipo, descricao:txt,
+    manual:true,
+    usuario_id:sessaoAtual?.user?.id,
+    usuario_nome:perfilAtual?.nome||'Você',
+  });
+  if(error){toast('Erro: '+error.message,'err');return}
+  document.getElementById('card-nota-txt').value='';
   toast('Anotação salva!');
   renderCardHistorico(currentCardId);
 }
 
-function deletarNotaCard(revId, notaId){
-  const rev = DB.revendas.find(r=>r.id===revId);
-  if(!rev || !rev.historico) return;
-  rev.historico = rev.historico.filter(h=>h.id!==notaId);
-  persist('revendas');
-  renderCardHistorico(revId);
+async function deletarNotaCard(revId, notaId){
+  const {error}=await sb.from('historico_cards').delete().eq('id',notaId);
+  if(error){toast('Erro: '+error.message,'err');return}
   toast('Anotação excluída','warn');
+  renderCardHistorico(revId);
 }
 
 function renderCardInfo(id){
@@ -1667,24 +1776,34 @@ function initKanbanScroll(){
 }
 
 // ─── TAREFAS ───────────────────────────────────────────────────────
-function saveTask(){
-  const id=document.getElementById('task-edit-id').value;
+async function saveTask(){
+  const editId=document.getElementById('task-edit-id').value;
   const titulo=document.getElementById('t-titulo').value.trim();
   if(!titulo){toast('Título obrigatório','err');return}
-  const obj={
-    id:id||uid(),titulo,
-    revenda:document.getElementById('t-revenda').value,
-    responsavel:document.getElementById('t-resp').value,
+  const revNome=document.getElementById('t-revenda').value;
+  const revObj=DB.revendas.find(r=>r.nome===revNome);
+  const payload={
+    titulo, descricao:document.getElementById('t-desc').value.trim()||null,
+    revenda_id:revObj?.id||null, revenda_nome:revNome||null,
+    responsavel:document.getElementById('t-resp').value||null,
     prioridade:document.getElementById('t-prio').value,
-    vencimento:document.getElementById('t-venc').value,
+    vencimento:document.getElementById('t-venc').value||null,
     tipo:document.getElementById('t-tipo').value,
     status:document.getElementById('t-status').value,
-    desc:document.getElementById('t-desc').value.trim(),
-    criadoEm:id?undefined:new Date().toISOString(),
+    atualizado_em:new Date().toISOString(),
   };
-  if(id){const i=DB.tarefas.findIndex(t=>t.id===id);if(i>-1)DB.tarefas[i]={...DB.tarefas[i],...obj}}
-  else DB.tarefas.push(obj);
-  persist('tarefas');closeMo('mo-task');toast(id?'Tarefa atualizada!':'Tarefa criada!');renderTasks();
+  let error;
+  if(editId){
+    const {error:e}=await sb.from('tarefas').update(payload).eq('id',editId);
+    error=e;
+  } else {
+    payload.criado_por=sessaoAtual?.user?.id;
+    const {error:e}=await sb.from('tarefas').insert(payload);
+    error=e;
+  }
+  if(error){toast('Erro: '+error.message,'err');return}
+  closeMo('mo-task');toast(editId?'Tarefa atualizada!':'Tarefa criada!');
+  await loadFromSupabase();renderTasks();
 }
 
 function editTask(id){
@@ -1702,14 +1821,19 @@ function editTask(id){
   openMo('mo-task');
 }
 
-function concludeTask(id){
-  const i=DB.tarefas.findIndex(t=>t.id===id);
-  if(i>-1){DB.tarefas[i].status='Concluída';persist('tarefas');toast('Tarefa concluída! ✓');renderTasks()}
+async function concludeTask(id){
+  const {error}=await sb.from('tarefas').update({status:'Concluída',atualizado_em:new Date().toISOString()}).eq('id',id);
+  if(error){toast('Erro: '+error.message,'err');return}
+  toast('Tarefa concluída! ✓');
+  await loadFromSupabase();renderTasks();
 }
 
 function deleteTask(id){
-  confirmAction('Excluir esta tarefa?',()=>{
-    DB.tarefas=DB.tarefas.filter(t=>t.id!==id);persist('tarefas');toast('Tarefa excluída','warn');renderTasks();
+  confirmAction('Excluir esta tarefa?',async()=>{
+    const {error}=await sb.from('tarefas').delete().eq('id',id);
+    if(error){toast('Erro: '+error.message,'err');return}
+    toast('Tarefa excluída','warn');
+    await loadFromSupabase();renderTasks();
   });
 }
 
@@ -1756,11 +1880,20 @@ function renderTasks(){
 }
 
 // ─── TIMELINE ──────────────────────────────────────────────────────
-function saveAtividade(){
+async function saveAtividade(){
   const desc=document.getElementById('a-desc').value.trim();
   if(!desc){toast('Descrição obrigatória','err');return}
-  const obj={id:uid(),tipo:document.getElementById('a-tipo').value,revenda:document.getElementById('a-revenda').value,desc,data:new Date().toISOString()};
-  DB.atividades.push(obj);persist('atividades');closeMo('mo-ativ');toast('Atividade registrada!');renderTimeline();
+  const revNome=document.getElementById('a-revenda').value;
+  const revObj=DB.revendas.find(r=>r.nome===revNome);
+  const {error}=await sb.from('atividades').insert({
+    tipo:document.getElementById('a-tipo').value,
+    revenda_id:revObj?.id||null, revenda_nome:revNome||null,
+    descricao:desc,
+    usuario_id:sessaoAtual?.user?.id, usuario_nome:perfilAtual?.nome,
+  });
+  if(error){toast('Erro: '+error.message,'err');return}
+  closeMo('mo-ativ');toast('Atividade registrada!');
+  await loadFromSupabase();renderTimeline();
 }
 
 function renderTimeline(){
@@ -1792,15 +1925,27 @@ function renderTimeline(){
 }
 
 // ─── TREINAMENTOS ──────────────────────────────────────────────────
-function saveTreinamento(){
+async function saveTreinamento(){
   const nome=document.getElementById('tr-nome').value.trim();
   if(!nome){toast('Nome obrigatório','err');return}
-  const obj={id:uid(),nome,modulos:document.getElementById('tr-mod').value||4,duracao:document.getElementById('tr-dur').value||'',desc:document.getElementById('tr-desc').value.trim(),criadoEm:new Date().toISOString()};
-  DB.treinamentos.push(obj);persist('treinamentos');closeMo('mo-train');toast('Trilha criada!');renderTreinamentos();
+  const {error}=await sb.from('treinamentos').insert({
+    nome, modulos:parseInt(document.getElementById('tr-mod').value)||4,
+    duracao:document.getElementById('tr-dur').value||null,
+    descricao:document.getElementById('tr-desc').value.trim()||null,
+    criado_por:sessaoAtual?.user?.id,
+  });
+  if(error){toast('Erro: '+error.message,'err');return}
+  closeMo('mo-train');toast('Trilha criada!');
+  await loadFromSupabase();renderTreinamentos();
 }
 
 function deleteTreinamento(id){
-  confirmAction('Excluir esta trilha?',()=>{DB.treinamentos=DB.treinamentos.filter(t=>t.id!==id);persist('treinamentos');toast('Trilha excluída','warn');renderTreinamentos()});
+  confirmAction('Excluir esta trilha?',async()=>{
+    const {error}=await sb.from('treinamentos').delete().eq('id',id);
+    if(error){toast('Erro: '+error.message,'err');return}
+    toast('Trilha excluída','warn');
+    await loadFromSupabase();renderTreinamentos();
+  });
 }
 
 function renderTreinamentos(){
@@ -1826,13 +1971,28 @@ function renderTreinamentos(){
 }
 
 // ─── HANDOVER ──────────────────────────────────────────────────────
-function saveHandover(){
-  const rev=document.getElementById('h-revenda').value;
-  if(!rev){toast('Selecione uma revenda','err');return}
-  const obj={id:uid(),revenda:rev,cs:document.getElementById('h-cs').value,prazo:document.getElementById('h-prazo').value,obs:document.getElementById('h-obs').value.trim(),inicio:today(),progresso:0,status:'Em andamento',checklist:{contrato:false,docs:false,credenciais:false,treinamento:false,nps:false},criadoEm:new Date().toISOString()};
-  DB.handovers.push(obj);persist('handovers');closeMo('mo-handover');toast('Handover iniciado!');renderHandover();
-  DB.atividades.push({id:uid(),tipo:'Handover iniciado',revenda:rev,desc:`Handover iniciado para ${rev}. Prazo: ${fmtDate(obj.prazo)}`,data:new Date().toISOString()});
-  persist('atividades');
+async function saveHandover(){
+  const revNome=document.getElementById('h-revenda').value;
+  if(!revNome){toast('Selecione uma revenda','err');return}
+  const revObj=DB.revendas.find(r=>r.nome===revNome);
+  const csNome=document.getElementById('h-cs').value;
+  const csObj=DB.usuarios.find(u=>u.nome===csNome);
+  const prazo=document.getElementById('h-prazo').value||null;
+  const {error}=await sb.from('handovers').insert({
+    revenda_id:revObj?.id||null, revenda_nome:revNome,
+    cs_id:csObj?.id||null, cs_nome:csNome||null,
+    prazo, obs:document.getElementById('h-obs').value.trim()||null,
+    inicio:today(), progresso:0, status:'Em andamento',
+    checklist:{contrato:false,docs:false,credenciais:false,treinamento:false,nps:false},
+  });
+  if(error){toast('Erro: '+error.message,'err');return}
+  await sb.from('atividades').insert({
+    tipo:'Handover iniciado', revenda_id:revObj?.id||null, revenda_nome:revNome,
+    descricao:`Handover iniciado. Prazo: ${fmtDate(prazo)}`,
+    usuario_id:sessaoAtual?.user?.id, usuario_nome:perfilAtual?.nome,
+  });
+  closeMo('mo-handover');toast('Handover iniciado!');
+  await loadFromSupabase();renderHandover();
 }
 
 function renderHandover(){
@@ -1875,24 +2035,37 @@ function showHandoverDetail(id){
     </div>`;
 }
 
-function toggleHandoverCheck(hid,key,val){
+async function toggleHandoverCheck(hid,key,val){
   const h=DB.handovers.find(x=>x.id===hid);if(!h)return;
-  h.checklist[key]=val;
-  const done=Object.values(h.checklist).filter(Boolean).length;
-  h.progresso=Math.round(done/5*100);
-  persist('handovers');renderHandover();showHandoverDetail(hid);
+  const newCheck={...h.checklist,[key]:val};
+  const done=Object.values(newCheck).filter(Boolean).length;
+  const prog=Math.round(done/5*100);
+  const {error}=await sb.from('handovers').update({
+    checklist:newCheck,progresso:prog,atualizado_em:new Date().toISOString()
+  }).eq('id',hid);
+  if(error){toast('Erro: '+error.message,'err');return}
+  await loadFromSupabase();renderHandover();showHandoverDetail(hid);
 }
 
-function completeHandover(id){
+async function completeHandover(id){
   const h=DB.handovers.find(x=>x.id===id);if(!h)return;
-  h.status='Concluído';h.progresso=100;persist('handovers');
-  toast('Handover concluído! 🎉');renderHandover();
-  DB.atividades.push({id:uid(),tipo:'Ativação',revenda:h.revenda,desc:`Handover concluído para ${h.revenda}. Parceria ativada!`,data:new Date().toISOString()});
-  persist('atividades');
+  await sb.from('handovers').update({status:'Concluído',progresso:100,atualizado_em:new Date().toISOString()}).eq('id',id);
+  await sb.from('atividades').insert({
+    tipo:'Ativação',revenda_nome:h.revenda,
+    descricao:`Handover concluído para ${h.revenda}. Parceria ativada!`,
+    usuario_id:sessaoAtual?.user?.id,usuario_nome:perfilAtual?.nome,
+  });
+  toast('Handover concluído! 🎉');
+  await loadFromSupabase();renderHandover();
 }
 
 function deleteHandover(id){
-  confirmAction('Excluir este handover?',()=>{DB.handovers=DB.handovers.filter(h=>h.id!==id);persist('handovers');toast('Handover excluído','warn');renderHandover()});
+  confirmAction('Excluir este handover?',async()=>{
+    const {error}=await sb.from('handovers').delete().eq('id',id);
+    if(error){toast('Erro: '+error.message,'err');return}
+    toast('Handover excluído','warn');
+    await loadFromSupabase();renderHandover();
+  });
 }
 
 // ─── RELATÓRIOS ────────────────────────────────────────────────────
@@ -2009,9 +2182,10 @@ function showImportPreview(rows,filename){
     </div>`;
 }
 
-function confirmImport(rows){
+async function confirmImport(rows){
   let ok=0,err=0;
   const errs=[];
+  const batch=[];
   rows.forEach((row,i)=>{
     // Aceita colunas do relatório nativo ("revenda") ou nomes alternativos
     const nome=(
@@ -2062,12 +2236,32 @@ function confirmImport(rows){
       ingresso,
       criadoEm:new Date().toISOString(),
     };
-    DB.revendas.push(obj);ok++;
+    batch.push(obj);ok++;
   });
-  persist('revendas');
-  const hist={data:new Date().toISOString(),total:rows.length,ok,err,errs};
-  DB.importHistory.push(hist);persist('importHistory');
+  if(batch.length){
+    // Insere em lotes de 100
+    for(let i=0;i<batch.length;i+=100){
+      const slice=batch.slice(i,i+100).map(r=>({
+        nome:r.nome, cnpj:r.cnpj||null, cidade:r.cidade||null, uf:r.uf||null,
+        email:r.email||null, tel:r.tel||null, cs:r.cs||null,
+        status:r.status||'Nova Revenda', segmento:r.segmento||null,
+        porte:r.porte||null, contratos:r.contratos?parseInt(r.contratos)||0:null,
+        curva:r.curva||null, ingresso:r.ingresso||today(),
+        id_origem:r.idOrigem||null, obs:r.obs||null,
+        criado_por:sessaoAtual?.user?.id,
+      }));
+      const {error}=await sb.from('revendas').upsert(slice,{onConflict:'id_origem',ignoreDuplicates:true});
+      if(error) errs.push('Lote '+(i/100+1)+': '+error.message);
+    }
+  }
+  // Salva histórico de importação
+  await sb.from('importacoes').insert({
+    total:rows.length, importados:ok, erros:err,
+    detalhes:{errs}, usuario_id:sessaoAtual?.user?.id,
+  });
+  logAuditoria('IMPORT','revendas',null,{total:rows.length,ok,err});
   toast(`Importação concluída: ${ok} importada(s)${err?' · '+err+' erro(s)':''}`,'ok');
+  await loadFromSupabase();
   renderImport();renderRevendas();renderDashboard();
 }
 
@@ -2092,30 +2286,40 @@ function downloadTemplate(){
   XLSX.writeFile(wb,'template-relatorio-revendas.xlsx');toast('Template baixado!');
 }
 
-function renderImport(){
+async function renderImport(){
   const hist=document.getElementById('import-history');
   if(!hist)return;
-  hist.innerHTML=DB.importHistory.length?[...DB.importHistory].reverse().slice(0,5).map(h=>`<div style="padding:10px;border-bottom:1px solid var(--bdr);font-size:12px">
+  const {data}=await sb.from('importacoes').select('*').order('criado_em',{ascending:false}).limit(5);
+  hist.innerHTML=data?.length?data.map(h=>`<div style="padding:10px;border-bottom:1px solid var(--bdr);font-size:12px">
     <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-      <span style="font-weight:500">${new Date(h.data).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</span>
-      <span class="badge ${h.err>0?'bg-warn':'bg-ok'} bg-sm">${h.ok} ok · ${h.err} erro(s)</span>
+      <span style="font-weight:500">${new Date(h.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</span>
+      <span class="badge ${h.erros>0?'bg-warn':'bg-ok'} bg-sm">${h.importados} ok · ${h.erros} erro(s)</span>
     </div>
-    ${h.errs?.length?`<div style="color:var(--err);font-size:11px">${h.errs.slice(0,2).join(' | ')}</div>`:''}
-  </div>`).join(''):`<div style="font-size:12px;color:var(--txt3)">Nenhuma importação realizada.</div>`;
+  </div>`).join(''):'<div style="font-size:12px;color:var(--txt3)">Nenhuma importação realizada.</div>';
 }
 
 // ─── USUÁRIOS ──────────────────────────────────────────────────────
-function saveUser(){
-  const id=document.getElementById('user-edit-id').value;
+async function saveUser(){
+  const editId=document.getElementById('user-edit-id').value;
   const nome=document.getElementById('u-nome').value.trim();
   const email=document.getElementById('u-email').value.trim();
   if(!nome||!email){toast('Nome e e-mail obrigatórios','err');return}
-  const initials=nome.split(' ').map(p=>p[0]).join('').toUpperCase().slice(0,2);
-  const obj={id:id||uid(),nome,email,perfil:document.getElementById('u-perfil').value,depto:document.getElementById('u-depto').value,initials,ativo:true,criadoEm:id?undefined:new Date().toISOString()};
-  if(id){const i=DB.usuarios.findIndex(u=>u.id===id);if(i>-1)DB.usuarios[i]={...DB.usuarios[i],...obj}}
-  else DB.usuarios.push(obj);
-  persist('usuarios');closeMo('mo-user');toast(id?'Usuário atualizado!':'Usuário criado!');renderUsers();
-  updateCurrentUser();
+  const iniciais=nome.split(' ').map(p=>p[0]).join('').toUpperCase().slice(0,2);
+  if(editId){
+    const payload={
+      nome, perfil:document.getElementById('u-perfil').value,
+      avatar_iniciais:iniciais, atualizado_em:new Date().toISOString(),
+    };
+    const {error}=await sb.from('perfis').update(payload).eq('id',editId);
+    if(error){toast('Erro: '+error.message,'err');return}
+    toast('Usuário atualizado!');
+  } else {
+    // Cria via Auth do Supabase — precisa de convite
+    toast('Para adicionar usuários, use o painel Supabase → Authentication → Invite user','warn');
+    closeMo('mo-user');return;
+  }
+  closeMo('mo-user');
+  await loadFromSupabase();renderUsers();updateCurrentUser();
 }
 
 function editUser(id){
@@ -2129,13 +2333,25 @@ function editUser(id){
   openMo('mo-user');
 }
 
-function toggleUserStatus(id){
+async function toggleUserStatus(id){
   const u=DB.usuarios.find(x=>x.id===id);if(!u)return;
-  u.ativo=!u.ativo;persist('usuarios');renderUsers();toast(`Usuário ${u.ativo?'ativado':'desativado'}`);
+  const novoStatus=!u.ativo;
+  const {error}=await sb.from('perfis').update({ativo:novoStatus}).eq('id',id);
+  if(error){toast('Erro: '+error.message,'err');return}
+  toast(`Usuário ${novoStatus?'ativado':'desativado'}`);
+  logAuditoria(novoStatus?'USER_ACTIVATED':'USER_DEACTIVATED','perfis',id,{nome:u.nome});
+  await loadFromSupabase();renderUsers();
 }
 
 function deleteUser(id){
-  confirmAction('Excluir este usuário?',()=>{DB.usuarios=DB.usuarios.filter(u=>u.id!==id);persist('usuarios');toast('Usuário excluído','warn');renderUsers()});
+  const u=DB.usuarios.find(x=>x.id===id);
+  confirmAction('Excluir este usuário?',async()=>{
+    const {error}=await sb.from('perfis').delete().eq('id',id);
+    if(error){toast('Erro: '+error.message,'err');return}
+    toast('Usuário excluído','warn');
+    logAuditoria('DELETE','perfis',id,{nome:u?.nome});
+    await loadFromSupabase();renderUsers();
+  });
 }
 
 const avColors=['#3b82f6','#10b981','#8b5cf6','#f59e0b','#14b8a6','#ef4444','#ec4899'];
