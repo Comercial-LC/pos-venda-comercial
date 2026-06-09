@@ -73,7 +73,11 @@ tr:hover td{background:var(--card2)}
 .fp{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
 .fp-p{padding:5px 14px;border-radius:20px;font-size:12px;border:1px solid var(--bdr);background:transparent;color:var(--txt2);cursor:pointer;transition:var(--tr);font-family:var(--font)}
 .fp-p:hover{border-color:var(--acc);color:var(--acc)}.fp-p.on{background:var(--acc);border-color:var(--acc);color:#fff}
-.kb{display:flex;gap:14px;overflow-x:auto;padding-bottom:14px;min-height:480px}
+.kb-scroll-wrap{overflow-x:auto;overflow-y:visible;position:relative}
+.kb-scroll-top{overflow-x:auto;overflow-y:hidden;height:12px;position:sticky;top:58px;z-index:10;background:var(--bg2);border-bottom:1px solid var(--bdr);margin-bottom:2px}
+.kb-scroll-top-inner{height:1px}
+.kb{display:flex;gap:14px;overflow-x:auto;overflow-y:visible;padding-bottom:14px;min-height:480px;scrollbar-width:none}
+.kb::-webkit-scrollbar{display:none}
 .kc{min-width:250px;width:250px;background:var(--bg2);border-radius:var(--rl);padding:14px;display:flex;flex-direction:column;gap:8px}
 .kch{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
 .kct{font-size:13px;font-weight:600}.kcc{background:var(--bdr);color:var(--txt2);padding:2px 8px;border-radius:20px;font-size:11px}
@@ -294,7 +298,12 @@ select option{background:var(--bg2)}
         <button class="btn btn-s btn-sm" style="margin-left:auto" onclick="clearKbSelection()">Cancelar seleção</button>
       </div>
 
-      <div class="kb" id="kanban-board"></div>
+      <div class="kb-scroll-top" id="kb-scroll-top">
+        <div class="kb-scroll-top-inner" id="kb-scroll-top-inner"></div>
+      </div>
+      <div class="kb-scroll-wrap" id="kb-scroll-wrap">
+        <div class="kb" id="kanban-board"></div>
+      </div>
     </div>
 
     <!-- TAREFAS -->
@@ -554,6 +563,63 @@ select option{background:var(--bg2)}
 </main>
 
 <!-- MODALS -->
+<!-- Detalhe / Histórico do Card -->
+<div class="mo-ov" id="mo-card">
+  <div class="mo" style="width:680px;max-height:92vh">
+    <div class="moh">
+      <div>
+        <div class="mot" id="mo-card-nome">—</div>
+        <div style="font-size:12px;color:var(--txt3);margin-top:2px" id="mo-card-sub">—</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-s btn-sm" id="mo-card-edit-btn" onclick="openCardEdit()">✏️ Editar</button>
+        <button class="btn btn-s btn-sm" onclick="closeMo('mo-card')">✕</button>
+      </div>
+    </div>
+    <div class="mob" style="padding:0">
+      <!-- Abas -->
+      <div style="display:flex;border-bottom:1px solid var(--bdr);padding:0 22px">
+        <button class="card-tab on" onclick="switchCardTab('historico',this)" style="padding:12px 16px;font-size:13px;font-weight:500;border:none;background:none;color:var(--acc);border-bottom:2px solid var(--acc);cursor:pointer">📋 Histórico</button>
+        <button class="card-tab" onclick="switchCardTab('info',this)" style="padding:12px 16px;font-size:13px;font-weight:500;border:none;background:none;color:var(--txt2);border-bottom:2px solid transparent;cursor:pointer">ℹ️ Informações</button>
+        <button class="card-tab" onclick="switchCardTab('produtos',this)" style="padding:12px 16px;font-size:13px;font-weight:500;border:none;background:none;color:var(--txt2);border-bottom:2px solid transparent;cursor:pointer">📦 Produtos</button>
+      </div>
+
+      <!-- Aba Histórico -->
+      <div id="card-tab-historico" style="padding:18px 22px">
+        <!-- Campo de nova anotação -->
+        <div style="background:var(--bg2);border-radius:var(--r);padding:14px;margin-bottom:16px;border:1px solid var(--bdr)">
+          <div style="font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:8px">✏️ Adicionar anotação</div>
+          <textarea id="card-nota-txt" rows="3" placeholder="Escreva uma observação, contato realizado, decisão tomada..." style="margin-bottom:8px"></textarea>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="card-nota-tipo" style="width:180px;padding:7px 10px;font-size:12px">
+              <option>📝 Anotação</option>
+              <option>📞 Contato realizado</option>
+              <option>✅ Tarefa concluída</option>
+              <option>⚠️ Alerta</option>
+              <option>📄 Documento</option>
+              <option>🤝 Reunião</option>
+            </select>
+            <button class="btn btn-p btn-sm" onclick="salvarNotaCard()">Salvar anotação</button>
+          </div>
+        </div>
+        <!-- Lista do histórico -->
+        <div id="card-historico-list" style="display:flex;flex-direction:column;gap:10px;max-height:340px;overflow-y:auto"></div>
+      </div>
+
+      <!-- Aba Informações -->
+      <div id="card-tab-info" style="display:none;padding:18px 22px">
+        <div id="card-info-content" style="display:grid;grid-template-columns:1fr 1fr;gap:12px"></div>
+      </div>
+
+      <!-- Aba Produtos (Decola) -->
+      <div id="card-tab-produtos" style="display:none;padding:18px 22px">
+        <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">Marque os produtos já ativados nesta revenda</div>
+        <div id="card-produtos-list" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Revenda -->
 <div class="mo-ov" id="mo-rev">
   <div class="mo">
@@ -696,7 +762,10 @@ function go(name){
 }
 function renderPanel(name){
   const fn={dashboard:renderDashboard,revendas:renderRevendas,pipeline:renderKanban,tarefas:renderTasks,timeline:renderTimeline,treinamentos:renderTreinamentos,handover:renderHandover,relatorios:renderRelatorios,usuarios:renderUsers,importacao:renderImport,atualizacoes:renderAtualizacoes};
-  if(fn[name])fn[name]();
+  if(fn[name]){
+    fn[name]();
+    if(name==='pipeline') setTimeout(initKanbanScroll, 150);
+  }
 }
 
 // ─── Modals ────────────────────────────────────────────────────────
@@ -1073,6 +1142,8 @@ function batchMove(newStatus){
     names.push(rev.nome);
     DB.atividades.push({id:uid(),tipo:'Contato realizado',revenda:rev.nome,
       desc:`Status alterado em lote: ${old} → ${newStatus}`,data:new Date().toISOString()});
+    if(!rev.historico) rev.historico=[];
+    rev.historico.unshift({id:uid(),tipo:'Mudança de etapa',desc:`Etapa alterada em lote: ${old} → ${newStatus}`,data:new Date().toISOString()});
   });
   persist('revendas');persist('atividades');
   kbSelected.clear();
@@ -1273,14 +1344,209 @@ function kDrop(e, newStatus){
     desc:`Status alterado: ${old} → ${newStatus}`,data:new Date().toISOString()});
   persist('atividades');
   toast(`${rev.nome} → ${newStatus}`);
+  // Registra mudança de etapa no histórico do card
+  if(!rev.historico) rev.historico=[];
+  rev.historico.unshift({id:uid(),tipo:'Mudança de etapa',desc:`Etapa alterada: ${old} → ${newStatus}`,data:new Date().toISOString()});
+  persist('revendas');
   renderKanban();drawPipelineChart();
+  setTimeout(initKanbanScroll, 100);
 }
 
 function kCardClick(e, id){
   if(e.defaultPrevented)return;
-  // Se clicou no checkbox, não abre modal
   if(e.target.classList.contains('kb-chk')||e.target.closest('.kb-chk'))return;
-  editRevenda(id);
+  if(e.target.tagName==='SPAN'&&e.target.getAttribute('onclick')&&e.target.getAttribute('onclick').includes('toggleProduto'))return;
+  openCardModal(id);
+}
+
+// ─── Variável do card aberto ────────────────────────────────────────
+let currentCardId = null;
+const PRODUTOS_LIST = ['Portal da Revenda','LC Pay','Smart TEF','Imendes','Balcão','Gourmet','Dashboard','Shipay','Força de Vendas'];
+const ETAPAS_LIST   = ['Nova Revenda','Implantação','Liberação Web','Academy','Decola Instalação','Decola Produtos','Primeiro Cliente','Handover'];
+const ETAPA_COLORS  = {
+  'Nova Revenda':'var(--txt2)','Implantação':'var(--acc)','Liberação Web':'var(--pur)',
+  'Academy':'#ec4899','Decola Instalação':'var(--warn)','Decola Produtos':'#f97316',
+  'Primeiro Cliente':'var(--ok)','Handover':'var(--tel)'
+};
+
+function openCardModal(id){
+  currentCardId = id;
+  const r = DB.revendas.find(x=>x.id===id);
+  if(!r) return;
+  document.getElementById('mo-card-nome').textContent = r.nome;
+  document.getElementById('mo-card-sub').innerHTML =
+    `<span style="color:${ETAPA_COLORS[r.status]||'var(--acc)'};font-weight:600">${r.status||'—'}</span>
+     &nbsp;·&nbsp; CS: ${r.cs||'—'}
+     &nbsp;·&nbsp; ${r.contratos||'0'} contratos`;
+  document.getElementById('mo-card-edit-btn').dataset.id = id;
+  // Ativa aba histórico por padrão
+  switchCardTab('historico', document.querySelector('.card-tab.on'));
+  renderCardHistorico(id);
+  renderCardInfo(id);
+  renderCardProdutos(id);
+  openMo('mo-card');
+}
+
+function openCardEdit(){
+  closeMo('mo-card');
+  editRevenda(currentCardId);
+}
+
+function switchCardTab(tab, btn){
+  ['historico','info','produtos'].forEach(t=>{
+    const el=document.getElementById('card-tab-'+t);
+    if(el) el.style.display = t===tab ? 'block' : 'none';
+  });
+  document.querySelectorAll('.card-tab').forEach(b=>{
+    b.style.color = 'var(--txt2)';
+    b.style.borderBottomColor = 'transparent';
+    b.classList.remove('on');
+  });
+  if(btn){
+    btn.style.color = 'var(--acc)';
+    btn.style.borderBottomColor = 'var(--acc)';
+    btn.classList.add('on');
+  }
+}
+
+function getCardHistorico(id){
+  // Histórico = atividades desta revenda + histórico interno salvo no próprio objeto
+  const rev = DB.revendas.find(r=>r.id===id);
+  const nome = rev ? rev.nome : '';
+  const fromAtiv = DB.atividades.filter(a=>a.revenda===nome);
+  const fromCard = (rev && rev.historico) ? rev.historico : [];
+  return [...fromAtiv.map(a=>({...a,_src:'timeline'})),
+          ...fromCard.map(a=>({...a,_src:'card'}))]
+    .sort((a,b)=>new Date(b.data)-new Date(a.data));
+}
+
+function renderCardHistorico(id){
+  const list = document.getElementById('card-historico-list');
+  if(!list) return;
+  const hist = getCardHistorico(id);
+  const iconMap = {
+    'Mudança de etapa':'🔄','📝 Anotação':'📝','📞 Contato realizado':'📞',
+    'Contato realizado':'📞','✅ Tarefa concluída':'✅','⚠️ Alerta':'⚠️',
+    '📄 Documento':'📄','🤝 Reunião':'🤝','Cadastro':'🏢','Handover iniciado':'🤝',
+    'Ativação':'🟢','Treinamento concluído':'🎓'
+  };
+  if(!hist.length){
+    list.innerHTML='<div class="empty" style="padding:24px"><div class="empty-ic" style="font-size:28px">📋</div><div>Nenhum histórico ainda</div></div>';
+    return;
+  }
+  list.innerHTML = hist.map(h=>{
+    const icon = iconMap[h.tipo] || '📋';
+    const dt = new Date(h.data).toLocaleString('pt-BR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    const isManual = h._src==='card';
+    return `<div style="display:flex;gap:10px;padding:10px;background:var(--bg2);border-radius:var(--r);border-left:3px solid ${isManual?'var(--pur)':'var(--bdr)'}">
+      <div style="font-size:18px;flex-shrink:0">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <div style="font-size:12px;font-weight:500;color:var(--txt)">${h.tipo}</div>
+          <div style="font-size:10px;color:var(--txt3);white-space:nowrap">${dt}</div>
+        </div>
+        <div style="font-size:12px;color:var(--txt2);margin-top:3px;line-height:1.5">${h.desc}</div>
+        ${isManual?`<div style="font-size:10px;color:var(--pur);margin-top:4px">✏️ Anotação manual</div>`:''}
+      </div>
+      ${isManual?`<button onclick="deletarNotaCard('${id}','${h.id}')" style="background:none;border:none;color:var(--txt3);cursor:pointer;font-size:14px;padding:0 4px;flex-shrink:0" title="Excluir">🗑</button>`:''}
+    </div>`;
+  }).join('');
+}
+
+function salvarNotaCard(){
+  if(!currentCardId){return;}
+  const txt = document.getElementById('card-nota-txt')?.value.trim();
+  if(!txt){toast('Escreva uma anotação antes de salvar','err');return;}
+  const tipo = document.getElementById('card-nota-tipo')?.value || '📝 Anotação';
+  const rev = DB.revendas.find(r=>r.id===currentCardId);
+  if(!rev) return;
+  if(!rev.historico) rev.historico = [];
+  const entry = {id:uid(), tipo, desc:txt, data:new Date().toISOString()};
+  rev.historico.unshift(entry);
+  persist('revendas');
+  document.getElementById('card-nota-txt').value = '';
+  toast('Anotação salva!');
+  renderCardHistorico(currentCardId);
+}
+
+function deletarNotaCard(revId, notaId){
+  const rev = DB.revendas.find(r=>r.id===revId);
+  if(!rev || !rev.historico) return;
+  rev.historico = rev.historico.filter(h=>h.id!==notaId);
+  persist('revendas');
+  renderCardHistorico(revId);
+  toast('Anotação excluída','warn');
+}
+
+function renderCardInfo(id){
+  const rev = DB.revendas.find(r=>r.id===id);
+  if(!rev) return;
+  const el = document.getElementById('card-info-content');
+  if(!el) return;
+  const fields = [
+    {l:'Nome',v:rev.nome},{l:'E-mail',v:rev.email},{l:'Telefone',v:rev.tel},
+    {l:'Cidade / UF',v:(rev.cidade||'')+(rev.uf?' · '+rev.uf:'')},
+    {l:'CNPJ',v:rev.cnpj},{l:'Segmento',v:rev.segmento},{l:'Porte',v:rev.porte},
+    {l:'Responsável CS',v:rev.cs},{l:'Contratos',v:rev.contratos},
+    {l:'Curva ABC',v:rev.curva},{l:'Ingresso',v:fmtDate(rev.ingresso)},{l:'Observações',v:rev.obs},
+  ];
+  el.innerHTML = fields.map(f=>`
+    <div style="padding:10px;background:var(--bg2);border-radius:var(--r)">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--txt3);margin-bottom:3px">${f.l}</div>
+      <div style="font-size:13px;font-weight:500">${f.v||'—'}</div>
+    </div>`).join('');
+}
+
+function renderCardProdutos(id){
+  const rev = DB.revendas.find(r=>r.id===id);
+  const el  = document.getElementById('card-produtos-list');
+  if(!rev||!el) return;
+  el.innerHTML = PRODUTOS_LIST.map(p=>{
+    const done = (rev.produtos||[]).includes(p);
+    return `<div onclick="toggleProdutoCard('${id}','${p}')"
+      style="padding:8px 14px;border-radius:20px;font-size:13px;cursor:pointer;
+        border:2px solid ${done?'var(--ok)':'var(--bdr)'};
+        background:${done?'var(--okl)':'transparent'};
+        color:${done?'var(--ok)':'var(--txt2)'};
+        transition:all .15s;display:flex;align-items:center;gap:6px">
+      <span>${done?'✅':'⬜'}</span>${p}
+    </div>`;
+  }).join('');
+  const cnt = (rev.produtos||[]).length;
+  el.innerHTML += `<div style="width:100%;margin-top:8px;font-size:12px;color:var(--txt3)">${cnt}/${PRODUTOS_LIST.length} produtos ativados</div>`;
+}
+
+function toggleProdutoCard(revId, produto){
+  const rev = DB.revendas.find(r=>r.id===revId);
+  if(!rev) return;
+  if(!rev.produtos) rev.produtos = [];
+  const idx = rev.produtos.indexOf(produto);
+  if(idx>-1) rev.produtos.splice(idx,1);
+  else rev.produtos.push(produto);
+  persist('revendas');
+  renderCardProdutos(revId);
+  renderKanban();
+  // Registra no histórico
+  const acao = idx>-1 ? 'removido' : 'ativado';
+  if(!rev.historico) rev.historico=[];
+  rev.historico.unshift({id:uid(),tipo:'✅ Tarefa concluída',desc:`Produto ${acao}: ${produto}`,data:new Date().toISOString()});
+  persist('revendas');
+  renderCardHistorico(revId);
+}
+
+// ─── Sincronização de scroll: barra do topo ↔ kanban board ──────────
+function initKanbanScroll(){
+  const board = document.getElementById('kanban-board');
+  const top   = document.getElementById('kb-scroll-top');
+  const inner = document.getElementById('kb-scroll-top-inner');
+  if(!board||!top||!inner) return;
+  // Ajusta largura do inner para o scroll funcionar
+  function syncWidth(){ inner.style.width = board.scrollWidth + 'px'; }
+  syncWidth();
+  new ResizeObserver(syncWidth).observe(board);
+  // Sincroniza scroll bidirecional
+  top.addEventListener('scroll',  ()=>{ board.scrollLeft = top.scrollLeft; }, {passive:true});
+  board.addEventListener('scroll', ()=>{ top.scrollLeft  = board.scrollLeft; }, {passive:true});
 }
 
 // ─── TAREFAS ───────────────────────────────────────────────────────
