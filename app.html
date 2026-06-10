@@ -1187,19 +1187,23 @@ async function renderTVDashboard(){
   const task = DB.tarefas  || [];
 
   // ── KPIs ──────────────────────────────────────────────────
-  const ETAPAS = ['Nova Revenda','Implantação','Liberação Web','Academy',
-                  'Decola Instalação','Decola Produtos','Primeiro Cliente','Handover'];
-  const emJornada   = rv.filter(r=>!['Primeiro Cliente','Handover'].includes(r.status)).length;
-  const primCliente = rv.filter(r=>r.status==='Primeiro Cliente').length;
-  const handover    = rv.filter(r=>r.status==='Handover').length;
+  // Usa etapas configuradas — igual ao dashboard principal
+  const etapas      = getEtapas();
+  const ETAPAS      = etapas.map(e=>e.id);
+  const ultimaEtapa    = etapas[etapas.length-1]?.id || 'Handover';
+  const penultimaEtapa = etapas[etapas.length-2]?.id || 'Primeiro Cliente';
+
+  const emJornada   = rv.filter(r=>r.status!==ultimaEtapa && r.status!==penultimaEtapa).length;
+  const primCliente = rv.filter(r=>r.status===penultimaEtapa).length;
+  const handover    = rv.filter(r=>r.status===ultimaEtapa).length;
   const atrasadas   = task.filter(t=>t.status!=='Concluída'&&t.vencimento&&t.vencimento<today()).length;
 
   const kpisEl = document.getElementById('tv-kpis');
   if(kpisEl) kpisEl.innerHTML = [
-    {icon:'🏢', label:'Total de Revendas',   val:rv.length,      cor:'var(--acc)'},
-    {icon:'🚀', label:'Em Jornada',          val:emJornada,      cor:'var(--ok)'},
-    {icon:'👤', label:'Primeiro Cliente',    val:primCliente,    cor:'var(--pur)'},
-    {icon:'🤝', label:'Handover',            val:handover,       cor:'var(--tel)'},
+    {icon:'🏢', label:'Total de Revendas', val:rv.length,      cor:'var(--acc)'},
+    {icon:'🚀', label:'Em Jornada',        val:emJornada,      cor:'var(--ok)'},
+    {icon:'👤', label:penultimaEtapa,      val:primCliente,    cor:'var(--pur)'},
+    {icon:'🤝', label:ultimaEtapa,         val:handover,       cor:'var(--tel)'},
   ].map(k=>`
     <div style="background:var(--card);border:1px solid var(--bdr);border-radius:16px;
       padding:24px;text-align:center;border-top:4px solid ${k.cor}">
@@ -1243,25 +1247,19 @@ async function renderTVDashboard(){
   // ── Pipeline por etapa ────────────────────────────────────
   const pipeEl = document.getElementById('tv-pipeline');
   if(pipeEl){
-    const CORES = {
-      'Nova Revenda':'var(--txt2)','Implantação':'var(--acc)','Liberação Web':'var(--pur)',
-      'Academy':'#ec4899','Decola Instalação':'var(--warn)','Decola Produtos':'#f97316',
-      'Primeiro Cliente':'var(--ok)','Handover':'var(--tel)',
-    };
-    const ICONS = {'Nova Revenda':'🆕','Implantação':'🔧','Liberação Web':'🌐',
-      'Academy':'🎓','Decola Instalação':'🚀','Decola Produtos':'📦',
-      'Primeiro Cliente':'👤','Handover':'🤝'};
-    const maxVal = Math.max(...ETAPAS.map(e=>rv.filter(r=>r.status===e).length),1);
-    pipeEl.innerHTML = ETAPAS.map(e=>{
-      const cnt = rv.filter(r=>r.status===e).length;
+    // Usa cores das etapas configuradas
+    const maxVal = Math.max(...etapas.map(e=>rv.filter(r=>r.status===e.id).length),1);
+    pipeEl.innerHTML = etapas.map(e=>{
+      const cnt = rv.filter(r=>r.status===e.id).length;
       const pct = Math.round(cnt/maxVal*100);
+      const cor = e.cor || 'var(--acc)';
       return `<div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:16px;width:20px;text-align:center">${ICONS[e]}</span>
-        <span style="font-size:12px;color:var(--txt2);width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e}</span>
+        <span style="font-size:16px;width:20px;text-align:center">${e.icon}</span>
+        <span style="font-size:12px;color:var(--txt2);width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.id}</span>
         <div style="flex:1;background:var(--bdr);border-radius:4px;height:10px;overflow:hidden">
-          <div style="height:100%;background:${CORES[e]};width:${pct}%;border-radius:4px"></div>
+          <div style="height:100%;background:${cor};width:${pct}%;border-radius:4px"></div>
         </div>
-        <span style="font-size:14px;font-weight:700;color:${CORES[e]};width:32px;text-align:right">${cnt}</span>
+        <span style="font-size:14px;font-weight:700;color:${cor};width:32px;text-align:right">${cnt}</span>
       </div>`;
     }).join('');
   }
