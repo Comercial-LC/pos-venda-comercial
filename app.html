@@ -1183,6 +1183,8 @@ async function renderTVDashboard(){
       if(backup) DB.revendas = JSON.parse(backup);
     } catch(e){}
   }
+  // Garante que a config está carregada do Supabase
+  if(!_cfgCache) await carregarCfgDoSupabase();
   const rv   = DB.revendas || [];
   const task = DB.tarefas  || [];
 
@@ -3701,15 +3703,47 @@ const CAMPOS_PADRAO = [
 ];
 
 // Carrega configurações salvas ou usa padrão
+// Cache de config em memória — carregado do Supabase
+let _cfgCache = null;
+
 function getCfg(){
+  // Usa cache em memória se disponível
+  if(_cfgCache) return _cfgCache;
+  // Fallback localStorage
   try {
     const s = localStorage.getItem('lc_cfg');
     return s ? JSON.parse(s) : {};
   } catch(e){ return {}; }
 }
-function saveCfg(obj){
+
+async function saveCfg(obj){
   const atual = getCfg();
-  localStorage.setItem('lc_cfg', JSON.stringify({...atual,...obj}));
+  const nova  = {...atual, ...obj};
+  _cfgCache   = nova;
+  // Salva no localStorage (rápido)
+  try { localStorage.setItem('lc_cfg', JSON.stringify(nova)); } catch(e){}
+  // Salva no Supabase (sincroniza TV e outros dispositivos)
+  await sb.from('configuracoes').upsert({
+    chave: 'lc_cfg',
+    valor: JSON.stringify(nova),
+    atualizado_em: new Date().toISOString()
+  }, {onConflict: 'chave'}).catch(()=>{});
+}
+
+async function carregarCfgDoSupabase(){
+  try {
+    const {data} = await sb.from('configuracoes')
+      .select('valor').eq('chave','lc_cfg').single();
+    if(data?.valor){
+      const cfg = JSON.parse(data.valor);
+      _cfgCache = cfg;
+      // Sincroniza localStorage também
+      try { localStorage.setItem('lc_cfg', data.valor); } catch(e){}
+      console.log('✅ Config carregada do Supabase');
+    }
+  } catch(e){
+    console.warn('Config Supabase indisponível, usando localStorage');
+  }
 }
 
 function getEtapas(){
@@ -4173,7 +4207,8 @@ function initApp(){
   initAuth().then(async ok=>{
     if(!ok) return;
 
-    // ── PASSO 0: Aplica configurações visuais salvas ─────────
+    // ── PASSO 0: Carrega configurações do Supabase e aplica ──
+    await carregarCfgDoSupabase();
     aplicarConfigsSalvas();
 
     // ── PASSO 1: Restaura backup imediatamente ────────────────
