@@ -1918,7 +1918,6 @@ async function batchMove(newStatus){
   const f   = getKbFilters();
   const ids = [...kbSelected];
 
-  // Filtra apenas os que realmente precisam mover
   const toMove = (DB.revendas||[]).filter(r=>
     ids.includes(r.id) &&
     matchesKbFilter(r, f) &&
@@ -1931,70 +1930,52 @@ async function batchMove(newStatus){
     return;
   }
 
-  const idsToMove = toMove.map(r => r.id);
-
-  // Guarda status original ANTES de qualquer alteração
+  // Guarda status original antes de qualquer mudança
   const statusOriginal = {};
   toMove.forEach(r => { statusOriginal[r.id] = r.status; });
 
-  // ── 1. Persiste no Supabase PRIMEIRO ──────────────────────
-  console.log('batchMove: atualizando', idsToMove.length, 'IDs para', newStatus);
-  console.log('IDs:', idsToMove.slice(0,3));
+  const idsToMove  = toMove.map(r => r.id);
+  const agora      = new Date().toISOString();
 
-  const {data: updData, error} = await sb
-    .from('revendas')
-    .update({ status: newStatus, atualizado_em: new Date().toISOString() })
-    .in('id', idsToMove)
-    .select('id, status');
+  // ── Atualiza um por um para evitar problemas com .in() ────
+  // Mais lento mas mais confiável
+  let ok = 0, fail = 0;
+  toast(`⏳ Movendo ${toMove.length} revenda(s)...`);
 
-  console.log('batchMove resultado:', {updData, error});
+  for(const rev of toMove){
+    const {error} = await sb
+      .from('revendas')
+      .update({ status: newStatus, atualizado_em: agora })
+      .eq('id', rev.id);
 
-  if(error){
-    toast('Erro: ' + error.message, 'err');
-    console.error('batchMove error:', error);
-    return;
+    if(error){
+      console.error('Erro ao mover', rev.nome, error.message);
+      fail++;
+    } else {
+      ok++;
+      // Atualiza cache local
+      const i = DB.revendas.findIndex(x => x.id === rev.id);
+      if(i > -1) DB.revendas[i].status = newStatus;
+
+      // Registra histórico
+      sb.from('historico_cards').insert({
+        revenda_id:   rev.id,
+        tipo:         'Mudança de etapa',
+        descricao:    `${statusOriginal[rev.id]} → ${newStatus}`,
+        manual:       false,
+        usuario_id:   sessaoAtual?.user?.id  || null,
+        usuario_nome: perfilAtual?.nome      || 'Sistema',
+      }).catch(e => console.warn('hist:', e.message));
+    }
   }
 
-  const salvas = updData ? updData.length : 0;
-  console.log('Salvas:', salvas, 'de', idsToMove.length);
-
-  if(salvas === 0){
-    // Tenta verificar se o RLS está bloqueando
-    const {data: check} = await sb.from('revendas')
-      .select('id, status').in('id', idsToMove.slice(0,1));
-    console.log('Check revenda atual:', check);
-    toast(`⚠️ 0 revendas salvas. Verifique o console (F12)`, 'err');
-    return;
-  }
-
-  // ── 2. Registra histórico com status ORIGINAL correto ──────
-  const hist = toMove.map(r => ({
-    revenda_id:   r.id,
-    tipo:         'Mudança de etapa',
-    descricao:    `${statusOriginal[r.id]} → ${newStatus}`,
-    manual:       false,
-    usuario_id:   sessaoAtual?.user?.id  || null,
-    usuario_nome: perfilAtual?.nome      || 'Sistema',
-  }));
-  await sb.from('historico_cards')
-    .insert(hist)
-    .catch(e => console.warn('Histórico batch:', e.message));
-
-  // ── 3. Atualiza cache local com dados confirmados ──────────
-  toMove.forEach(r => {
-    const i = DB.revendas.findIndex(x => x.id === r.id);
-    if(i > -1) DB.revendas[i].status = newStatus;
-  });
-
-  // Atualiza também o sessionStorage backup
+  // Atualiza backup sessionStorage
   try {
     sessionStorage.setItem('sb_revendas_backup', JSON.stringify(
-      DB.revendas.map(r=>({
-        id:r.id, nome:r.nome, status:r.status, cs:r.cs,
-        contratos:r.contratos, curva:r.curva, ingresso:r.ingresso,
-        cidade:r.cidade, uf:r.uf, email:r.email, tel:r.tel,
-        produtos:r.produtos, id_origem:r.id_origem, criadoEm:r.criadoEm
-      }))
+      DB.revendas.map(r=>({id:r.id,nome:r.nome,status:r.status,
+        cs:r.cs,contratos:r.contratos,curva:r.curva,ingresso:r.ingresso,
+        cidade:r.cidade,uf:r.uf,email:r.email,tel:r.tel,
+        produtos:r.produtos,id_origem:r.id_origem,criadoEm:r.criadoEm}))
     ));
   } catch(e){}
 
@@ -2002,7 +1983,11 @@ async function batchMove(newStatus){
   updateBatchBar();
   renderKanban();
   drawPipelineChart();
-  toast(`✅ ${salvas} revenda(s) movida(s) para ${newStatus}`);
+
+  if(fail > 0)
+    toast(`⚠️ ${ok} movida(s), ${fail} com erro`, 'warn');
+  else
+    toast(`✅ ${ok} revenda(s) movida(s) para ${newStatus}`);
 }
 
 function renderKanban(){
@@ -2190,24 +2175,53 @@ function kDragLeave(e){
 async function kDrop(e, newStatus){
   e.preventDefault();
   const col=e.currentTarget;
-  col.style.background='';col.style.outline='';
-  const id=e.dataTransfer.getData('text/plain')||dragId;
-  if(!id)return;
-  const rev=DB.revendas.find(r=>r.id===id);
-  if(!rev||rev.status===newStatus)return;
-  const old=rev.status;
-  rev.status=newStatus;
-  persist('revendas');
-  DB.atividades.push({id:uid(),tipo:'Contato realizado',revenda:rev.nome,
-    desc:`Status alterado: ${old} → ${newStatus}`,data:new Date().toISOString()});
-  persist('atividades');
-  toast(`${rev.nome} → ${newStatus}`);
-  // Registra mudança de etapa no histórico do card
-  if(!rev.historico) rev.historico=[];
-  rev.historico.unshift({id:uid(),tipo:'Mudança de etapa',desc:`Etapa alterada: ${old} → ${newStatus}`,data:new Date().toISOString()});
-  persist('revendas');
-  renderKanban();drawPipelineChart();
-  setTimeout(initKanbanScroll, 100);
+  col.style.background=''; col.style.outline='';
+  const id = e.dataTransfer.getData('text/plain')||dragId;
+  if(!id) return;
+  const rev = DB.revendas.find(r=>r.id===id);
+  if(!rev || rev.status===newStatus) return;
+
+  const old = rev.status;
+
+  // Salva no banco
+  const {error} = await sb
+    .from('revendas')
+    .update({ status: newStatus, atualizado_em: new Date().toISOString() })
+    .eq('id', rev.id);
+
+  if(error){
+    toast('Erro: '+error.message, 'err');
+    console.error('kDrop:', error);
+    return;
+  }
+
+  // Registra histórico
+  sb.from('historico_cards').insert({
+    revenda_id:   rev.id,
+    tipo:         'Mudança de etapa',
+    descricao:    `${old} → ${newStatus}`,
+    manual:       false,
+    usuario_id:   sessaoAtual?.user?.id  || null,
+    usuario_nome: perfilAtual?.nome      || 'Sistema',
+  }).catch(e => console.warn('hist kDrop:', e.message));
+
+  // Atualiza cache local
+  const revIdx = DB.revendas.findIndex(r => r.id === rev.id);
+  if(revIdx > -1) DB.revendas[revIdx].status = newStatus;
+
+  // Atualiza backup sessionStorage
+  try {
+    sessionStorage.setItem('sb_revendas_backup', JSON.stringify(
+      DB.revendas.map(r=>({id:r.id,nome:r.nome,status:r.status,
+        cs:r.cs,contratos:r.contratos,curva:r.curva,ingresso:r.ingresso,
+        cidade:r.cidade,uf:r.uf,email:r.email,tel:r.tel,
+        produtos:r.produtos,id_origem:r.id_origem,criadoEm:r.criadoEm}))
+    ));
+  } catch(e){}
+
+  renderKanban();
+  drawPipelineChart();
+  toast(`✅ ${rev.nome} → ${newStatus}`);
 }
 
 function kCardClick(e, id){
