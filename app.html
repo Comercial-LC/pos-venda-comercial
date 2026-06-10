@@ -1146,15 +1146,28 @@ function ativarModoTV(){
   }
 
   // Canais TV — escuta mudanças nas tabelas relevantes
-  ['revendas','orion_metas','atividades'].forEach(tabela => {
+  const tabelasTV = ['revendas','orion_metas','atividades'];
+  tabelasTV.forEach(tabela => {
     sb.channel('tv_watch_'+tabela)
       .on('postgres_changes',
         {event:'*', schema:'public', table:tabela},
-        ()=>{ tvScheduleRefresh(); }
-      ).subscribe();
+        (payload)=>{
+          console.log('📺 TV: mudança detectada em', tabela, payload.eventType);
+          tvScheduleRefresh();
+        }
+      )
+      .subscribe((status)=>{
+        console.log('📺 TV canal', tabela, ':', status);
+      });
   });
 
-  console.log('📺 TV: canais realtime ativos');
+  // Fallback: atualiza a cada 30s independente do realtime
+  setInterval(async ()=>{
+    await loadFromSupabase();
+    renderTVDashboard();
+  }, 30000);
+
+  console.log('📺 TV: canais realtime + polling 30s ativos');
 }
 
 async function renderTVDashboard(){
@@ -2133,7 +2146,9 @@ async function toggleProduto(revId, produto, e){
   if(idx>-1)prods.splice(idx,1); else prods.push(produto);
   const {error}=await sb.from('revendas').update({produtos:prods,atualizado_em:new Date().toISOString()}).eq('id',revId);
   if(error){toast('Erro: '+error.message,'err');return}
-  await loadFromSupabase();
+  // Atualiza cache local sem reload completo
+  const ri=DB.revendas.findIndex(r=>r.id===revId);
+  if(ri>-1) DB.revendas[ri].produtos=prods;
   renderKanban();
 }
 
