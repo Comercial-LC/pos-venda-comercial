@@ -1294,12 +1294,12 @@ async function fazerLogout(){
 // Log de auditoria helper
 async function logAuditoria(acao, tabela='', registroId='', detalhe={}){
   if(!sessaoAtual) return;
-  await sb.from('auditoria').insert({
+  await await sb.from('auditoria').insert({
     usuario_id:sessaoAtual.user.id,
     usuario_nome:perfilAtual?.nome||'',
     usuario_email:sessaoAtual?.user?.email||'',
     acao, tabela, registro_id:registroId||null, detalhe
-  }).catch(()=>{});
+  });
 }
 
 // ─── Storage helpers (Supabase como fonte única) ──────────────────
@@ -1960,15 +1960,9 @@ async function batchMove(newStatus){
     } else {
       ok++;
       // Registra histórico
-      await sb.from('historico_cards').insert({
-        revenda_id:   rev.id,
-        tipo:         'Mudança de etapa',
-        descricao:    `${statusOriginal[rev.id]} → ${newStatus}`,
-        manual:       false,
-        usuario_nome: perfilAtual?.nome || 'Sistema',
-      }).then(({error})=>{
-        if(error) console.error('Hist batch erro:', error.message);
-      });
+      await inserirHistorico(rev.id, 'Mudança de etapa',
+        `${statusOriginal[rev.id]} → ${newStatus}`,
+        perfilAtual?.nome);
     }
   }
 
@@ -2206,14 +2200,14 @@ async function kDrop(e, newStatus){
   }
 
   // Registra histórico
-  sb.from('historico_cards').insert({
+  await sb.from('historico_cards').insert({
     revenda_id:   id,
     tipo:         'Mudança de etapa',
     descricao:    `${old} → ${newStatus}`,
     manual:       false,
     usuario_id:   sessaoAtual?.user?.id  || null,
     usuario_nome: perfilAtual?.nome      || 'Sistema',
-  }).catch(()=>{});
+  });
 
   // Atualiza backup
   try {
@@ -3985,6 +3979,19 @@ function salvarCfgGeral(){
 function aplicarConfigsSalvas(){
   carregarCoresDoStorage();
   carregarIdentidadeDoStorage();
+}
+
+// ── Helper: insere no histórico de forma segura ─────────────
+async function inserirHistorico(revenda_id, tipo, descricao, usuario_nome){
+  const {error} = await sb.from('historico_cards').insert({
+    revenda_id,
+    tipo,
+    descricao,
+    manual:       false,
+    usuario_nome: usuario_nome || perfilAtual?.nome || 'Sistema',
+  });
+  if(error) console.error('inserirHistorico:', error.message);
+  return !error;
 }
 
 // ─── AUDITORIA ────────────────────────────────────────────────────
