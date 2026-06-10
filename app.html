@@ -1183,17 +1183,19 @@ async function renderTVDashboard(){
       if(backup) DB.revendas = JSON.parse(backup);
     } catch(e){}
   }
-  // Garante que a config está carregada do Supabase
-  if(!_cfgCache) await carregarCfgDoSupabase();
+  // Sempre busca config fresca do Supabase na TV
+  await carregarCfgDoSupabase();
   const rv   = DB.revendas || [];
   const task = DB.tarefas  || [];
 
   // ── KPIs ──────────────────────────────────────────────────
-  // Usa etapas configuradas — igual ao dashboard principal
-  const etapas      = getEtapas();
-  const ETAPAS      = etapas.map(e=>e.id);
+  const etapas         = getEtapas();
+  const ETAPAS         = etapas.map(e=>e.id);
   const ultimaEtapa    = etapas[etapas.length-1]?.id || 'Handover';
   const penultimaEtapa = etapas[etapas.length-2]?.id || 'Primeiro Cliente';
+  console.log('📺 TV etapas:', ETAPAS);
+  console.log('📺 TV revendas:', rv.length, '| penúltima:', penultimaEtapa, '| última:', ultimaEtapa);
+  console.log('📺 TV contagem penúltima:', rv.filter(r=>r.status===penultimaEtapa).length);
 
   const emJornada   = rv.filter(r=>r.status!==ultimaEtapa && r.status!==penultimaEtapa).length;
   const primCliente = rv.filter(r=>r.status===penultimaEtapa).length;
@@ -3878,7 +3880,7 @@ function removeEtapa(i){
   });
 }
 
-function salvarEtapas(){
+async function salvarEtapas(){
   const etapas = getEtapas();
   // Lê valores atuais dos inputs antes de salvar
   etapas.forEach((e,i)=>{
@@ -3886,9 +3888,8 @@ function salvarEtapas(){
     e.cor  = document.getElementById('etapa-cor-'+i)?.value  || e.cor;
     e.icon = document.getElementById('etapa-icon-'+i)?.value || e.icon;
   });
-  saveCfg({etapas});
-  toast('✅ Etapas salvas! Recarregue o Pipeline para ver.');
-  // Aplica imediatamente no kanban
+  await saveCfg({etapas});
+  toast('✅ Etapas salvas e sincronizadas com a TV!');
   renderKanban();
 }
 
@@ -3939,13 +3940,13 @@ function atualizarPreviewCores(){
   if(logo) logo.style.background = `linear-gradient(135deg,${acc},${pur})`;
 }
 
-function salvarCores(){
+async function salvarCores(){
   const acc = document.getElementById('cor-acc')?.value;
   const pur = document.getElementById('cor-pur')?.value;
   const bg  = document.getElementById('cor-bg')?.value;
-  saveCfg({corAcc:acc, corPur:pur, corBg:bg});
+  await saveCfg({corAcc:acc, corPur:pur, corBg:bg});
   aplicarCores(acc, pur, bg);
-  toast('✅ Cores aplicadas!');
+  toast('✅ Cores aplicadas e sincronizadas!');
 }
 
 function resetCores(){
