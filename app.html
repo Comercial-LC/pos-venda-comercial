@@ -3439,48 +3439,72 @@ function migrateRevendasStatus(){
 
 // ─── Init ──────────────────────────────────────────────────────────
 function initApp(){
-  // Inicializa autenticação primeiro
-  initAuth().then(ok=>{
+  // Fluxo correto e sequencial:
+  // 1. Autentica
+  // 2. Restaura backup imediato (usuário vê dados enquanto carrega)
+  // 3. Carrega dados frescos do Supabase
+  // 4. Renderiza
+  initAuth().then(async ok=>{
     if(!ok) return;
-    // Migra revendas com status antigos
-    migrateRevendasStatus();
+
+    // ── PASSO 1: Restaura backup imediatamente ────────────────
+    // Usuário vê os dados na tela enquanto o banco carrega
+    try {
+      const backup = sessionStorage.getItem('sb_revendas_backup');
+      if(backup){
+        DB.revendas  = JSON.parse(backup);
+        DB._carregado = true;
+        renderDashboard();
+        console.log('📦 Backup:', DB.revendas.length, 'revendas (exibido enquanto carrega banco)');
+      }
+    } catch(e){}
+
+    // ── PASSO 2: Carrega dados frescos do Supabase ────────────
+    try {
+      await loadFromSupabase();
+    } catch(e){
+      console.error('Erro loadFromSupabase:', e);
+    }
+
+    // ── PASSO 3: Migra status antigos se necessário ───────────
+    if(DB.revendas.length > 0) await migrateRevendasStatus();
+
+    // ── PASSO 4: Renderiza com dados completos ────────────────
     renderDashboard();
-  renderImport();
-  updateCurrentUser();
-    // Resize charts on window resize
-    window.addEventListener('resize',()=>{
-      const panel=document.querySelector('.panel.on');
-      if(panel)renderPanel(panel.id.replace('p-',''));
-    });
+    updateCurrentUser();
+    renderImport();
 
-    // Atualiza metas a cada 5 minutos
-    setInterval(carregarMetas, 5 * 60 * 1000);
-
-    // Verifica novos leads Orion a cada 2 minutos
-    setInterval(verificarLeadsOrion, 2 * 60 * 1000);
+    // ── PASSO 5: Inicia canais Orion (metas + leads) ──────────
+    // NÃO inicia realtime de revendas — causava sumiço de dados
+    carregarMetas();
     verificarLeadsOrion();
 
-    // Realtime: ouve mudanças nas metas
-    sb.channel('orion_metas')
+    setInterval(carregarMetas, 5 * 60 * 1000);
+    setInterval(verificarLeadsOrion, 2 * 60 * 1000);
+
+    sb.channel('orion_metas_ch')
       .on('postgres_changes',
         {event:'*', schema:'public', table:'orion_metas'},
         ()=>{ carregarMetas(); }
-      )
-      .subscribe();
+      ).subscribe();
 
-    // Realtime: ouve novos leads da Orion
-    sb.channel('orion_leads')
+    sb.channel('orion_leads_ch')
       .on('postgres_changes',
         {event:'INSERT', schema:'public', table:'orion_leads_vendidos'},
-        (payload)=>{
-          toast(`🎉 Novo lead da Orion: ${payload.new?.nome||'Lead'}`, 'ok');
+        payload=>{
+          toast('🎉 Novo lead da Orion: '+(payload.new?.nome||'Lead'), 'ok');
           verificarLeadsOrion();
-          renderDashboard();
         }
-      )
-      .subscribe();
+      ).subscribe();
 
-  }); // end initAuth
+    // ── PASSO 6: Resize handler ───────────────────────────────
+    window.addEventListener('resize',()=>{
+      const panel = document.querySelector('.panel.on');
+      if(panel) renderPanel(panel.id.replace('p-',''));
+    });
+
+    console.log('✅ Sistema iniciado:', DB.revendas.length, 'revendas');
+  });
 }
 
 initApp();
