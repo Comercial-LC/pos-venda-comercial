@@ -2458,22 +2458,54 @@ function renderCardProdutos(id){
   el.innerHTML += `<div style="width:100%;margin-top:8px;font-size:12px;color:var(--txt3)">${cnt}/${PRODUTOS_LIST.length} produtos ativados</div>`;
 }
 
-function toggleProdutoCard(revId, produto){
+async function toggleProdutoCard(revId, produto){
   const rev = DB.revendas.find(r=>r.id===revId);
   if(!rev) return;
-  if(!rev.produtos) rev.produtos = [];
-  const idx = rev.produtos.indexOf(produto);
-  if(idx>-1) rev.produtos.splice(idx,1);
-  else rev.produtos.push(produto);
-  persist('revendas');
+
+  // Toggle na lista de produtos
+  const prods   = [...(rev.produtos||[])];
+  const idx     = prods.indexOf(produto);
+  const ativando = idx === -1;
+  if(idx > -1) prods.splice(idx,1);
+  else prods.push(produto);
+
+  // Otimistic UI: atualiza tela imediatamente
+  const revIdx = DB.revendas.findIndex(r=>r.id===revId);
+  if(revIdx > -1) DB.revendas[revIdx].produtos = prods;
   renderCardProdutos(revId);
-  renderKanban();
+
+  // Salva no banco
+  const {error} = await sb.from('revendas')
+    .update({ produtos: prods, atualizado_em: new Date().toISOString() })
+    .eq('id', revId);
+
+  if(error){
+    // Reverte em caso de erro
+    if(revIdx > -1) DB.revendas[revIdx].produtos = rev.produtos||[];
+    renderCardProdutos(revId);
+    toast('Erro: '+error.message, 'err');
+    return;
+  }
+
+  // Atualiza sessionStorage backup
+  try {
+    const backup = JSON.parse(sessionStorage.getItem('sb_revendas_backup')||'[]');
+    const bi = backup.findIndex(r=>r.id===revId);
+    if(bi>-1) backup[bi].produtos = prods;
+    sessionStorage.setItem('sb_revendas_backup', JSON.stringify(backup));
+  } catch(e){}
+
   // Registra no histórico
-  const acao = idx>-1 ? 'removido' : 'ativado';
-  if(!rev.historico) rev.historico=[];
-  rev.historico.unshift({id:uid(),tipo:'✅ Tarefa concluída',desc:`Produto ${acao}: ${produto}`,data:new Date().toISOString()});
-  persist('revendas');
-  renderCardHistorico(revId);
+  await inserirHistorico(revId,
+    '✅ Produto '+( ativando ? 'ativado' : 'removido'),
+    `${ativando ? '✅' : '❌'} ${produto}`,
+    perfilAtual?.nome
+  );
+
+  // Atualiza histórico no modal se estiver aberto
+  if(currentCardId === revId){
+    setTimeout(()=>renderCardHistorico(revId), 200);
+  }
 }
 
 // ─── Sincronização de scroll: barra do topo ↔ kanban board ──────────
