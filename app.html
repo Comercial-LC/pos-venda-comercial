@@ -901,9 +901,9 @@ function ativarModoTV(){
             <div style="font-size:13px;color:var(--txt3)" id="tv-data"></div>
           </div>
         </div>
-        <div style="text-align:right">
-          <div style="font-size:11px;color:var(--txt3);margin-bottom:4px">Próxima atualização em</div>
-          <div style="font-size:28px;font-weight:800;color:var(--acc)" id="tv-countdown">60</div>
+        <div style="text-align:right;display:flex;align-items:center;gap:10px">
+          <div style="width:10px;height:10px;background:var(--ok);border-radius:50%;animation:pulse 2s infinite" id="tv-live-dot"></div>
+          <div style="font-size:13px;color:var(--ok);font-weight:600">AO VIVO</div>
         </div>
       </div>
 
@@ -942,21 +942,31 @@ function ativarModoTV(){
   atualizaRelogio();
   setInterval(atualizaRelogio, 1000);
 
-  // Countdown + auto-refresh a cada 60s
-  let count = 60;
-  setInterval(async ()=>{
-    count--;
-    const el = document.getElementById('tv-countdown');
-    if(el) el.textContent = count;
-    if(count <= 0){
-      count = 60;
-      await loadFromSupabase();
-      renderTVDashboard();
-    }
-  }, 1000);
+  // Realtime: atualiza a TV apenas quando houver mudança no banco
+  const tvChannels = ['revendas','tarefas','atividades','orion_metas'];
+  tvChannels.forEach(tabela => {
+    sb.channel('tv_'+tabela)
+      .on('postgres_changes',{event:'*',schema:'public',table:tabela},
+        async ()=>{
+          await loadFromSupabase();
+          renderTVDashboard();
+          // Pisca o indicador AO VIVO ao receber atualização
+          const dot = document.getElementById('tv-live-dot');
+          if(dot){
+            dot.style.background='var(--acc)';
+            setTimeout(()=>{ dot.style.background='var(--ok)'; }, 1000);
+          }
+        }
+      ).subscribe();
+  });
 }
 
 async function renderTVDashboard(){
+  // Se DB ainda não carregou, aguarda
+  if(!DB._carregado){
+    setTimeout(renderTVDashboard, 800);
+    return;
+  }
   const rv   = DB.revendas || [];
   const task = DB.tarefas  || [];
 
@@ -1400,6 +1410,11 @@ function renderRevendas(){
 
 // ─── DASHBOARD ─────────────────────────────────────────────────────
 function renderDashboard(){
+  // Se ainda não carregou dados, aguarda e tenta novamente
+  if((DB.revendas||[]).length === 0 && !DB._carregado){
+    setTimeout(renderDashboard, 800);
+    return;
+  }
   const rv=DB.revendas||[];
   const onb=rv.filter(r=>r.status==='Onboarding').length;
   const ativ=rv.filter(r=>r.status==='Ativo').length;
@@ -1503,7 +1518,7 @@ function drawOnbChart(){
 function drawPipelineChart(){
   const canvas=document.getElementById('chartPipeline');
   if(!canvas)return;
-  const rv=DB.revendas;
+  const rv=DB.revendas||[];
   const ETAPAS=['Nova Revenda','Implantação','Liberação Web','Academy','Decola Instalação','Decola Produtos','Primeiro Cliente','Handover'];
   const counts={};
   ETAPAS.forEach(e=>counts[e]=0);
