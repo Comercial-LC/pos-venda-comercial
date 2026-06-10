@@ -490,7 +490,16 @@ select option{background:var(--bg2)}
             </div>
           </div>
           <div class="card">
-            <div class="ct" style="margin-bottom:12px">📜 Histórico de Importações</div>
+            <!-- Diagnóstico do banco -->
+          <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;margin-bottom:14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <div style="font-size:12px;font-weight:600">🔍 Estado atual do banco</div>
+              <button class="btn btn-s btn-sm" onclick="verificarBanco()">🔄 Verificar</button>
+            </div>
+            <div id="banco-status" style="font-size:12px;color:var(--txt3)">Clique em Verificar para checar.</div>
+          </div>
+
+          <div class="ct" style="margin-bottom:12px">📜 Histórico de Importações</div>
             <div id="import-history">
               <div style="font-size:12px;color:var(--txt3)">Nenhuma importação realizada.</div>
             </div>
@@ -1269,6 +1278,7 @@ function renderPanel(name){
   if(fn[name]){
     fn[name]();
     if(name==='pipeline') setTimeout(initKanbanScroll, 150);
+    if(name==='importacao') setTimeout(verificarBanco, 500);
   }
 }
 
@@ -2576,6 +2586,9 @@ async function confirmImport(rows){
   const {data:{session}} = await sb.auth.getSession();
   if(!session){toast('Sessão expirada. Faça login novamente.','err');return}
 
+  // Pausa o realtime durante a importação para não interferir
+  DB._importando = true;
+
   const prevEl = document.getElementById('import-preview');
   if(prevEl) prevEl.innerHTML = `<div style="text-align:center;padding:24px">
     <div style="font-size:32px;margin-bottom:10px">⏳</div>
@@ -2791,6 +2804,63 @@ function downloadTemplate(){
   const ws=XLSX.utils.json_to_sheet(template);
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Revendas');
   XLSX.writeFile(wb,'template-relatorio-revendas.xlsx');toast('Template baixado!');
+}
+
+async function verificarBanco(){
+  const el = document.getElementById('banco-status');
+  if(el) el.innerHTML = '<span style="color:var(--warn)">⏳ Verificando...</span>';
+
+  // Conta revendas com paginação exata
+  let total = 0;
+  let pag = 0;
+  while(true){
+    const {data, error} = await sb.from('revendas')
+      .select('status')
+      .range(pag*500, (pag+1)*500-1);
+    if(error || !data || data.length === 0) break;
+    total += data.length;
+    if(data.length < 500) break;
+    pag++;
+  }
+
+  // Conta por status
+  const {data:statusData} = await sb.from('revendas')
+    .select('status')
+    .order('status');
+  
+  const counts = {};
+  (statusData||[]).forEach(r => {
+    counts[r.status] = (counts[r.status]||0) + 1;
+  });
+
+  const statusHtml = Object.entries(counts)
+    .map(([s,c]) => `<span style="margin-right:10px"><strong>${c}</strong> ${s}</span>`)
+    .join('');
+
+  if(el) el.innerHTML = `
+    <div style="margin-bottom:6px">
+      <strong style="color:var(--ok);font-size:14px">${total} revendas</strong> 
+      <span style="color:var(--txt3)">no banco de dados</span>
+      ${total !== DB.revendas.length ? `<span style="color:var(--warn);margin-left:8px">⚠️ Cache local: ${DB.revendas.length}</span>` : ''}
+    </div>
+    <div style="font-size:11px;color:var(--txt3)">${statusHtml||'Sem dados'}</div>
+    ${total !== DB.revendas.length ? `<button class="btn btn-s btn-sm" style="margin-top:8px" onclick="forceSyncDB()">🔄 Sincronizar cache</button>` : ''}
+  `;
+
+  // Sincroniza cache se necessário
+  if(total > 0 && total !== DB.revendas.length){
+    await loadFromSupabase();
+    renderRevendas(); renderDashboard();
+  }
+}
+
+async function forceSyncDB(){
+  toast('⏳ Sincronizando dados do banco...');
+  DB._carregado = false;
+  await loadFromSupabase();
+  renderDashboard(); renderRevendas();
+  toast(`✅ ${DB.revendas.length} revendas carregadas`);
+  verificarBanco();
 }
 
 async function renderImport(){
