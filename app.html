@@ -1681,28 +1681,79 @@ function toggleKbSelect(id, e){
 }
 
 async function batchMove(newStatus){
-  if(!kbSelected.size)return;
-  const f=getKbFilters();
-  const names=[];
-  const ids=[...kbSelected];
-  for(const id of ids){
-    const rev=(DB.revendas||[]).find(r=>r.id===id);
-    if(!rev) continue;
-    if(!matchesKbFilter(rev, f)) continue;
-    if(rev.status===newStatus) continue;
-    const old=rev.status;
-    await sb.from('revendas').update({status:newStatus,atualizado_em:new Date().toISOString()}).eq('id',rev.id);
-    await sb.from('historico_cards').insert({
-      revenda_id:rev.id, tipo:'Mudança de etapa',
-      descricao:`Etapa alterada em lote: ${old} → ${newStatus}`,
-      manual:false, usuario_id:sessaoAtual?.user?.id, usuario_nome:perfilAtual?.nome,
-    });
-    names.push(rev.nome);
+  if(!kbSelected.size){ toast('Selecione ao menos uma revenda','warn'); return; }
+
+  const f   = getKbFilters();
+  const ids = [...kbSelected];
+
+  // Filtra apenas os que realmente precisam mover
+  const toMove = (DB.revendas||[]).filter(r=>
+    ids.includes(r.id) &&
+    matchesKbFilter(r, f) &&
+    r.status !== newStatus
+  );
+
+  if(!toMove.length){
+    toast('Nenhuma revenda para mover','warn');
+    kbSelected.clear(); updateBatchBar();
+    return;
   }
+
+  const idsToMove = toMove.map(r => r.id);
+
+  // ── 1. Atualiza cache local IMEDIATAMENTE ─────────────────
+  // (usuário vê o resultado na hora, sem piscar)
+  toMove.forEach(r => {
+    const i = DB.revendas.findIndex(x => x.id === r.id);
+    if(i > -1) DB.revendas[i].status = newStatus;
+  });
   kbSelected.clear();
-  if(names.length) toast(`${names.length} revenda(s) movida(s) para ${newStatus}`);
-  else toast('Nenhuma revenda movida — verifique os filtros ativos','warn');
-  renderKanban();drawPipelineChart();updateBatchBar();
+  updateBatchBar();
+  renderKanban();
+  drawPipelineChart();
+  toast(`⏳ Salvando ${toMove.length} revenda(s)...`);
+
+  // ── 2. Persiste no Supabase ───────────────────────────────
+  const {error, count} = await sb
+    .from('revendas')
+    .update({ status: newStatus, atualizado_em: new Date().toISOString() })
+    .in('id', idsToMove)
+    .select('id');  // força retorno para checar quantas foram afetadas
+
+  if(error){
+    // Reverte cache local em caso de erro
+    toMove.forEach(r => {
+      const i = DB.revendas.findIndex(x => x.id === r.id);
+      if(i > -1) DB.revendas[i].status = r.status; // status original
+    });
+    renderKanban();
+    toast('Erro ao salvar: ' + error.message + ' — tente novamente', 'err');
+    console.error('batchMove error:', error);
+    return;
+  }
+
+  toast(`✅ ${toMove.length} revenda(s) movida(s) para ${newStatus}`);
+
+  // ── 3. Registra histórico ─────────────────────────────────
+  const hist = toMove.map(r => ({
+    revenda_id:   r.id,
+    tipo:         'Mudança de etapa',
+    descricao:    `${r.status} → ${newStatus}`,
+    manual:       false,
+    usuario_id:   sessaoAtual?.user?.id  || null,
+    usuario_nome: perfilAtual?.nome      || 'Sistema',
+  }));
+  await sb.from('historico_cards').insert(hist).catch(e =>
+    console.warn('Histórico batch:', e.message)
+  );
+
+  // ── 4. Re-carrega do banco para confirmar ─────────────────
+  // (garante que o cache reflete o estado real)
+  setTimeout(async () => {
+    await loadFromSupabase();
+    renderKanban();
+    drawPipelineChart();
+  }, 1500);
 }
 
 function renderKanban(){
