@@ -1919,9 +1919,7 @@ async function batchMove(newStatus){
   const ids = [...kbSelected];
 
   const toMove = (DB.revendas||[]).filter(r=>
-    ids.includes(r.id) &&
-    matchesKbFilter(r, f) &&
-    r.status !== newStatus
+    ids.includes(r.id) && matchesKbFilter(r,f) && r.status !== newStatus
   );
 
   if(!toMove.length){
@@ -1930,46 +1928,58 @@ async function batchMove(newStatus){
     return;
   }
 
-  // Guarda status original antes de qualquer mudança
+  // Guarda status original
   const statusOriginal = {};
   toMove.forEach(r => { statusOriginal[r.id] = r.status; });
 
-  const idsToMove  = toMove.map(r => r.id);
-  const agora      = new Date().toISOString();
+  // ── Atualiza cache e tela IMEDIATAMENTE ───────────────────
+  toMove.forEach(r => {
+    const i = DB.revendas.findIndex(x=>x.id===r.id);
+    if(i > -1) DB.revendas[i].status = newStatus;
+  });
+  kbSelected.clear();
+  updateBatchBar();
+  renderKanban();
+  drawPipelineChart();
+  toast(`⏳ Salvando ${toMove.length} revenda(s)...`);
 
-  // ── Atualiza um por um para evitar problemas com .in() ────
-  // Mais lento mas mais confiável
-  let ok = 0, fail = 0;
-  toast(`⏳ Movendo ${toMove.length} revenda(s)...`);
-
+  // ── Salva no banco em background ──────────────────────────
+  let ok=0, fail=0;
   for(const rev of toMove){
     const {error} = await sb
       .from('revendas')
-      .update({ status: newStatus, atualizado_em: agora })
+      .update({ status: newStatus, atualizado_em: new Date().toISOString() })
       .eq('id', rev.id);
 
     if(error){
-      console.error('Erro ao mover', rev.nome, error.message);
+      // Reverte este card
+      const i = DB.revendas.findIndex(x=>x.id===rev.id);
+      if(i > -1) DB.revendas[i].status = statusOriginal[rev.id];
       fail++;
+      console.error('Erro ao mover', rev.nome, error.message);
     } else {
       ok++;
-      // Atualiza cache local
-      const i = DB.revendas.findIndex(x => x.id === rev.id);
-      if(i > -1) DB.revendas[i].status = newStatus;
-
-      // Registra histórico
+      // Histórico em background
       sb.from('historico_cards').insert({
         revenda_id:   rev.id,
         tipo:         'Mudança de etapa',
         descricao:    `${statusOriginal[rev.id]} → ${newStatus}`,
         manual:       false,
-        usuario_id:   sessaoAtual?.user?.id  || null,
-        usuario_nome: perfilAtual?.nome      || 'Sistema',
-      }).catch(e => console.warn('hist:', e.message));
+        usuario_id:   sessaoAtual?.user?.id || null,
+        usuario_nome: perfilAtual?.nome     || 'Sistema',
+      }).catch(()=>{});
     }
   }
 
-  // Atualiza backup sessionStorage
+  // Re-renderiza se houve reversões
+  if(fail > 0){
+    renderKanban();
+    toast(`⚠️ ${ok} movida(s), ${fail} com erro`, 'warn');
+  } else {
+    toast(`✅ ${ok} revenda(s) movida(s) para ${newStatus}`);
+  }
+
+  // Atualiza backup
   try {
     sessionStorage.setItem('sb_revendas_backup', JSON.stringify(
       DB.revendas.map(r=>({id:r.id,nome:r.nome,status:r.status,
@@ -1978,16 +1988,6 @@ async function batchMove(newStatus){
         produtos:r.produtos,id_origem:r.id_origem,criadoEm:r.criadoEm}))
     ));
   } catch(e){}
-
-  kbSelected.clear();
-  updateBatchBar();
-  renderKanban();
-  drawPipelineChart();
-
-  if(fail > 0)
-    toast(`⚠️ ${ok} movida(s), ${fail} com erro`, 'warn');
-  else
-    toast(`✅ ${ok} revenda(s) movida(s) para ${newStatus}`);
 }
 
 function renderKanban(){
@@ -2178,38 +2178,43 @@ async function kDrop(e, newStatus){
   col.style.background=''; col.style.outline='';
   const id = e.dataTransfer.getData('text/plain')||dragId;
   if(!id) return;
-  const rev = DB.revendas.find(r=>r.id===id);
+  const rev = (DB.revendas||[]).find(r=>r.id===id);
   if(!rev || rev.status===newStatus) return;
 
   const old = rev.status;
 
-  // Salva no banco
+  // ── Atualiza cache e tela IMEDIATAMENTE (otimistic UI) ────
+  const revIdx = DB.revendas.findIndex(r=>r.id===id);
+  if(revIdx > -1) DB.revendas[revIdx].status = newStatus;
+  renderKanban();
+  drawPipelineChart();
+  setTimeout(initKanbanScroll, 100);
+
+  // ── Salva no banco em background ──────────────────────────
   const {error} = await sb
     .from('revendas')
     .update({ status: newStatus, atualizado_em: new Date().toISOString() })
-    .eq('id', rev.id);
+    .eq('id', id);
 
   if(error){
-    toast('Erro: '+error.message, 'err');
-    console.error('kDrop:', error);
+    // Reverte se falhou
+    if(revIdx > -1) DB.revendas[revIdx].status = old;
+    renderKanban();
+    toast('Erro ao mover: '+error.message, 'err');
     return;
   }
 
   // Registra histórico
   sb.from('historico_cards').insert({
-    revenda_id:   rev.id,
+    revenda_id:   id,
     tipo:         'Mudança de etapa',
     descricao:    `${old} → ${newStatus}`,
     manual:       false,
     usuario_id:   sessaoAtual?.user?.id  || null,
     usuario_nome: perfilAtual?.nome      || 'Sistema',
-  }).catch(e => console.warn('hist kDrop:', e.message));
+  }).catch(()=>{});
 
-  // Atualiza cache local
-  const revIdx = DB.revendas.findIndex(r => r.id === rev.id);
-  if(revIdx > -1) DB.revendas[revIdx].status = newStatus;
-
-  // Atualiza backup sessionStorage
+  // Atualiza backup
   try {
     sessionStorage.setItem('sb_revendas_backup', JSON.stringify(
       DB.revendas.map(r=>({id:r.id,nome:r.nome,status:r.status,
@@ -2219,8 +2224,6 @@ async function kDrop(e, newStatus){
     ));
   } catch(e){}
 
-  renderKanban();
-  drawPipelineChart();
   toast(`✅ ${rev.nome} → ${newStatus}`);
 }
 
