@@ -152,7 +152,7 @@ select option{background:var(--bg2)}
     <div class="nav-sec">Config.</div>
     <div class="nav-it" onclick="go('usuarios')"><span class="nav-ic">👥</span><span class="nav-label">Usuários</span></div>
     <div class="nav-it" onclick="go('integracao')"><span class="nav-ic">🔗</span><span class="nav-label">Integrações</span></div>
-    <div class="nav-it" onclick="go('atualizacoes')" style="border-top:1px solid var(--bdr);margin-top:6px;padding-top:10px"><span class="nav-ic">✨</span><span class="nav-label" style="font-weight:600">Atualizações IA</span></div>
+    <div class="nav-it" onclick="go('configuracoes')" style="border-top:1px solid var(--bdr);margin-top:6px;padding-top:10px"><span class="nav-ic">⚙️</span><span class="nav-label" style="font-weight:600">Configurações</span></div>
   </nav>
   <div class="s-foot">
     <div class="u-card" style="cursor:default">
@@ -575,54 +575,219 @@ select option{background:var(--bg2)}
       </div>
     </div>
 
-    <!-- ATUALIZAÇÕES IA -->
-    <div class="panel" id="p-atualizacoes">
-      <div style="font-size:19px;font-weight:700;margin-bottom:4px">✨ Atualizações com IA</div>
-      <div style="font-size:12px;color:var(--txt3);margin-bottom:20px">Descreva em português o que você quer melhorar no sistema. A IA aplica diretamente.</div>
+    <!-- CONFIGURAÇÕES -->
+    <div class="panel" id="p-configuracoes">
+      <div style="font-size:19px;font-weight:700;margin-bottom:4px">⚙️ Configurações</div>
+      <div style="font-size:12px;color:var(--txt3);margin-bottom:20px">Personalize o sistema sem precisar de código</div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
-        <div>
-          <div class="card" style="margin-bottom:16px">
-            <div class="ct" style="margin-bottom:4px">💬 O que você quer melhorar?</div>
-            <div style="font-size:12px;color:var(--txt3);margin-bottom:12px">Escreva como você falaria com um colega. Ex: "Quero adicionar um campo de CNPJ no card do Kanban" ou "Muda a cor dos cards Inativos para cinza".</div>
-            <textarea id="ai-prompt" rows="5" placeholder="Ex: Adicionar filtro por curva ABC no kanban&#10;Ex: Mostrar o número de contratos no card&#10;Ex: Mudar o nome da coluna 'Concluído' para 'Parceiro Ativo'"></textarea>
-            <div style="display:flex;gap:8px;margin-top:10px">
-              <button class="btn btn-p" style="flex:1" onclick="sendToAI()">✨ Enviar para IA</button>
-              <button class="btn btn-s" onclick="document.getElementById('ai-prompt').value=''">Limpar</button>
-            </div>
-          </div>
+      <!-- Abas de configuração -->
+      <div style="display:flex;gap:0;border-bottom:1px solid var(--bdr);margin-bottom:20px">
+        <button class="cfg-tab on" onclick="switchCfgTab('pipeline',this)"
+          style="padding:10px 18px;font-size:13px;font-weight:500;border:none;background:none;
+          color:var(--acc);border-bottom:2px solid var(--acc);cursor:pointer">⚡ Pipeline</button>
+        <button class="cfg-tab" onclick="switchCfgTab('aparencia',this)"
+          style="padding:10px 18px;font-size:13px;font-weight:500;border:none;background:none;
+          color:var(--txt2);border-bottom:2px solid transparent;cursor:pointer">🎨 Aparência</button>
+        <button class="cfg-tab" onclick="switchCfgTab('campos',this)"
+          style="padding:10px 18px;font-size:13px;font-weight:500;border:none;background:none;
+          color:var(--txt2);border-bottom:2px solid transparent;cursor:pointer">📋 Campos</button>
+        <button class="cfg-tab" onclick="switchCfgTab('sistema',this)"
+          style="padding:10px 18px;font-size:13px;font-weight:500;border:none;background:none;
+          color:var(--txt2);border-bottom:2px solid transparent;cursor:pointer">🔧 Sistema</button>
+      </div>
 
+      <!-- ABA: PIPELINE ──────────────────────────────────── -->
+      <div id="cfg-tab-pipeline">
+        <div class="g2">
           <div class="card">
-            <div class="ct" style="margin-bottom:10px">💡 Sugestões rápidas</div>
-            <div style="display:flex;flex-direction:column;gap:6px" id="ai-suggestions">
-              <button class="btn btn-s btn-sm" style="text-align:left;justify-content:flex-start" onclick="fillPrompt('Adicionar campo de CNPJ visível nos cards do Kanban')">➕ Mostrar CNPJ nos cards do Kanban</button>
-              <button class="btn btn-s btn-sm" style="text-align:left;justify-content:flex-start" onclick="fillPrompt('Adicionar filtro por Curva ABC (A, B, C) no Kanban')">➕ Filtro por Curva ABC no Kanban</button>
-              <button class="btn btn-s btn-sm" style="text-align:left;justify-content:flex-start" onclick="fillPrompt('Mostrar total de contratos no cabeçalho de cada coluna do Kanban')">➕ Total de contratos por coluna no Kanban</button>
-              <button class="btn btn-s btn-sm" style="text-align:left;justify-content:flex-start" onclick="fillPrompt('Adicionar um campo de Segmento no formulário de cadastro de revenda e exibir no card do Kanban')">➕ Campo Segmento no card</button>
-              <button class="btn btn-s btn-sm" style="text-align:left;justify-content:flex-start" onclick="fillPrompt('Adicionar coluna de Curva no painel de Revendas e no relatório')">➕ Coluna Curva nas Revendas</button>
-              <button class="btn btn-s btn-sm" style="text-align:left;justify-content:flex-start" onclick="fillPrompt('Criar um painel de métricas de contratos: total, média por revenda, evolução mensal')">➕ Painel de métricas de contratos</button>
+            <div class="ch">
+              <div>
+                <div class="ct">Etapas do Pipeline</div>
+                <div class="cs">Arraste para reordenar · clique para editar</div>
+              </div>
+              <button class="btn btn-p btn-sm" onclick="addEtapa()">+ Nova etapa</button>
+            </div>
+            <div id="etapas-list" style="display:flex;flex-direction:column;gap:8px"></div>
+            <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
+              <button class="btn btn-s" onclick="resetEtapas()">↺ Restaurar padrão</button>
+              <button class="btn btn-p" onclick="salvarEtapas()">💾 Salvar etapas</button>
             </div>
           </div>
-        </div>
-
-        <div>
-          <div class="card" style="margin-bottom:16px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-              <div class="ct">📋 Resposta da IA</div>
-              <button class="btn btn-s btn-sm" onclick="copyAIResponse()" id="ai-copy-btn" style="display:none">📋 Copiar instrução</button>
+          <div>
+            <div class="card" style="margin-bottom:14px">
+              <div class="ct" style="margin-bottom:12px">➕ Nova etapa</div>
+              <div class="fg"><label>Nome da etapa</label>
+                <input id="nova-etapa-nome" placeholder="Ex: Qualificação"></div>
+              <div class="fg"><label>Emoji / ícone</label>
+                <input id="nova-etapa-icon" placeholder="Ex: 🎯" style="font-size:20px;width:80px"></div>
+              <div class="fg"><label>Cor</label>
+                <input type="color" id="nova-etapa-cor" value="#3b82f6" style="width:60px;height:36px;padding:2px;cursor:pointer"></div>
+              <button class="btn btn-p" style="width:100%" onclick="addEtapa()">+ Adicionar</button>
             </div>
-            <div id="ai-response" style="min-height:160px">
-              <div class="empty" style="padding:32px 16px">
-                <div style="font-size:32px;margin-bottom:8px">✨</div>
-                <div>Descreva uma melhoria e clique em "Enviar para IA"</div>
+            <div class="card">
+              <div class="ct" style="margin-bottom:10px">ℹ️ Como funciona</div>
+              <div style="font-size:12px;color:var(--txt2);display:flex;flex-direction:column;gap:6px">
+                <div>✏️ Clique no nome de uma etapa para editar</div>
+                <div>🗑️ Clique no 🗑️ para remover (revendas vão para "Nova Revenda")</div>
+                <div>🔄 Arraste pelo ≡ para reordenar</div>
+                <div>💾 Salve para aplicar no Pipeline e no sistema</div>
               </div>
             </div>
           </div>
+        </div>
+      </div>
 
+      <!-- ABA: APARÊNCIA ─────────────────────────────────── -->
+      <div id="cfg-tab-aparencia" style="display:none">
+        <div class="g2">
           <div class="card">
-            <div class="ct" style="margin-bottom:10px">📜 Histórico de pedidos</div>
-            <div id="ai-history" style="display:flex;flex-direction:column;gap:8px;max-height:240px;overflow-y:auto">
-              <div style="font-size:12px;color:var(--txt3)">Nenhum pedido enviado ainda.</div>
+            <div class="ct" style="margin-bottom:14px">🎨 Cores do sistema</div>
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div>
+                <label>Cor principal (botões, destaques)</label>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+                  <input type="color" id="cor-acc" value="#F5C518"
+                    style="width:50px;height:36px;padding:2px;cursor:pointer;border-radius:var(--r)">
+                  <input type="text" id="cor-acc-hex" value="#F5C518"
+                    style="width:100px" oninput="document.getElementById('cor-acc').value=this.value">
+                  <span style="font-size:11px;color:var(--txt3)">Amarelo LC padrão</span>
+                </div>
+              </div>
+              <div>
+                <label>Cor secundária (roxo)</label>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+                  <input type="color" id="cor-pur" value="#6B2FA0"
+                    style="width:50px;height:36px;padding:2px;cursor:pointer;border-radius:var(--r)">
+                  <input type="text" id="cor-pur-hex" value="#6B2FA0"
+                    style="width:100px" oninput="document.getElementById('cor-pur').value=this.value">
+                  <span style="font-size:11px;color:var(--txt3)">Roxo LC padrão</span>
+                </div>
+              </div>
+              <div>
+                <label>Cor de fundo (tema escuro)</label>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+                  <input type="color" id="cor-bg" value="#0A0A0F"
+                    style="width:50px;height:36px;padding:2px;cursor:pointer;border-radius:var(--r)">
+                  <input type="text" id="cor-bg-hex" value="#0A0A0F"
+                    style="width:100px" oninput="document.getElementById('cor-bg').value=this.value">
+                </div>
+              </div>
+              <!-- Preview -->
+              <div id="cor-preview" style="padding:14px;border-radius:var(--r);border:1px solid var(--bdr);margin-top:4px">
+                <div style="font-size:12px;color:var(--txt3);margin-bottom:8px">Preview</div>
+                <button class="btn btn-p btn-sm" id="preview-btn">Botão principal</button>
+                <span style="margin-left:8px;font-size:12px" id="preview-tag">● Etapa ativa</span>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-s" onclick="resetCores()">↺ Restaurar LC</button>
+                <button class="btn btn-p" onclick="salvarCores()">💾 Aplicar cores</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="ct" style="margin-bottom:14px">🖼️ Identidade</div>
+            <div class="fg">
+              <label>Nome do sistema</label>
+              <input id="cfg-nome-sistema" value="Portal Sucesso da Revenda">
+            </div>
+            <div class="fg">
+              <label>Subtítulo (sidebar)</label>
+              <input id="cfg-subtitulo" value="da Revenda · LC">
+            </div>
+            <div class="fg">
+              <label>Iniciais do logo</label>
+              <input id="cfg-logo-iniciais" value="LC" maxlength="2"
+                style="width:60px;font-size:20px;font-weight:700;text-align:center">
+            </div>
+            <div style="margin-top:8px;display:flex;gap:8px">
+              <div style="width:48px;height:48px;border-radius:12px;
+                background:linear-gradient(135deg,var(--acc),var(--pur));
+                display:flex;align-items:center;justify-content:center;
+                font-weight:800;font-size:18px;color:#000"
+                id="cfg-logo-preview">LC</div>
+              <div style="font-size:12px;color:var(--txt3);padding-top:4px">
+                Preview do logo<br>usa as cores definidas acima
+              </div>
+            </div>
+            <button class="btn btn-p" style="width:100%;margin-top:12px" onclick="salvarIdentidade()">
+              💾 Salvar identidade
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA: CAMPOS ────────────────────────────────────── -->
+      <div id="cfg-tab-campos" style="display:none">
+        <div class="g2">
+          <div class="card">
+            <div class="ct" style="margin-bottom:4px">📋 Campos do card de revenda</div>
+            <div class="cs" style="margin-bottom:14px">Renomeie os campos que aparecem no formulário e na tabela</div>
+            <div id="campos-list" style="display:flex;flex-direction:column;gap:10px"></div>
+            <button class="btn btn-p" style="width:100%;margin-top:14px" onclick="salvarCampos()">
+              💾 Salvar nomes dos campos
+            </button>
+          </div>
+          <div class="card">
+            <div class="ct" style="margin-bottom:14px">📦 Produtos do Decola</div>
+            <div class="cs" style="margin-bottom:12px">Adicione ou remova produtos do checklist "Decola Produtos"</div>
+            <div id="produtos-cfg-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+            <div style="display:flex;gap:8px">
+              <input id="novo-produto-nome" placeholder="Nome do produto" style="flex:1">
+              <button class="btn btn-p btn-sm" onclick="addProdutoCfg()">+ Adicionar</button>
+            </div>
+            <button class="btn btn-p" style="width:100%;margin-top:12px" onclick="salvarProdutos()">
+              💾 Salvar produtos
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA: SISTEMA ───────────────────────────────────── -->
+      <div id="cfg-tab-sistema" style="display:none">
+        <div class="g2">
+          <div class="card">
+            <div class="ct" style="margin-bottom:14px">🔧 Configurações gerais</div>
+            <div class="fg">
+              <label>Tema padrão ao entrar</label>
+              <select id="cfg-tema-padrao">
+                <option value="dark">🌙 Escuro</option>
+                <option value="light">☀️ Claro</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label>Etapa padrão para novos leads (importação/Orion)</label>
+              <select id="cfg-etapa-padrao"></select>
+            </div>
+            <div class="fg">
+              <label>Itens por página nas listas</label>
+              <select id="cfg-itens-pagina">
+                <option value="0">Todos (lista infinita)</option>
+                <option value="50">50 por página</option>
+                <option value="100">100 por página</option>
+              </select>
+            </div>
+            <button class="btn btn-p" style="width:100%;margin-top:4px" onclick="salvarCfgGeral()">
+              💾 Salvar configurações
+            </button>
+          </div>
+          <div class="card">
+            <div class="ct" style="margin-bottom:14px;color:var(--err)">⚠️ Zona de perigo</div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="padding:12px;background:var(--errl);border-radius:var(--r);border:1px solid var(--err)">
+                <div style="font-size:13px;font-weight:600;margin-bottom:4px">Limpar todos os dados</div>
+                <div style="font-size:12px;color:var(--txt2);margin-bottom:8px">Remove revendas, tarefas, histórico e atividades. Não pode ser desfeito.</div>
+                <button class="btn btn-d btn-sm" onclick="abrirLimparDados()">🗑️ Limpar dados</button>
+              </div>
+              <div style="padding:12px;background:var(--warnl);border-radius:var(--r);border:1px solid var(--warn)">
+                <div style="font-size:13px;font-weight:600;margin-bottom:4px">Exportar todos os dados</div>
+                <div style="font-size:12px;color:var(--txt2);margin-bottom:8px">Baixa todas as revendas em Excel.</div>
+                <button class="btn btn-sm" style="background:var(--warn);color:#000;font-weight:600" onclick="exportRelatorio()">📊 Exportar Excel</button>
+              </div>
+              <div style="padding:12px;background:var(--accl);border-radius:var(--r);border:1px solid var(--acc)">
+                <div style="font-size:13px;font-weight:600;margin-bottom:4px">Verificar banco de dados</div>
+                <div style="font-size:12px;color:var(--txt2);margin-bottom:8px">Checa o estado real dos dados no Supabase.</div>
+                <button class="btn btn-sm" style="background:var(--acc);color:#000;font-weight:600" onclick="verificarBanco()">🔍 Verificar</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1320,7 +1485,7 @@ function toggleTheme(){isDark=!isDark;localStorage.setItem('lc_theme',isDark?'da
 applyTheme();
 
 // ─── Nav ───────────────────────────────────────────────────────────
-const TITLES={dashboard:'Dashboard Executivo',revendas:'Cadastro de Revendas',pipeline:'Pipeline de Onboarding',tarefas:'Gestão de Tarefas',timeline:'Timeline de Atividades',treinamentos:'Central de Treinamentos',handover:'Gestão de Handover',relatorios:'Relatórios & Analytics',importacao:'Importação de Dados',usuarios:'Controle de Usuários',integracao:'Integrações',atualizacoes:'✨ Atualizações com IA'};
+const TITLES={dashboard:'Dashboard Executivo',revendas:'Cadastro de Revendas',pipeline:'Pipeline de Onboarding',tarefas:'Gestão de Tarefas',timeline:'Timeline de Atividades',treinamentos:'Central de Treinamentos',handover:'Gestão de Handover',relatorios:'Relatórios & Analytics',importacao:'Importação de Dados',usuarios:'Controle de Usuários',integracao:'Integrações',configuracoes:'⚙️ Configurações'};
 function go(name){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.nav-it').forEach(n=>n.classList.remove('on'));
@@ -1331,7 +1496,7 @@ function go(name){
   renderPanel(name);
 }
 function renderPanel(name){
-  const fn={dashboard:renderDashboard,revendas:renderRevendas,pipeline:renderKanban,tarefas:renderTasks,timeline:renderTimeline,treinamentos:renderTreinamentos,handover:renderHandover,relatorios:renderRelatorios,usuarios:renderUsers,importacao:renderImport,atualizacoes:renderAtualizacoes};
+  const fn={dashboard:renderDashboard,revendas:renderRevendas,pipeline:renderKanban,tarefas:renderTasks,timeline:renderTimeline,treinamentos:renderTreinamentos,handover:renderHandover,relatorios:renderRelatorios,usuarios:renderUsers,importacao:renderImport,configuracoes:renderConfiguracoes};
   if(fn[name]){
     fn[name]();
     if(name==='pipeline') setTimeout(initKanbanScroll, 150);
@@ -1824,16 +1989,13 @@ async function batchMove(newStatus){
 }
 
 function renderKanban(){
-  const COLS = [
-    {id:'Nova Revenda',    icon:'🆕', color:'var(--txt2)'},
-    {id:'Implantação',     icon:'🔧', color:'var(--acc)'},
-    {id:'Liberação Web',   icon:'🌐', color:'var(--pur)'},
-    {id:'Academy',         icon:'🎓', color:'#ec4899'},
-    {id:'Decola Instalação',icon:'🚀',color:'var(--warn)'},
-    {id:'Decola Produtos', icon:'📦', color:'#f97316'},
-    {id:'Primeiro Cliente',icon:'👤', color:'var(--ok)'},
-    {id:'Handover',        icon:'🤝', color:'var(--tel)'},
-  ];
+  // Usa etapas configuradas pelo usuário ou padrão
+  const etapasCfg = getEtapas();
+  const COLS = etapasCfg.map(e=>({
+    id:    e.id,
+    icon:  e.icon,
+    color: e.cor || '#3b82f6',
+  }));
   const PRODUTOS = ['Portal da Revenda','LC Pay','Smart TEF','Imendes','Balcão','Gourmet','Dashboard','Shipay','Força de Vendas'];
 
   const board = document.getElementById('kanban-board');
@@ -3343,6 +3505,396 @@ async function verificarLeadsOrion(){
   } catch(e) {}
 }
 
+// ─── CONFIGURAÇÕES ─────────────────────────────────────────────────
+
+// Etapas padrão
+const ETAPAS_PADRAO = [
+  {id:'Nova Revenda',     icon:'🆕', cor:'#6b7280'},
+  {id:'Implantação',      icon:'🔧', cor:'#3b82f6'},
+  {id:'Liberação Web',    icon:'🌐', cor:'#8b5cf6'},
+  {id:'Academy',          icon:'🎓', cor:'#ec4899'},
+  {id:'Decola Instalação',icon:'🚀', cor:'#f59e0b'},
+  {id:'Decola Produtos',  icon:'📦', cor:'#f97316'},
+  {id:'Primeiro Cliente', icon:'👤', cor:'#10b981'},
+  {id:'Handover',         icon:'🤝', cor:'#14b8a6'},
+];
+
+const PRODUTOS_PADRAO = [
+  'Portal da Revenda','LC Pay','Smart TEF','Imendes',
+  'Balcão','Gourmet','Dashboard','Shipay','Força de Vendas'
+];
+
+const CAMPOS_PADRAO = [
+  {key:'nome',     label:'Nome da Revenda'},
+  {key:'cnpj',     label:'CNPJ'},
+  {key:'cidade',   label:'Cidade'},
+  {key:'uf',       label:'UF'},
+  {key:'email',    label:'E-mail'},
+  {key:'tel',      label:'Telefone'},
+  {key:'cs',       label:'Responsável CS'},
+  {key:'contratos',label:'Contratos'},
+  {key:'curva',    label:'Curva ABC'},
+  {key:'segmento', label:'Segmento'},
+  {key:'porte',    label:'Porte'},
+  {key:'obs',      label:'Observações'},
+];
+
+// Carrega configurações salvas ou usa padrão
+function getCfg(){
+  try {
+    const s = localStorage.getItem('lc_cfg');
+    return s ? JSON.parse(s) : {};
+  } catch(e){ return {}; }
+}
+function saveCfg(obj){
+  const atual = getCfg();
+  localStorage.setItem('lc_cfg', JSON.stringify({...atual,...obj}));
+}
+
+function getEtapas(){
+  const cfg = getCfg();
+  return cfg.etapas || ETAPAS_PADRAO;
+}
+function getProdutos(){
+  const cfg = getCfg();
+  return cfg.produtos || PRODUTOS_PADRAO;
+}
+function getCampos(){
+  const cfg = getCfg();
+  return cfg.campos || CAMPOS_PADRAO;
+}
+
+// ── Troca de aba ───────────────────────────────────────────
+function switchCfgTab(tab, btn){
+  ['pipeline','aparencia','campos','sistema'].forEach(t=>{
+    const el = document.getElementById('cfg-tab-'+t);
+    if(el) el.style.display = t===tab ? 'block' : 'none';
+  });
+  document.querySelectorAll('.cfg-tab').forEach(b=>{
+    b.style.color = 'var(--txt2)';
+    b.style.borderBottomColor = 'transparent';
+    b.classList.remove('on');
+  });
+  if(btn){
+    btn.style.color = 'var(--acc)';
+    btn.style.borderBottomColor = 'var(--acc)';
+    btn.classList.add('on');
+  }
+}
+
+// ── Renderiza configurações ────────────────────────────────
+function renderConfiguracoes(){
+  renderEtapasCfg();
+  renderCamposCfg();
+  renderProdutosCfg();
+  carregarCoresAtuais();
+  carregarCfgGeral();
+}
+
+// ── PIPELINE: Etapas ───────────────────────────────────────
+function renderEtapasCfg(){
+  const list = document.getElementById('etapas-list');
+  if(!list) return;
+  const etapas = getEtapas();
+  list.innerHTML = etapas.map((e,i)=>`
+    <div id="etapa-item-${i}" draggable="true"
+      ondragstart="etapaDragStart(${i})"
+      ondragover="etapaDragOver(event,${i})"
+      ondrop="etapaDrop(event,${i})"
+      style="display:flex;align-items:center;gap:10px;padding:10px 12px;
+        background:var(--bg2);border:1px solid var(--bdr);border-radius:var(--r)">
+      <span style="cursor:grab;color:var(--txt3);font-size:16px;touch-action:none">≡</span>
+      <span style="font-size:20px" contenteditable="false" id="icon-${i}">${e.icon}</span>
+      <input value="${e.id}" id="etapa-nome-${i}"
+        style="flex:1;padding:6px 10px;font-size:13px;font-weight:500"
+        onchange="updateEtapaLocal(${i})">
+      <input type="color" value="${e.cor||'#3b82f6'}" id="etapa-cor-${i}"
+        style="width:32px;height:32px;padding:2px;cursor:pointer;border-radius:4px"
+        onchange="updateEtapaLocal(${i})">
+      <input value="${e.icon}" id="etapa-icon-${i}"
+        style="width:44px;font-size:18px;text-align:center"
+        onchange="updateEtapaLocal(${i})">
+      ${etapas.length > 1 ? `<button onclick="removeEtapa(${i})"
+        style="background:none;border:none;color:var(--err);cursor:pointer;font-size:16px"
+        title="Remover">🗑️</button>` : ''}
+    </div>`).join('');
+
+  // Atualiza select de etapa padrão
+  const sel = document.getElementById('cfg-etapa-padrao');
+  if(sel) sel.innerHTML = etapas.map(e=>`<option value="${e.id}">${e.icon} ${e.id}</option>`).join('');
+}
+
+let _etapaDragIdx = null;
+function etapaDragStart(i){ _etapaDragIdx = i; }
+function etapaDragOver(e,i){ e.preventDefault(); }
+function etapaDrop(e,i){
+  e.preventDefault();
+  if(_etapaDragIdx===null||_etapaDragIdx===i) return;
+  const etapas = getEtapas();
+  const [moved] = etapas.splice(_etapaDragIdx,1);
+  etapas.splice(i,0,moved);
+  saveCfg({etapas});
+  renderEtapasCfg();
+  _etapaDragIdx=null;
+}
+
+function updateEtapaLocal(i){
+  const etapas = getEtapas();
+  etapas[i].id  = document.getElementById('etapa-nome-'+i)?.value || etapas[i].id;
+  etapas[i].cor = document.getElementById('etapa-cor-'+i)?.value  || etapas[i].cor;
+  etapas[i].icon= document.getElementById('etapa-icon-'+i)?.value || etapas[i].icon;
+}
+
+function addEtapa(){
+  const nome = document.getElementById('nova-etapa-nome')?.value.trim();
+  if(!nome){ toast('Digite o nome da etapa','err'); return; }
+  const icon = document.getElementById('nova-etapa-icon')?.value.trim() || '📌';
+  const cor  = document.getElementById('nova-etapa-cor')?.value || '#3b82f6';
+  const etapas = getEtapas();
+  // Insere antes de Handover (última etapa)
+  etapas.splice(etapas.length-1, 0, {id:nome, icon, cor});
+  saveCfg({etapas});
+  if(document.getElementById('nova-etapa-nome'))
+    document.getElementById('nova-etapa-nome').value='';
+  renderEtapasCfg();
+  toast(`Etapa "${nome}" adicionada! Salve para aplicar.`);
+}
+
+function removeEtapa(i){
+  const etapas = getEtapas();
+  const nome   = etapas[i].id;
+  confirmAction(`Remover etapa "${nome}"? Revendas nessa etapa irão para "Nova Revenda".`, async ()=>{
+    // Move revendas desta etapa para Nova Revenda
+    const afetadas = DB.revendas.filter(r=>r.status===nome);
+    if(afetadas.length){
+      const ids = afetadas.map(r=>r.id);
+      await sb.from('revendas')
+        .update({status:'Nova Revenda', atualizado_em:new Date().toISOString()})
+        .in('id', ids);
+      afetadas.forEach(r=>{
+        const idx = DB.revendas.findIndex(x=>x.id===r.id);
+        if(idx>-1) DB.revendas[idx].status='Nova Revenda';
+      });
+      toast(`${afetadas.length} revenda(s) movida(s) para Nova Revenda`,'warn');
+    }
+    etapas.splice(i,1);
+    saveCfg({etapas});
+    renderEtapasCfg();
+  });
+}
+
+function salvarEtapas(){
+  const etapas = getEtapas();
+  // Lê valores atuais dos inputs antes de salvar
+  etapas.forEach((e,i)=>{
+    e.id   = document.getElementById('etapa-nome-'+i)?.value || e.id;
+    e.cor  = document.getElementById('etapa-cor-'+i)?.value  || e.cor;
+    e.icon = document.getElementById('etapa-icon-'+i)?.value || e.icon;
+  });
+  saveCfg({etapas});
+  toast('✅ Etapas salvas! Recarregue o Pipeline para ver.');
+  // Aplica imediatamente no kanban
+  renderKanban();
+}
+
+function resetEtapas(){
+  confirmAction('Restaurar as etapas padrão do sistema?',()=>{
+    saveCfg({etapas: ETAPAS_PADRAO});
+    renderEtapasCfg();
+    toast('Etapas restauradas para o padrão');
+    renderKanban();
+  });
+}
+
+// ── APARÊNCIA: Cores ────────────────────────────────────────
+function carregarCoresAtuais(){
+  const cfg = getCfg();
+  const acc = cfg.corAcc || '#F5C518';
+  const pur = cfg.corPur || '#6B2FA0';
+  const bg  = cfg.corBg  || '#0A0A0F';
+  ['cor-acc','cor-pur','cor-bg'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.value = id==='cor-acc'?acc:id==='cor-pur'?pur:bg;
+  });
+  ['cor-acc-hex','cor-pur-hex','cor-bg-hex'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.value = id==='cor-acc-hex'?acc:id==='cor-pur-hex'?pur:bg;
+  });
+  atualizarPreviewCores(acc,pur);
+
+  // Sincroniza color pickers com hex inputs
+  ['acc','pur','bg'].forEach(k=>{
+    const picker = document.getElementById('cor-'+k);
+    const hex    = document.getElementById('cor-'+k+'-hex');
+    if(picker && hex){
+      picker.oninput = ()=>{ hex.value=picker.value; atualizarPreviewCores(); };
+      hex.oninput    = ()=>{ if(/^#[0-9a-f]{6}$/i.test(hex.value)) picker.value=hex.value; atualizarPreviewCores(); };
+    }
+  });
+}
+
+function atualizarPreviewCores(){
+  const acc = document.getElementById('cor-acc')?.value || 'var(--acc)';
+  const pur = document.getElementById('cor-pur')?.value || 'var(--pur)';
+  const prev = document.getElementById('preview-btn');
+  if(prev) prev.style.cssText = `background:${acc};color:#0a0a0f;font-weight:700;padding:6px 14px;border-radius:6px;border:none;cursor:pointer`;
+  const tag = document.getElementById('preview-tag');
+  if(tag) tag.style.color = acc;
+  const logo = document.getElementById('cfg-logo-preview');
+  if(logo) logo.style.background = `linear-gradient(135deg,${acc},${pur})`;
+}
+
+function salvarCores(){
+  const acc = document.getElementById('cor-acc')?.value;
+  const pur = document.getElementById('cor-pur')?.value;
+  const bg  = document.getElementById('cor-bg')?.value;
+  saveCfg({corAcc:acc, corPur:pur, corBg:bg});
+  aplicarCores(acc, pur, bg);
+  toast('✅ Cores aplicadas!');
+}
+
+function resetCores(){
+  const acc='#F5C518', pur='#6B2FA0', bg='#0A0A0F';
+  saveCfg({corAcc:acc, corPur:pur, corBg:bg});
+  aplicarCores(acc, pur, bg);
+  carregarCoresAtuais();
+  toast('Cores restauradas para o padrão LC');
+}
+
+function aplicarCores(acc, pur, bg){
+  const root = document.documentElement;
+  if(acc){ root.style.setProperty('--acc',  acc);
+           root.style.setProperty('--acc2', acc); }
+  if(pur){ root.style.setProperty('--pur',  pur);
+           root.style.setProperty('--purl', pur+'22'); }
+  if(bg){  root.style.setProperty('--bg',   bg);
+           root.style.setProperty('--bg2',  bg+'99'); }
+}
+
+function carregarCoresDoStorage(){
+  const cfg = getCfg();
+  if(cfg.corAcc||cfg.corPur||cfg.corBg)
+    aplicarCores(cfg.corAcc, cfg.corPur, cfg.corBg);
+}
+
+// ── IDENTIDADE ──────────────────────────────────────────────
+function salvarIdentidade(){
+  const nome     = document.getElementById('cfg-nome-sistema')?.value.trim();
+  const subtitulo= document.getElementById('cfg-subtitulo')?.value.trim();
+  const iniciais = document.getElementById('cfg-logo-iniciais')?.value.trim().toUpperCase().slice(0,2);
+  saveCfg({nomesSistema:nome, subtitulo, logoIniciais:iniciais});
+  // Aplica imediatamente
+  if(nome){
+    document.querySelectorAll('.logo-t').forEach(el=>el.textContent=nome.split(' ').slice(0,2).join(' '));
+    document.title = nome+' — LC Sistemas';
+  }
+  if(subtitulo) document.querySelectorAll('.logo-s').forEach(el=>el.textContent=subtitulo);
+  if(iniciais){
+    document.querySelectorAll('.logo-ic').forEach(el=>el.textContent=iniciais);
+  }
+  toast('✅ Identidade salva!');
+}
+
+function carregarIdentidadeDoStorage(){
+  const cfg = getCfg();
+  if(cfg.nomesSistema){
+    document.querySelectorAll('.logo-t').forEach(el=>el.textContent=cfg.nomesSistema.split(' ').slice(0,2).join(' '));
+    document.title = cfg.nomesSistema;
+  }
+  if(cfg.subtitulo) document.querySelectorAll('.logo-s').forEach(el=>el.textContent=cfg.subtitulo);
+  if(cfg.logoIniciais) document.querySelectorAll('.logo-ic').forEach(el=>el.textContent=cfg.logoIniciais);
+}
+
+// ── CAMPOS ──────────────────────────────────────────────────
+function renderCamposCfg(){
+  const list = document.getElementById('campos-list');
+  if(!list) return;
+  const campos = getCampos();
+  list.innerHTML = campos.map((c,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;
+      background:var(--bg2);border:1px solid var(--bdr);border-radius:var(--r)">
+      <span style="font-size:12px;color:var(--txt3);width:90px">${c.key}</span>
+      <input value="${c.label}" id="campo-label-${i}"
+        style="flex:1;padding:6px 10px;font-size:13px"
+        placeholder="Nome do campo">
+    </div>`).join('');
+}
+
+function salvarCampos(){
+  const campos = getCampos();
+  campos.forEach((c,i)=>{
+    const el = document.getElementById('campo-label-'+i);
+    if(el) c.label = el.value.trim() || c.label;
+  });
+  saveCfg({campos});
+  toast('✅ Nomes dos campos salvos!');
+}
+
+// ── PRODUTOS ────────────────────────────────────────────────
+function renderProdutosCfg(){
+  const list = document.getElementById('produtos-cfg-list');
+  if(!list) return;
+  const prods = getProdutos();
+  list.innerHTML = prods.map((p,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;
+      background:var(--bg2);border:1px solid var(--bdr);border-radius:var(--r)">
+      <input value="${p}" id="prod-${i}" style="flex:1;padding:5px 8px;font-size:12px">
+      <button onclick="removeProdutoCfg(${i})"
+        style="background:none;border:none;color:var(--err);cursor:pointer;font-size:14px">🗑️</button>
+    </div>`).join('');
+}
+
+function addProdutoCfg(){
+  const nome = document.getElementById('novo-produto-nome')?.value.trim();
+  if(!nome){ toast('Digite o nome do produto','err'); return; }
+  const prods = getProdutos();
+  prods.push(nome);
+  saveCfg({produtos:prods});
+  if(document.getElementById('novo-produto-nome'))
+    document.getElementById('novo-produto-nome').value='';
+  renderProdutosCfg();
+  toast('Produto adicionado!');
+}
+
+function removeProdutoCfg(i){
+  const prods = getProdutos();
+  prods.splice(i,1);
+  saveCfg({produtos:prods});
+  renderProdutosCfg();
+}
+
+function salvarProdutos(){
+  const prods = getProdutos();
+  prods.forEach((_,i)=>{
+    const el = document.getElementById('prod-'+i);
+    if(el) prods[i] = el.value.trim() || prods[i];
+  });
+  saveCfg({produtos:prods});
+  toast('✅ Produtos salvos!');
+}
+
+// ── CFG GERAL ───────────────────────────────────────────────
+function carregarCfgGeral(){
+  const cfg = getCfg();
+  const tema = document.getElementById('cfg-tema-padrao');
+  if(tema) tema.value = cfg.temaPadrao || 'dark';
+  const etapaSel = document.getElementById('cfg-etapa-padrao');
+  if(etapaSel) etapaSel.value = cfg.etapaPadrao || 'Nova Revenda';
+}
+
+function salvarCfgGeral(){
+  const tema  = document.getElementById('cfg-tema-padrao')?.value;
+  const etapa = document.getElementById('cfg-etapa-padrao')?.value;
+  saveCfg({temaPadrao:tema, etapaPadrao:etapa});
+  toast('✅ Configurações salvas!');
+}
+
+// ── Aplica configs salvas ao iniciar ────────────────────────
+function aplicarConfigsSalvas(){
+  carregarCoresDoStorage();
+  carregarIdentidadeDoStorage();
+}
+
 // ─── AUDITORIA ────────────────────────────────────────────────────
 async function renderAuditoria(){
   if(!perfilAtual || perfilAtual.perfil !== 'Administrador'){
@@ -3446,6 +3998,9 @@ function initApp(){
   // 4. Renderiza
   initAuth().then(async ok=>{
     if(!ok) return;
+
+    // ── PASSO 0: Aplica configurações visuais salvas ─────────
+    aplicarConfigsSalvas();
 
     // ── PASSO 1: Restaura backup imediatamente ────────────────
     // Usuário vê os dados na tela enquanto o banco carrega
