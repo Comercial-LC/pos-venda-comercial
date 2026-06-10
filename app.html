@@ -954,23 +954,42 @@ function ativarModoTV(){
   atualizaRelogio();
   setInterval(atualizaRelogio, 1000);
 
-  // Realtime: atualiza a TV apenas quando houver mudança no banco
-  const tvChannels = ['revendas','tarefas','atividades','orion_metas'];
-  tvChannels.forEach(tabela => {
-    sb.channel('tv_'+tabela)
-      .on('postgres_changes',{event:'*',schema:'public',table:tabela},
-        async ()=>{
-          await loadFromSupabase();
-          renderTVDashboard();
-          // Pisca o indicador AO VIVO ao receber atualização
-          const dot = document.getElementById('tv-live-dot');
-          if(dot){
-            dot.style.background='var(--acc)';
-            setTimeout(()=>{ dot.style.background='var(--ok)'; }, 1000);
-          }
-        }
+  // Realtime exclusivo da TV — isolado do sistema principal
+  // Não chama loadFromSupabase para não causar sumiço de dados
+  // Em vez disso, busca os dados específicos que mudaram
+  
+  let _tvDebounce = null;
+
+  async function tvRefresh(){
+    // Recarrega dados de forma segura (proteção contra vazio)
+    const cacheAntes = DB.revendas.length;
+    await loadFromSupabase();
+    // Se por algum motivo voltou vazio, não renderiza
+    if(DB.revendas.length === 0 && cacheAntes > 0) return;
+    renderTVDashboard();
+    // Pisca indicador AO VIVO
+    const dot = document.getElementById('tv-live-dot');
+    if(dot){
+      dot.style.background='var(--acc)';
+      setTimeout(()=>{ if(dot) dot.style.background='var(--ok)'; }, 1500);
+    }
+  }
+
+  function tvScheduleRefresh(){
+    clearTimeout(_tvDebounce);
+    _tvDebounce = setTimeout(tvRefresh, 2000); // aguarda 2s antes de atualizar
+  }
+
+  // Canais TV — escuta mudanças nas tabelas relevantes
+  ['revendas','orion_metas','atividades'].forEach(tabela => {
+    sb.channel('tv_watch_'+tabela)
+      .on('postgres_changes',
+        {event:'*', schema:'public', table:tabela},
+        ()=>{ tvScheduleRefresh(); }
       ).subscribe();
   });
+
+  console.log('📺 TV: canais realtime ativos');
 }
 
 async function renderTVDashboard(){
@@ -978,6 +997,13 @@ async function renderTVDashboard(){
   if(!DB._carregado){
     setTimeout(renderTVDashboard, 800);
     return;
+  }
+  // Se cache vazio, tenta restaurar backup
+  if((DB.revendas||[]).length === 0){
+    try {
+      const backup = sessionStorage.getItem('sb_revendas_backup');
+      if(backup) DB.revendas = JSON.parse(backup);
+    } catch(e){}
   }
   const rv   = DB.revendas || [];
   const task = DB.tarefas  || [];
@@ -1008,8 +1034,13 @@ async function renderTVDashboard(){
   const metasEl = document.getElementById('tv-metas');
   if(metasEl){
     const now = new Date();
-    const {data:metas} = await sb.from('orion_metas')
-      .select('*').eq('mes',now.getMonth()+1).eq('ano',now.getFullYear());
+    // TV busca metas diretamente do banco — não depende do cache
+    const {data:metas, error:metasErr} = await sb.from('orion_metas')
+      .select('*')
+      .eq('mes', now.getMonth()+1)
+      .eq('ano',  now.getFullYear())
+      .order('percentual', {ascending:true});
+    if(metasErr) console.warn('TV metas:', metasErr.message);
     metasEl.innerHTML = (metas||[]).length ? (metas||[]).map(m=>{
       const pct = Math.min(Math.round(m.percentual||0),100);
       const cor = m.status==='atingida'?'var(--ok)':m.status==='atencao'?'var(--warn)':'var(--err)';
@@ -1060,13 +1091,22 @@ async function renderTVDashboard(){
   // ── Últimas atividades ────────────────────────────────────
   const atEl = document.getElementById('tv-atividades');
   if(atEl){
-    const recentes = [...(DB.atividades||[])]
-      .sort((a,b)=>new Date(b.data)-new Date(a.data)).slice(0,6);
+    // TV busca atividades direto do banco para ter dados sempre frescos
+    const {data:ativFrescas} = await sb.from('atividades')
+      .select('tipo,revenda_nome,criado_em,descricao')
+      .order('criado_em',{ascending:false})
+      .limit(6);
+    const recentes = (ativFrescas||DB.atividades||[]).map(a=>({
+      tipo:   a.tipo,
+      revenda:a.revenda_nome||a.revenda||'—',
+      data:   a.criado_em||a.data,
+      desc:   a.descricao||a.desc||''
+    }));
     atEl.innerHTML = recentes.length ? recentes.map(a=>`
       <div style="background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:14px">
         <div style="font-size:12px;font-weight:600;margin-bottom:4px">${a.tipo}</div>
         <div style="font-size:12px;color:var(--txt2);margin-bottom:6px">${a.revenda||'—'}</div>
-        <div style="font-size:11px;color:var(--txt3)">${new Date(a.data).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+        <div style="font-size:11px;color:var(--txt3)">${new Date(a.data||a.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
       </div>`).join('')
     : '<div style="color:var(--txt3);font-size:12px;grid-column:span 3;padding:16px">Nenhuma atividade recente.</div>';
   }
