@@ -1704,17 +1704,27 @@ function renderDashboard(){
   const tAtras=task.filter(t=>t.status!=='Concluída'&&t.vencimento&&t.vencimento<today()).length;
   const tpcs=rv.filter(r=>r.tpc).map(r=>+r.tpc);
   const tpcMed=tpcs.length?Math.round(tpcs.reduce((a,b)=>a+b,0)/tpcs.length):0;
-  const emJornada = rv.filter(r=>!['Primeiro Cliente','Handover'].includes(r.status)).length;
-  const primeiroCliente = rv.filter(r=>r.status==='Primeiro Cliente').length;
-  const handoverEtapa = rv.filter(r=>r.status==='Handover').length;
-  const decolaProd = rv.filter(r=>r.status==='Decola Produtos').length;
+  // Usa etapas configuradas — suporta nomes personalizados
+  const etapas = getEtapas();
+  const ultimaEtapa    = etapas[etapas.length-1]?.id || 'Handover';
+  const penultimaEtapa = etapas[etapas.length-2]?.id || 'Primeiro Cliente';
+
+  const emJornada = rv.filter(r=>
+    r.status !== ultimaEtapa && r.status !== penultimaEtapa
+  ).length;
+  const primeiroCliente = rv.filter(r=>r.status===penultimaEtapa).length;
+  const handoverEtapa   = rv.filter(r=>r.status===ultimaEtapa).length;
+  // Conta todas etapas intermediárias (Decola Produtos = 6ª etapa padrão)
+  const etapaDecola = etapas[etapas.length-3]?.id || 'Decola Produtos';
+  const decolaProd  = rv.filter(r=>r.status===etapaDecola).length;
+
   const kpis=[
-    {label:'Total de Revendas',val:rv.length,cls:'bl',icon:'🏢'},
-    {label:'Em Jornada',val:emJornada,cls:'gn',icon:'🚀'},
-    {label:'Decola Produtos',val:decolaProd,cls:'yw',icon:'📦'},
-    {label:'Primeiro Cliente',val:primeiroCliente,cls:'tl',icon:'👤'},
-    {label:'Handover',val:handoverEtapa,cls:'pu',icon:'🤝'},
-    {label:'Tarefas Atrasadas',val:tAtras,cls:'rd',icon:'⚠️'},
+    {label:'Total de Revendas',             val:rv.length,          cls:'bl',icon:'🏢'},
+    {label:'Em Jornada',                    val:emJornada,          cls:'gn',icon:'🚀'},
+    {label: etapaDecola,                    val:decolaProd,         cls:'yw',icon:'📦'},
+    {label: penultimaEtapa,                 val:primeiroCliente,    cls:'tl',icon:'👤'},
+    {label: ultimaEtapa,                    val:handoverEtapa,      cls:'pu',icon:'🤝'},
+    {label:'Tarefas Atrasadas',             val:tAtras,             cls:'rd',icon:'⚠️'},
   ];
   const kEl=document.getElementById('dash-kpis');
   if(kEl)kEl.innerHTML=kpis.map(k=>`<div class="mc ${k.cls}"><div style="font-size:24px;margin-bottom:8px">${k.icon}</div><div class="mv">${k.val}</div><div class="ml">${k.label}</div></div>`).join('');
@@ -1722,7 +1732,15 @@ function renderDashboard(){
   // Recent revendas table
   const dRev=document.getElementById('dash-revendas');
   if(dRev){
-    const stMap={'Nova Revenda':'st-tr','Implantação':'st-on','Liberação Web':'st-on','Academy':'st-on','Decola Instalação':'st-on','Decola Produtos':'st-on','Primeiro Cliente':'st-ok','Handover':'st-dn'};
+    // stMap dinâmico baseado nas etapas configuradas
+    const etps = getEtapas();
+    const stMap = {};
+    etps.forEach((e,i)=>{
+      if(i===0) stMap[e.id]='st-tr';
+      else if(i===etps.length-1) stMap[e.id]='st-dn';
+      else if(i===etps.length-2) stMap[e.id]='st-ok';
+      else stMap[e.id]='st-on';
+    });
     const recent=[...rv].sort((a,b)=>new Date(b.criadoEm||0)-new Date(a.criadoEm||0)).slice(0,5);
     dRev.innerHTML=recent.length?recent.map(r=>`<tr><td><div class="tdp">${r.nome}</div><div style="font-size:11px;color:var(--txt3)">${r.cidade||''} ${r.uf?'· '+r.uf:''}</div></td><td>${r.cs||'—'}</td><td><span class="st ${stMap[r.status]||'st-on'}">${r.status}</span></td><td>${r.tpc?`<span class="badge ${r.tpc<=15?'bg-ok':r.tpc<=30?'bg-warn':'bg-err'} bg-sm">${r.tpc}d</span>`:'—'}</td></tr>`).join(''):`<tr><td colspan="4"><div class="empty" style="padding:20px"><div>Nenhuma revenda cadastrada</div></div></td></tr>`;
   }
