@@ -1938,23 +1938,32 @@ async function batchMove(newStatus){
   toMove.forEach(r => { statusOriginal[r.id] = r.status; });
 
   // ── 1. Persiste no Supabase PRIMEIRO ──────────────────────
-  // (garante que o banco aceita antes de mostrar na tela)
+  console.log('batchMove: atualizando', idsToMove.length, 'IDs para', newStatus);
+  console.log('IDs:', idsToMove.slice(0,3));
+
   const {data: updData, error} = await sb
     .from('revendas')
     .update({ status: newStatus, atualizado_em: new Date().toISOString() })
     .in('id', idsToMove)
     .select('id, status');
 
+  console.log('batchMove resultado:', {updData, error});
+
   if(error){
-    toast('Erro ao salvar: ' + error.message, 'err');
+    toast('Erro: ' + error.message, 'err');
     console.error('batchMove error:', error);
     return;
   }
 
-  // Confirma quantas realmente foram salvas
-  const salvas = updData ? updData.length : idsToMove.length;
+  const salvas = updData ? updData.length : 0;
+  console.log('Salvas:', salvas, 'de', idsToMove.length);
+
   if(salvas === 0){
-    toast('Nenhuma revenda foi salva — verifique as permissões', 'err');
+    // Tenta verificar se o RLS está bloqueando
+    const {data: check} = await sb.from('revendas')
+      .select('id, status').in('id', idsToMove.slice(0,1));
+    console.log('Check revenda atual:', check);
+    toast(`⚠️ 0 revendas salvas. Verifique o console (F12)`, 'err');
     return;
   }
 
