@@ -2248,18 +2248,27 @@ function openCardModal(id){
   currentCardId = id;
   const r = DB.revendas.find(x=>x.id===id);
   if(!r) return;
+
+  const etapaColor = ETAPA_COLORS[r.status]||'var(--acc)';
   document.getElementById('mo-card-nome').textContent = r.nome;
   document.getElementById('mo-card-sub').innerHTML =
-    `<span style="color:${ETAPA_COLORS[r.status]||'var(--acc)'};font-weight:600">${r.status||'—'}</span>
+    `<span style="color:${etapaColor};font-weight:600">${r.status||'—'}</span>
      &nbsp;·&nbsp; CS: ${r.cs||'—'}
      &nbsp;·&nbsp; ${r.contratos||'0'} contratos`;
   document.getElementById('mo-card-edit-btn').dataset.id = id;
-  // Ativa aba histórico por padrão
-  switchCardTab('historico', document.querySelector('.card-tab.on'));
-  renderCardHistorico(id);
+
+  openMo('mo-card');
+
+  // Mostra loading no histórico enquanto carrega
+  const list = document.getElementById('card-historico-list');
+  if(list) list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--txt3)">⏳ Carregando histórico...</div>';
+
+  switchCardTab('historico', document.querySelector('.card-tab'));
   renderCardInfo(id);
   renderCardProdutos(id);
-  openMo('mo-card');
+
+  // Carrega histórico após abrir modal (evita race condition)
+  setTimeout(()=>renderCardHistorico(id), 100);
 }
 
 function openCardEdit(){
@@ -2285,46 +2294,54 @@ function switchCardTab(tab, btn){
 }
 
 async function getCardHistorico(id){
-  const rev = DB.revendas.find(r=>r.id===id);
+  const rev  = DB.revendas.find(r=>r.id===id);
   const nome = rev?.nome||'';
 
-  const [{data:hist, error:e1},{data:ativs, error:e2}] = await Promise.all([
-    sb.from('historico_cards')
-      .select('*')
-      .eq('revenda_id', id)
-      .order('criado_em', {ascending:false})
-      .limit(100),
-    sb.from('atividades')
-      .select('*')
-      .eq('revenda_nome', nome)
-      .order('criado_em', {ascending:false})
-      .limit(50),
-  ]);
+  // Busca histórico do card
+  const {data:hist, error:e1} = await sb
+    .from('historico_cards')
+    .select('*')
+    .eq('revenda_id', id)
+    .order('criado_em', {ascending:false})
+    .limit(100);
 
-  if(e1) console.warn('histórico_cards:', e1.message);
+  if(e1){
+    console.error('historico_cards erro:', e1.message, e1.code, e1.details);
+  }
+
+  // Busca atividades da timeline vinculadas a esta revenda
+  const {data:ativs, error:e2} = await sb
+    .from('atividades')
+    .select('*')
+    .eq('revenda_nome', nome)
+    .order('criado_em', {ascending:false})
+    .limit(50);
+
   if(e2) console.warn('atividades:', e2.message);
 
+  console.log(`Histórico ${nome}: ${hist?.length||0} registros, ${ativs?.length||0} atividades`);
+
   const fromCard = (hist||[]).map(h=>({
-    id:     h.id,
-    tipo:   h.tipo,
-    desc:   h.descricao,
-    data:   h.criado_em,
-    _src:   'card',
-    manual: h.manual,
+    id:           h.id,
+    tipo:         h.tipo,
+    desc:         h.descricao,
+    data:         h.criado_em,
+    _src:         'card',
+    manual:       h.manual,
     usuario_nome: h.usuario_nome,
   }));
 
   const fromAtiv = (ativs||[]).map(a=>({
-    id:   a.id,
-    tipo: a.tipo,
-    desc: a.descricao,
-    data: a.criado_em,
-    _src: 'timeline',
+    id:           a.id,
+    tipo:         a.tipo,
+    desc:         a.descricao,
+    data:         a.criado_em,
+    _src:         'timeline',
     usuario_nome: a.usuario_nome,
   }));
 
   return [...fromCard, ...fromAtiv]
-    .sort((a,b) => new Date(b.data) - new Date(a.data));
+    .sort((a,b)=>new Date(b.data)-new Date(a.data));
 }
 
 async function renderCardHistorico(id){
@@ -2377,7 +2394,7 @@ async function salvarNotaCard(){
   if(error){toast('Erro: '+error.message,'err');return}
   document.getElementById('card-nota-txt').value='';
   toast('Anotação salva!');
-  renderCardHistorico(currentCardId);
+  setTimeout(()=>renderCardHistorico(currentCardId), 200);
 }
 
 async function deletarNotaCard(revId, notaId){
