@@ -539,6 +539,12 @@ select option{background:var(--bg2)}
                 <div>✅ Visualizar revendas</div><div>✅ Atualizar tarefas próprias</div><div>❌ Sem acesso a relatórios</div><div>❌ Sem acesso a usuários</div>
               </div>
             </div>
+            <div style="padding:12px;border:1px solid var(--warn);background:var(--warnl);border-radius:var(--r)">
+              <div style="font-weight:600;color:var(--warn);margin-bottom:6px">📺 Dashboard TV</div>
+              <div style="font-size:12px;color:var(--txt2);display:flex;flex-direction:column;gap:3px">
+                <div>✅ Somente Dashboard</div><div>✅ Metas e KPIs em tempo real</div><div>✅ Auto-refresh a cada 60s</div><div>❌ Sem acesso a nenhum módulo</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -772,7 +778,7 @@ select option{background:var(--bg2)}
     <div class="mob">
       <input type="hidden" id="user-edit-id">
       <div class="fr"><div class="fg"><label>Nome completo *</label><input id="u-nome" placeholder="Nome do usuário"></div><div class="fg"><label>E-mail *</label><input id="u-email" type="email" placeholder="nome@empresa.com"></div></div>
-      <div class="fr"><div class="fg"><label>Perfil de acesso *</label><select id="u-perfil"><option>Administrador</option><option>CS Manager</option><option>CS Analyst</option></select></div><div class="fg"><label>Departamento</label><select id="u-depto"><option>Customer Success</option><option>Comercial</option><option>Tecnologia</option><option>Diretoria</option></select></div></div>
+      <div class="fr"><div class="fg"><label>Perfil de acesso *</label><select id="u-perfil"><option>Administrador</option><option>CS Manager</option><option>CS Analyst</option><option>Dashboard TV</option></select></div><div class="fg"><label>Departamento</label><select id="u-depto"><option>Customer Success</option><option>Comercial</option><option>Tecnologia</option><option>Diretoria</option></select></div></div>
       <div class="fg"><label>Senha inicial</label><input id="u-senha" type="password" placeholder="Senha temporária"></div>
     </div>
     <div class="mof"><button class="btn btn-s" onclick="closeMo('mo-user')">Cancelar</button><button class="btn btn-p" onclick="saveUser()">👤 Salvar Usuário</button></div>
@@ -865,10 +871,183 @@ async function initAuth(){
 }
 
 function aplicarPermissoes(p){
+  if(p.perfil === 'Dashboard TV'){
+    ativarModoTV();
+    return;
+  }
   // Oculta funções conforme permissões
   if(!p.pode_gerenciar_usuarios) document.querySelectorAll('[onclick*="usuarios"]').forEach(el=>el.style.display='none');
   if(!p.pode_importar) document.querySelectorAll('[onclick*="importacao"]').forEach(el=>el.style.display='none');
   if(!p.pode_ver_relatorios) document.querySelectorAll('[onclick*="relatorios"]').forEach(el=>el.style.display='none');
+}
+
+function ativarModoTV(){
+  // Esconde sidebar e topbar completamente
+  document.getElementById('sb').style.display = 'none';
+  document.querySelector('.topbar').style.display = 'none';
+  document.querySelector('.content').style.padding = '0';
+  document.body.style.background = 'var(--bg)';
+
+  // Injeta dashboard TV fullscreen
+  document.querySelector('.content').innerHTML = `
+    <div id="tv-dash" style="min-height:100vh;padding:24px;background:var(--bg)">
+
+      <!-- Header TV -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid var(--acc)">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="width:48px;height:48px;background:linear-gradient(135deg,#F5C518,#6B2FA0);border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#000">LC</div>
+          <div>
+            <div style="font-size:22px;font-weight:800;color:var(--txt)">Portal Sucesso da Revenda</div>
+            <div style="font-size:13px;color:var(--txt3)" id="tv-data"></div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:var(--txt3);margin-bottom:4px">Próxima atualização em</div>
+          <div style="font-size:28px;font-weight:800;color:var(--acc)" id="tv-countdown">60</div>
+        </div>
+      </div>
+
+      <!-- KPIs grandes -->
+      <div id="tv-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px"></div>
+
+      <!-- Metas + Pipeline -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--txt);margin-bottom:12px">🎯 Meta Comercial do Mês</div>
+          <div id="tv-metas" style="display:flex;flex-direction:column;gap:10px"></div>
+        </div>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--txt);margin-bottom:12px">⚡ Pipeline de Onboarding</div>
+          <div id="tv-pipeline" style="display:flex;flex-direction:column;gap:8px"></div>
+        </div>
+      </div>
+
+      <!-- Últimas atividades -->
+      <div>
+        <div style="font-size:14px;font-weight:700;color:var(--txt);margin-bottom:12px">🕐 Últimas Atividades</div>
+        <div id="tv-atividades" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px"></div>
+      </div>
+    </div>`;
+
+  renderTVDashboard();
+
+  // Atualiza data/hora
+  function atualizaRelogio(){
+    const el = document.getElementById('tv-data');
+    if(el) el.textContent = new Date().toLocaleString('pt-BR',{
+      weekday:'long', day:'2-digit', month:'long', year:'numeric',
+      hour:'2-digit', minute:'2-digit'
+    });
+  }
+  atualizaRelogio();
+  setInterval(atualizaRelogio, 1000);
+
+  // Countdown + auto-refresh a cada 60s
+  let count = 60;
+  setInterval(async ()=>{
+    count--;
+    const el = document.getElementById('tv-countdown');
+    if(el) el.textContent = count;
+    if(count <= 0){
+      count = 60;
+      await loadFromSupabase();
+      renderTVDashboard();
+    }
+  }, 1000);
+}
+
+async function renderTVDashboard(){
+  const rv   = DB.revendas || [];
+  const task = DB.tarefas  || [];
+
+  // ── KPIs ──────────────────────────────────────────────────
+  const ETAPAS = ['Nova Revenda','Implantação','Liberação Web','Academy',
+                  'Decola Instalação','Decola Produtos','Primeiro Cliente','Handover'];
+  const emJornada   = rv.filter(r=>!['Primeiro Cliente','Handover'].includes(r.status)).length;
+  const primCliente = rv.filter(r=>r.status==='Primeiro Cliente').length;
+  const handover    = rv.filter(r=>r.status==='Handover').length;
+  const atrasadas   = task.filter(t=>t.status!=='Concluída'&&t.vencimento&&t.vencimento<today()).length;
+
+  const kpisEl = document.getElementById('tv-kpis');
+  if(kpisEl) kpisEl.innerHTML = [
+    {icon:'🏢', label:'Total de Revendas',   val:rv.length,      cor:'var(--acc)'},
+    {icon:'🚀', label:'Em Jornada',          val:emJornada,      cor:'var(--ok)'},
+    {icon:'👤', label:'Primeiro Cliente',    val:primCliente,    cor:'var(--pur)'},
+    {icon:'🤝', label:'Handover',            val:handover,       cor:'var(--tel)'},
+  ].map(k=>`
+    <div style="background:var(--card);border:1px solid var(--bdr);border-radius:16px;
+      padding:24px;text-align:center;border-top:4px solid ${k.cor}">
+      <div style="font-size:36px;margin-bottom:8px">${k.icon}</div>
+      <div style="font-size:48px;font-weight:800;color:${k.cor};line-height:1">${k.val}</div>
+      <div style="font-size:14px;color:var(--txt2);margin-top:8px">${k.label}</div>
+    </div>`).join('');
+
+  // ── Metas Orion ───────────────────────────────────────────
+  const metasEl = document.getElementById('tv-metas');
+  if(metasEl){
+    const now = new Date();
+    const {data:metas} = await sb.from('orion_metas')
+      .select('*').eq('mes',now.getMonth()+1).eq('ano',now.getFullYear());
+    metasEl.innerHTML = (metas||[]).length ? (metas||[]).map(m=>{
+      const pct = Math.min(Math.round(m.percentual||0),100);
+      const cor = m.status==='atingida'?'var(--ok)':m.status==='atencao'?'var(--warn)':'var(--err)';
+      const icone = m.status==='atingida'?'🟢':m.status==='atencao'?'🟡':'🔴';
+      return `<div style="background:var(--card);border:1px solid var(--bdr);border-radius:12px;padding:18px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="font-size:14px;font-weight:700">${m.nome}</div>
+          <span style="font-size:13px;font-weight:700;color:${cor}">${icone} ${pct}%</span>
+        </div>
+        <div style="background:var(--bdr);border-radius:4px;height:12px;overflow:hidden;margin-bottom:8px">
+          <div style="height:100%;background:${cor};width:${pct}%;border-radius:4px;transition:width .6s"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--txt2)">
+          <span>Atual: <strong style="color:${cor}">${m.valor_atual}</strong></span>
+          <span>Meta: <strong>${m.valor_meta}</strong></span>
+          <span>Faltam: <strong style="color:var(--err)">${Math.max(0,m.valor_meta-m.valor_atual)}</strong></span>
+        </div>
+      </div>`;
+    }).join('') : '<div style="color:var(--txt3);font-size:13px;padding:16px">Nenhuma meta cadastrada para este mês.</div>';
+  }
+
+  // ── Pipeline por etapa ────────────────────────────────────
+  const pipeEl = document.getElementById('tv-pipeline');
+  if(pipeEl){
+    const CORES = {
+      'Nova Revenda':'var(--txt2)','Implantação':'var(--acc)','Liberação Web':'var(--pur)',
+      'Academy':'#ec4899','Decola Instalação':'var(--warn)','Decola Produtos':'#f97316',
+      'Primeiro Cliente':'var(--ok)','Handover':'var(--tel)',
+    };
+    const ICONS = {'Nova Revenda':'🆕','Implantação':'🔧','Liberação Web':'🌐',
+      'Academy':'🎓','Decola Instalação':'🚀','Decola Produtos':'📦',
+      'Primeiro Cliente':'👤','Handover':'🤝'};
+    const maxVal = Math.max(...ETAPAS.map(e=>rv.filter(r=>r.status===e).length),1);
+    pipeEl.innerHTML = ETAPAS.map(e=>{
+      const cnt = rv.filter(r=>r.status===e).length;
+      const pct = Math.round(cnt/maxVal*100);
+      return `<div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:16px;width:20px;text-align:center">${ICONS[e]}</span>
+        <span style="font-size:12px;color:var(--txt2);width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e}</span>
+        <div style="flex:1;background:var(--bdr);border-radius:4px;height:10px;overflow:hidden">
+          <div style="height:100%;background:${CORES[e]};width:${pct}%;border-radius:4px"></div>
+        </div>
+        <span style="font-size:14px;font-weight:700;color:${CORES[e]};width:32px;text-align:right">${cnt}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Últimas atividades ────────────────────────────────────
+  const atEl = document.getElementById('tv-atividades');
+  if(atEl){
+    const recentes = [...(DB.atividades||[])]
+      .sort((a,b)=>new Date(b.data)-new Date(a.data)).slice(0,6);
+    atEl.innerHTML = recentes.length ? recentes.map(a=>`
+      <div style="background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:14px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:4px">${a.tipo}</div>
+        <div style="font-size:12px;color:var(--txt2);margin-bottom:6px">${a.revenda||'—'}</div>
+        <div style="font-size:11px;color:var(--txt3)">${new Date(a.data).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+      </div>`).join('')
+    : '<div style="color:var(--txt3);font-size:12px;grid-column:span 3;padding:16px">Nenhuma atividade recente.</div>';
+  }
 }
 
 // Logout com log de auditoria
