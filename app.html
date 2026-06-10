@@ -1933,59 +1933,67 @@ async function batchMove(newStatus){
 
   const idsToMove = toMove.map(r => r.id);
 
-  // ── 1. Atualiza cache local IMEDIATAMENTE ─────────────────
-  // (usuário vê o resultado na hora, sem piscar)
-  toMove.forEach(r => {
-    const i = DB.revendas.findIndex(x => x.id === r.id);
-    if(i > -1) DB.revendas[i].status = newStatus;
-  });
-  kbSelected.clear();
-  updateBatchBar();
-  renderKanban();
-  drawPipelineChart();
-  toast(`⏳ Salvando ${toMove.length} revenda(s)...`);
+  // Guarda status original ANTES de qualquer alteração
+  const statusOriginal = {};
+  toMove.forEach(r => { statusOriginal[r.id] = r.status; });
 
-  // ── 2. Persiste no Supabase ───────────────────────────────
-  const {error, count} = await sb
+  // ── 1. Persiste no Supabase PRIMEIRO ──────────────────────
+  // (garante que o banco aceita antes de mostrar na tela)
+  const {data: updData, error} = await sb
     .from('revendas')
     .update({ status: newStatus, atualizado_em: new Date().toISOString() })
     .in('id', idsToMove)
-    .select('id');  // força retorno para checar quantas foram afetadas
+    .select('id, status');
 
   if(error){
-    // Reverte cache local em caso de erro
-    toMove.forEach(r => {
-      const i = DB.revendas.findIndex(x => x.id === r.id);
-      if(i > -1) DB.revendas[i].status = r.status; // status original
-    });
-    renderKanban();
-    toast('Erro ao salvar: ' + error.message + ' — tente novamente', 'err');
+    toast('Erro ao salvar: ' + error.message, 'err');
     console.error('batchMove error:', error);
     return;
   }
 
-  toast(`✅ ${toMove.length} revenda(s) movida(s) para ${newStatus}`);
+  // Confirma quantas realmente foram salvas
+  const salvas = updData ? updData.length : idsToMove.length;
+  if(salvas === 0){
+    toast('Nenhuma revenda foi salva — verifique as permissões', 'err');
+    return;
+  }
 
-  // ── 3. Registra histórico ─────────────────────────────────
+  // ── 2. Registra histórico com status ORIGINAL correto ──────
   const hist = toMove.map(r => ({
     revenda_id:   r.id,
     tipo:         'Mudança de etapa',
-    descricao:    `${r.status} → ${newStatus}`,
+    descricao:    `${statusOriginal[r.id]} → ${newStatus}`,
     manual:       false,
     usuario_id:   sessaoAtual?.user?.id  || null,
     usuario_nome: perfilAtual?.nome      || 'Sistema',
   }));
-  await sb.from('historico_cards').insert(hist).catch(e =>
-    console.warn('Histórico batch:', e.message)
-  );
+  await sb.from('historico_cards')
+    .insert(hist)
+    .catch(e => console.warn('Histórico batch:', e.message));
 
-  // ── 4. Re-carrega do banco para confirmar ─────────────────
-  // (garante que o cache reflete o estado real)
-  setTimeout(async () => {
-    await loadFromSupabase();
-    renderKanban();
-    drawPipelineChart();
-  }, 1500);
+  // ── 3. Atualiza cache local com dados confirmados ──────────
+  toMove.forEach(r => {
+    const i = DB.revendas.findIndex(x => x.id === r.id);
+    if(i > -1) DB.revendas[i].status = newStatus;
+  });
+
+  // Atualiza também o sessionStorage backup
+  try {
+    sessionStorage.setItem('sb_revendas_backup', JSON.stringify(
+      DB.revendas.map(r=>({
+        id:r.id, nome:r.nome, status:r.status, cs:r.cs,
+        contratos:r.contratos, curva:r.curva, ingresso:r.ingresso,
+        cidade:r.cidade, uf:r.uf, email:r.email, tel:r.tel,
+        produtos:r.produtos, id_origem:r.id_origem, criadoEm:r.criadoEm
+      }))
+    ));
+  } catch(e){}
+
+  kbSelected.clear();
+  updateBatchBar();
+  renderKanban();
+  drawPipelineChart();
+  toast(`✅ ${salvas} revenda(s) movida(s) para ${newStatus}`);
 }
 
 function renderKanban(){
@@ -2251,15 +2259,46 @@ function switchCardTab(tab, btn){
 }
 
 async function getCardHistorico(id){
-  const rev=DB.revendas.find(r=>r.id===id);
-  const nome=rev?.nome||'';
-  const [{data:hist},{data:ativs}] = await Promise.all([
-    sb.from('historico_cards').select('*').eq('revenda_id',id).order('criado_em',{ascending:false}),
-    sb.from('atividades').select('*').eq('revenda_nome',nome).order('criado_em',{ascending:false}).limit(50),
+  const rev = DB.revendas.find(r=>r.id===id);
+  const nome = rev?.nome||'';
+
+  const [{data:hist, error:e1},{data:ativs, error:e2}] = await Promise.all([
+    sb.from('historico_cards')
+      .select('*')
+      .eq('revenda_id', id)
+      .order('criado_em', {ascending:false})
+      .limit(100),
+    sb.from('atividades')
+      .select('*')
+      .eq('revenda_nome', nome)
+      .order('criado_em', {ascending:false})
+      .limit(50),
   ]);
-  const fromCard=(hist||[]).map(h=>({...h,id:h.id,tipo:h.tipo,desc:h.descricao,data:h.criado_em,_src:'card',manual:h.manual}));
-  const fromAtiv=(ativs||[]).map(a=>({...a,id:a.id,tipo:a.tipo,desc:a.descricao,data:a.criado_em,_src:'timeline'}));
-  return [...fromCard,...fromAtiv].sort((a,b)=>new Date(b.data)-new Date(a.data));
+
+  if(e1) console.warn('histórico_cards:', e1.message);
+  if(e2) console.warn('atividades:', e2.message);
+
+  const fromCard = (hist||[]).map(h=>({
+    id:     h.id,
+    tipo:   h.tipo,
+    desc:   h.descricao,
+    data:   h.criado_em,
+    _src:   'card',
+    manual: h.manual,
+    usuario_nome: h.usuario_nome,
+  }));
+
+  const fromAtiv = (ativs||[]).map(a=>({
+    id:   a.id,
+    tipo: a.tipo,
+    desc: a.descricao,
+    data: a.criado_em,
+    _src: 'timeline',
+    usuario_nome: a.usuario_nome,
+  }));
+
+  return [...fromCard, ...fromAtiv]
+    .sort((a,b) => new Date(b.data) - new Date(a.data));
 }
 
 async function renderCardHistorico(id){
@@ -2288,7 +2327,10 @@ async function renderCardHistorico(id){
           <div style="font-size:10px;color:var(--txt3);white-space:nowrap">${dt}</div>
         </div>
         <div style="font-size:12px;color:var(--txt2);margin-top:3px;line-height:1.5">${h.desc}</div>
-        ${isManual?`<div style="font-size:10px;color:var(--pur);margin-top:4px">✏️ Anotação manual</div>`:''}
+        <div style="font-size:10px;color:var(--txt3);margin-top:3px">
+          ${h.usuario_nome ? '👤 '+h.usuario_nome : ''}
+          ${isManual?'· <span style="color:var(--pur)">✏️ Anotação manual</span>':''}
+        </div>
       </div>
       ${isManual?`<button onclick="deletarNotaCard('${id}','${h.id}')" style="background:none;border:none;color:var(--txt3);cursor:pointer;font-size:14px;padding:0 4px;flex-shrink:0" title="Excluir">🗑</button>`:''}
     </div>`;
