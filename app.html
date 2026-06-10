@@ -1959,15 +1959,16 @@ async function batchMove(newStatus){
       console.error('Erro ao mover', rev.nome, error.message);
     } else {
       ok++;
-      // Histórico em background
-      sb.from('historico_cards').insert({
+      // Registra histórico
+      await sb.from('historico_cards').insert({
         revenda_id:   rev.id,
         tipo:         'Mudança de etapa',
         descricao:    `${statusOriginal[rev.id]} → ${newStatus}`,
         manual:       false,
-        usuario_id:   sessaoAtual?.user?.id || null,
-        usuario_nome: perfilAtual?.nome     || 'Sistema',
-      }).catch(()=>{});
+        usuario_nome: perfilAtual?.nome || 'Sistema',
+      }).then(({error})=>{
+        if(error) console.error('Hist batch erro:', error.message);
+      });
     }
   }
 
@@ -2355,7 +2356,13 @@ async function renderCardHistorico(id){
     'Ativação':'🟢','Treinamento concluído':'🎓'
   };
   if(!hist.length){
-    list.innerHTML='<div class="empty" style="padding:24px"><div class="empty-ic" style="font-size:28px">📋</div><div>Nenhum histórico ainda</div></div>';
+    list.innerHTML=`<div class="empty" style="padding:24px">
+      <div class="empty-ic" style="font-size:28px">📋</div>
+      <div>Nenhum histórico ainda</div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:8px">
+        Mova este card entre etapas para começar o registro
+      </div>
+    </div>`;
     return;
   }
   list.innerHTML = hist.map(h=>{
