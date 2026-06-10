@@ -1103,24 +1103,58 @@ const DB = {
 // Carrega dados do Supabase para o cache local
 async function loadFromSupabase(){
   try {
-    const [revs,users,tasks,ativs,trains,handov] = await Promise.all([
-      sb.from('revendas').select('*').order('criado_em',{ascending:false}),
+    // ── Revendas com paginação (suporta 700+) ────────────────
+    let todasRevendas = [];
+    let pag = 0;
+    const PG = 500;
+    while(true){
+      const {data, error} = await sb
+        .from('revendas')
+        .select('*')
+        .order('nome', {ascending: true})
+        .range(pag * PG, (pag + 1) * PG - 1);
+
+      if(error){
+        console.warn(`revendas pag${pag}:`, error.message);
+        break;
+      }
+      if(!data || data.length === 0) break;
+      todasRevendas = todasRevendas.concat(data);
+      if(data.length < PG) break;
+      pag++;
+    }
+
+    // ── Demais tabelas em paralelo ───────────────────────────
+    const [users, tasks, ativs, trains, handov] = await Promise.all([
       sb.from('perfis').select('*').order('nome'),
-      sb.from('tarefas').select('*').order('criado_em',{ascending:false}),
-      sb.from('atividades').select('*').order('criado_em',{ascending:false}).limit(200),
-      sb.from('treinamentos').select('*').order('criado_em',{ascending:false}),
-      sb.from('handovers').select('*').order('criado_em',{ascending:false}),
+      sb.from('tarefas').select('*').order('criado_em', {ascending: false}),
+      sb.from('atividades').select('*').order('criado_em', {ascending: false}).limit(200),
+      sb.from('treinamentos').select('*').order('criado_em', {ascending: false}),
+      sb.from('handovers').select('*').order('criado_em', {ascending: false}),
     ]);
-    if(revs.error)  console.warn('revendas:', revs.error.message);
-    if(users.error) console.warn('perfis:',   users.error.message);
-    if(revs.data)   DB.revendas     = revs.data.map(normalizeRevenda);
-    if(users.data)  DB.usuarios     = users.data.map(normalizeUsuario);
-    if(tasks.data)  DB.tarefas      = tasks.data.map(normalizeTask);
-    if(ativs.data)  DB.atividades   = ativs.data.map(normalizeAtiv);
-    if(trains.data) DB.treinamentos = trains.data;
-    if(handov.data) DB.handovers    = handov.data.map(normalizeHandover);
-    console.log(`✅ Supabase: ${DB.revendas.length} revendas, ${DB.tarefas.length} tarefas, ${DB.usuarios.length} usuários`);
-  } catch(e){ console.warn('loadFromSupabase:', e.message); }
+
+    // ── Aplica no cache — NUNCA sobrescreve com array vazio ──
+    if(todasRevendas.length > 0){
+      DB.revendas = todasRevendas.map(normalizeRevenda);
+    } else if(DB.revendas.length > 0){
+      console.warn('Supabase retornou 0 revendas — cache mantido');
+    }
+
+    if(users.data  && users.data.length  > 0)  DB.usuarios     = users.data.map(normalizeUsuario);
+    if(tasks.data)                              DB.tarefas      = tasks.data.map(normalizeTask);
+    if(ativs.data)                              DB.atividades   = ativs.data.map(normalizeAtiv);
+    if(trains.data)                             DB.treinamentos = trains.data;
+    if(handov.data)                             DB.handovers    = handov.data.map(normalizeHandover);
+
+    // Marca como carregado com sucesso
+    DB._carregado = true;
+
+    console.log(`✅ ${DB.revendas.length} revendas | ${DB.tarefas.length} tarefas | ${DB.usuarios.length} usuários`);
+
+  } catch(e){
+    console.warn('loadFromSupabase (cache mantido):', e.message);
+    // Cache local preservado — dados nunca somem por erro de rede
+  }
 }
 
 // Normaliza campos Supabase → formato do app
