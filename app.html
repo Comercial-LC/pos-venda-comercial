@@ -302,15 +302,18 @@ select option{background:var(--bg2)}
       </div>
 
       <!-- Barra de ação em lote (aparece ao selecionar) -->
-      <div id="kb-batch-bar" style="display:none;align-items:center;gap:10px;padding:10px 14px;background:var(--accl);border:1px solid var(--acc);border-radius:var(--r);margin-bottom:12px">
+      <div id="kb-batch-bar" style="display:none;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 14px;background:var(--accl);border:1px solid var(--acc);border-radius:var(--r);margin-bottom:12px">
         <span style="font-size:13px;font-weight:600;color:var(--acc)" id="kb-sel-count">0 selecionadas</span>
         <span style="font-size:12px;color:var(--txt2)">Mover para:</span>
-        <button class="btn btn-sm" style="background:var(--acc);color:#fff" onclick="batchMove('Onboarding')">🚀 Onboarding</button>
-        <button class="btn btn-sm" style="background:var(--warnl);color:var(--warn);border:1px solid var(--warn)" onclick="batchMove('Trial')">⏳ Trial</button>
-        <button class="btn btn-sm" style="background:var(--okl);color:var(--ok);border:1px solid var(--ok)" onclick="batchMove('Ativo')">✅ Ativo</button>
-        <button class="btn btn-sm" style="background:var(--errl);color:var(--err);border:1px solid var(--err)" onclick="batchMove('Inativo')">❌ Inativo</button>
-        <button class="btn btn-sm" style="background:var(--tell);color:var(--tel);border:1px solid var(--tel)" onclick="batchMove('Concluído')">🎉 Concluído</button>
-        <button class="btn btn-s btn-sm" style="margin-left:auto" onclick="clearKbSelection()">Cancelar seleção</button>
+        <button class="btn btn-sm" style="background:#33334a;color:var(--txt2);border:1px solid var(--bdr2);font-size:11px" onclick="batchMove('Nova Revenda')">🆕 Nova Revenda</button>
+        <button class="btn btn-sm" style="background:var(--accl);color:var(--acc);border:1px solid var(--acc);font-size:11px" onclick="batchMove('Implantação')">🔧 Implantação</button>
+        <button class="btn btn-sm" style="background:var(--purl);color:var(--pur);border:1px solid var(--pur);font-size:11px" onclick="batchMove('Liberação Web')">🌐 Liberação Web</button>
+        <button class="btn btn-sm" style="background:#2d0a2e;color:#ec4899;border:1px solid #ec4899;font-size:11px" onclick="batchMove('Academy')">🎓 Academy</button>
+        <button class="btn btn-sm" style="background:var(--warnl);color:var(--warn);border:1px solid var(--warn);font-size:11px" onclick="batchMove('Decola Instalação')">🚀 Decola Inst.</button>
+        <button class="btn btn-sm" style="background:#2d1500;color:#f97316;border:1px solid #f97316;font-size:11px" onclick="batchMove('Decola Produtos')">📦 Decola Prod.</button>
+        <button class="btn btn-sm" style="background:var(--okl);color:var(--ok);border:1px solid var(--ok);font-size:11px" onclick="batchMove('Primeiro Cliente')">👤 1º Cliente</button>
+        <button class="btn btn-sm" style="background:var(--tell);color:var(--tel);border:1px solid var(--tel);font-size:11px" onclick="batchMove('Handover')">🤝 Handover</button>
+        <button class="btn btn-s btn-sm" style="margin-left:auto;font-size:11px" onclick="clearKbSelection()">✕ Cancelar seleção</button>
       </div>
 
       <div class="kb-scroll-top" id="kb-scroll-top">
