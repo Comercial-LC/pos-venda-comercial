@@ -1398,33 +1398,54 @@ function clearKbFilters(){
 function clearKbSelection(){
   kbSelected.clear();
   updateBatchBar();
-  renderKanban();
+  // Limpa visual de todos os cards selecionados
+  document.querySelectorAll('.kcard[data-id]').forEach(card=>{
+    card.style.border     = '1px solid var(--bdr)';
+    card.style.background = '';
+    const chk = card.querySelector('.kb-chk');
+    if(chk){ chk.style.background='var(--bdr)'; chk.textContent=''; }
+  });
+  // Desmarca checkboxes "todos" das colunas
+  document.querySelectorAll('.kc input[type="checkbox"]').forEach(cb=>cb.checked=false);
 }
 
 function updateBatchBar(){
-  const bar=document.getElementById('kb-batch-bar');
-  const cnt=document.getElementById('kb-sel-count');
-  if(!bar)return;
-  if(kbSelected.size>0){
-    bar.style.display='flex';
-    if(cnt)cnt.textContent=`${kbSelected.size} selecionada(s)`;
+  const bar = document.getElementById('kb-batch-bar');
+  const cnt = document.getElementById('kb-sel-count');
+  if(!bar) return;
+  if(kbSelected.size > 0){
+    bar.style.display = 'flex';
+    if(cnt){
+      // Mostra quantidade e nomes das revendas selecionadas
+      const nomes = [...kbSelected].map(id=>{
+        const r = (DB.revendas||[]).find(x=>x.id===id);
+        return r ? r.nome : id;
+      });
+      const preview = nomes.slice(0,3).join(', ') + (nomes.length>3?` e mais ${nomes.length-3}`:'');
+      cnt.textContent = `${kbSelected.size} selecionada(s): ${preview}`;
+    }
   } else {
-    bar.style.display='none';
+    bar.style.display = 'none';
   }
 }
 
 function toggleKbSelect(id, e){
   e.stopPropagation();
-  if(kbSelected.has(id))kbSelected.delete(id);
+  e.preventDefault();
+  if(kbSelected.has(id)) kbSelected.delete(id);
   else kbSelected.add(id);
   updateBatchBar();
-  // Atualiza visual do card sem re-renderizar tudo
-  const card=document.querySelector(`.kcard[data-id="${id}"]`);
+  // Atualiza visual do card
+  const card = document.querySelector(`.kcard[data-id="${id}"]`);
   if(card){
-    card.style.border=kbSelected.has(id)?'2px solid var(--acc)':'1px solid var(--bdr)';
-    card.style.background=kbSelected.has(id)?'var(--accl)':'';
-    const chk=card.querySelector('.kb-chk');
-    if(chk)chk.style.background=kbSelected.has(id)?'var(--acc)':'var(--bdr)';
+    const sel = kbSelected.has(id);
+    card.style.border      = sel ? '2px solid var(--acc)' : '1px solid var(--bdr)';
+    card.style.background  = sel ? 'var(--accl)' : '';
+    const chk = card.querySelector('.kb-chk');
+    if(chk){
+      chk.style.background = sel ? 'var(--acc)' : 'var(--bdr)';
+      chk.textContent      = sel ? '✓' : '';
+    }
   }
 }
 
@@ -1576,10 +1597,22 @@ function renderKanban(){
 }
 
 function selectAllInCol(col, checked){
-  const f=getKbFilters();
-  (DB.revendas||[])
-    .filter(r=> r.status===col && matchesKbFilter(r, f))
-    .forEach(r=>{ if(checked) kbSelected.add(r.id); else kbSelected.delete(r.id); });
+  const f = getKbFilters();
+  // Usa os cards visíveis no DOM para garantir consistência
+  const cardsNaCol = document.querySelectorAll(`.kc[data-col="${col}"] .kcard[data-id]`);
+  if(cardsNaCol.length){
+    cardsNaCol.forEach(card=>{
+      const id = card.getAttribute('data-id');
+      if(!id) return;
+      if(checked) kbSelected.add(id);
+      else kbSelected.delete(id);
+    });
+  } else {
+    // Fallback: usa DB
+    (DB.revendas||[])
+      .filter(r=> r.status===col && matchesKbFilter(r,f))
+      .forEach(r=>{ if(checked) kbSelected.add(r.id); else kbSelected.delete(r.id); });
+  }
   updateBatchBar();
   renderKanban();
 }
