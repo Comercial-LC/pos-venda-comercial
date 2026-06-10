@@ -2443,19 +2443,31 @@ function renderCardProdutos(id){
   const rev = DB.revendas.find(r=>r.id===id);
   const el  = document.getElementById('card-produtos-list');
   if(!rev||!el) return;
-  el.innerHTML = PRODUTOS_LIST.map(p=>{
-    const done = (rev.produtos||[]).includes(p);
-    return `<div onclick="toggleProdutoCard('${id}','${p}')"
-      style="padding:8px 14px;border-radius:20px;font-size:13px;cursor:pointer;
-        border:2px solid ${done?'var(--ok)':'var(--bdr)'};
-        background:${done?'var(--okl)':'transparent'};
-        color:${done?'var(--ok)':'var(--txt2)'};
-        transition:all .15s;display:flex;align-items:center;gap:6px">
-      <span>${done?'✅':'⬜'}</span>${p}
-    </div>`;
-  }).join('');
-  const cnt = (rev.produtos||[]).length;
-  el.innerHTML += `<div style="width:100%;margin-top:8px;font-size:12px;color:var(--txt3)">${cnt}/${PRODUTOS_LIST.length} produtos ativados</div>`;
+
+  const prods = rev.produtos||[];
+  el.innerHTML = '';
+
+  PRODUTOS_LIST.forEach(p=>{
+    const done = prods.includes(p);
+    const btn  = document.createElement('button');
+    btn.style.cssText = [
+      'padding:8px 14px','border-radius:20px','font-size:13px','cursor:pointer',
+      'border:2px solid '+(done?'var(--ok)':'var(--bdr)'),
+      'background:'+(done?'var(--okl)':'transparent'),
+      'color:'+(done?'var(--ok)':'var(--txt2)'),
+      'transition:all .15s','display:flex','align-items:center','gap:6px',
+      'font-family:var(--font)'
+    ].join(';');
+    btn.innerHTML = '<span>'+(done?'✅':'⬜')+'</span>'+p;
+    btn.addEventListener('click', ()=>{ toggleProdutoCard(id, p); });
+    el.appendChild(btn);
+  });
+
+  // Contador
+  const cnt = document.createElement('div');
+  cnt.style.cssText = 'width:100%;margin-top:8px;font-size:12px;color:var(--txt3)';
+  cnt.textContent = prods.length+'/'+PRODUTOS_LIST.length+' produtos ativados';
+  el.appendChild(cnt);
 }
 
 async function toggleProdutoCard(revId, produto){
