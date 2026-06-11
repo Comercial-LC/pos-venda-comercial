@@ -912,7 +912,7 @@ select option{background:var(--bg2)}
       <div class="fr"><div class="fg"><label>Nome da Revenda *</label><input id="r-nome" placeholder="Ex: TechSol Soluções LTDA"></div><div class="fg"><label>CNPJ</label><input id="r-cnpj" placeholder="00.000.000/0001-00"></div></div>
       <div class="fr"><div class="fg"><label>Cidade *</label><input id="r-cidade" placeholder="São Paulo"></div><div class="fg"><label>UF *</label><select id="r-uf"><option value="">Selecione</option><option>SP</option><option>RJ</option><option>MG</option><option>PR</option><option>SC</option><option>RS</option><option>CE</option><option>BA</option><option>GO</option><option>DF</option><option>ES</option><option>PE</option><option>RN</option><option>PB</option><option>AM</option><option>PA</option><option>MT</option><option>MS</option><option>TO</option><option>MA</option></select></div></div>
       <div class="fr"><div class="fg"><label>E-mail</label><input id="r-email" type="email" placeholder="contato@empresa.com"></div><div class="fg"><label>Telefone</label><input id="r-tel" placeholder="(11) 99999-9999"></div></div>
-      <div class="fr"><div class="fg"><label>Responsável CS *</label><select id="r-cs"><option value="">Selecione o CS</option></select></div><div class="fg"><label>Status *</label><select id="r-status"><option>Nova Revenda</option><option>Implantação</option><option>Liberação Web</option><option>Academy</option><option>Decola Instalação</option><option>Decola Produtos</option><option>Primeiro Cliente</option><option>Handover</option></select></div></div>
+      <div class="fr"><div class="fg"><label>Responsável CS *</label><select id="r-cs"><option value="">Selecione o CS</option></select></div><div class="fg"><label>Status *</label><select id="r-status"><option>Nova Revenda</option></select></div></div>
       <div class="fr"><div class="fg"><label>Segmento</label><select id="r-seg"><option value="">Selecione</option><option>Tecnologia</option><option>Varejo</option><option>Serviços</option><option>Indústria</option><option>Saúde</option><option>Educação</option><option>Financeiro</option><option>Outros</option></select></div><div class="fg"><label>Porte</label><select id="r-porte"><option value="">Selecione</option><option>Pequeno</option><option>Médio</option><option>Grande</option></select></div></div>
       <div class="fr"><div class="fg"><label>Nº de Vendedores</label><input id="r-vend" type="number" placeholder="0"></div><div class="fg"><label>Data de Ingresso</label><input id="r-ingresso" type="date"></div></div>
       <div class="fg"><label>Observações</label><textarea id="r-obs" rows="3" placeholder="Informações adicionais..."></textarea></div>
@@ -1616,6 +1616,27 @@ document.querySelectorAll('.mo-ov').forEach(o=>o.addEventListener('click',e=>{if
 function populateSelects(){
   if(!DB.usuarios) DB.usuarios=[];
   if(!DB.revendas) DB.revendas=[];
+
+  // Preenche select de status com etapas configuradas
+  const selStatus = document.getElementById('r-status');
+  if(selStatus){
+    const val = selStatus.value; // preserva valor atual
+    selStatus.innerHTML = getEtapas()
+      .map(e=>'<option value="'+e.id+'">'+e.icon+' '+e.id+'</option>')
+      .join('');
+    if(val && selStatus.querySelector('option[value="'+val+'"]'))
+      selStatus.value = val;
+  }
+
+  // Preenche select de etapa padrão nas configurações
+  const selEtapaCfg = document.getElementById('cfg-etapa-padrao');
+  if(selEtapaCfg){
+    const valCfg = selEtapaCfg.value;
+    selEtapaCfg.innerHTML = getEtapas()
+      .map(e=>'<option value="'+e.id+'">'+e.icon+' '+e.id+'</option>')
+      .join('');
+    if(valCfg) selEtapaCfg.value = valCfg;
+  }
   const csOpts=DB.usuarios.filter(u=>u.ativo).map(u=>`<option>${u.nome}</option>`).join('');
   const revOpts=DB.revendas.map(r=>`<option>${r.nome}</option>`).join('');
   ['r-cs','t-resp','h-cs'].forEach(id=>{const el=document.getElementById(id);if(el){const cur=el.value;el.innerHTML='<option value="">Selecione</option>'+csOpts;el.value=cur}});
