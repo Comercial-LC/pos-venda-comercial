@@ -3953,8 +3953,9 @@ const ETAPAS_PADRAO = [
   {id:'Academy',          icon:'🎓', cor:'#ec4899'},
   {id:'Decola Instalação',icon:'🚀', cor:'#f59e0b'},
   {id:'Decola Produtos',  icon:'📦', cor:'#f97316'},
-  {id:'Primeiro Cliente', icon:'👤', cor:'#10b981'},
+  {id:'Decola 1 Cliente', icon:'👤', cor:'#10b981'},
   {id:'Handover',         icon:'🤝', cor:'#14b8a6'},
+  {id:'Inativo',          icon:'🚫', cor:'#ef4444'},
 ];
 
 const PRODUTOS_PADRAO = [
@@ -3995,36 +3996,51 @@ async function saveCfg(obj){
   const atual = getCfg();
   const nova  = {...atual, ...obj};
   _cfgCache   = nova;
-  // Salva no localStorage (rápido)
+  // Salva no localStorage
   try { localStorage.setItem('lc_cfg', JSON.stringify(nova)); } catch(e){}
-  // Salva no Supabase (sincroniza TV e outros dispositivos)
-  await sb.from('configuracoes').upsert({
+  // Salva no Supabase (sem .catch() — inválido no Supabase v2)
+  const {error} = await sb.from('configuracoes').upsert({
     chave: 'lc_cfg',
     valor: JSON.stringify(nova),
     atualizado_em: new Date().toISOString()
-  }, {onConflict: 'chave'}).catch(()=>{});
+  }, {onConflict: 'chave'});
+  if(error) console.error('saveCfg Supabase erro:', error.message);
+  else console.log('✅ Config salva no Supabase');
 }
 
 async function carregarCfgDoSupabase(){
   try {
     const {data, error} = await sb.from('configuracoes')
-      .select('valor').eq('chave','lc_cfg').single();
+      .select('valor,atualizado_em').eq('chave','lc_cfg').single();
     if(error) throw error;
     if(data?.valor){
-      const cfg = JSON.parse(data.valor);
+      const cfgBanco    = JSON.parse(data.valor);
+      const cfgLocal    = (() => {
+        try { const s=localStorage.getItem('lc_cfg'); return s?JSON.parse(s):{} } catch(e){ return {} }
+      })();
+
+      // Usa a config mais recente entre banco e localStorage
+      // (evita sobrescrever mudanças locais não sincronizadas)
+      const bancTs  = new Date(data.atualizado_em||0).getTime();
+      const localTs = parseInt(localStorage.getItem('lc_cfg_ts')||'0');
+
+      const cfg = localTs > bancTs ? cfgLocal : cfgBanco;
       _cfgCache = cfg;
-      try { localStorage.setItem('lc_cfg', data.valor); } catch(e){}
-      console.log('✅ Config carregada do Supabase:', Object.keys(cfg));
+      try {
+        localStorage.setItem('lc_cfg', JSON.stringify(cfg));
+        localStorage.setItem('lc_cfg_ts', Math.max(bancTs,localTs).toString());
+      } catch(e){}
+      console.log('✅ Config carregada:', cfg.etapas?.length||0, 'etapas');
       return cfg;
     }
   } catch(e){
-    // Fallback: usa localStorage
-    console.warn('Config Supabase indisponível, usando localStorage');
-    try {
-      const s = localStorage.getItem('lc_cfg');
-      if(s) _cfgCache = JSON.parse(s);
-    } catch(e2){}
+    console.warn('Config Supabase indisponível:', e.message);
   }
+  // Fallback localStorage
+  try {
+    const s = localStorage.getItem('lc_cfg');
+    if(s){ _cfgCache = JSON.parse(s); return _cfgCache; }
+  } catch(e){}
   return _cfgCache || {};
 }
 
@@ -4162,14 +4178,16 @@ function removeEtapa(i){
 
 async function salvarEtapas(){
   const etapas = getEtapas();
-  // Lê valores atuais dos inputs antes de salvar
   etapas.forEach((e,i)=>{
     e.id   = document.getElementById('etapa-nome-'+i)?.value || e.id;
     e.cor  = document.getElementById('etapa-cor-'+i)?.value  || e.cor;
     e.icon = document.getElementById('etapa-icon-'+i)?.value || e.icon;
   });
+  // Grava timestamp para comparação com banco
+  const ts = Date.now();
+  localStorage.setItem('lc_cfg_ts', ts.toString());
   await saveCfg({etapas});
-  toast('✅ Etapas salvas e sincronizadas com a TV!');
+  toast('✅ Etapas salvas!');
   renderKanban();
 }
 
