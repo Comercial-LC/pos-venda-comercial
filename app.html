@@ -1997,61 +1997,58 @@ async function batchMove(newStatus){
     return;
   }
 
-  // Guarda status original
   const statusOriginal = {};
   toMove.forEach(r => { statusOriginal[r.id] = r.status; });
 
-  // ── Atualiza cache e tela IMEDIATAMENTE ───────────────────
-  toMove.forEach(r => {
-    const i = DB.revendas.findIndex(x=>x.id===r.id);
-    if(i > -1) DB.revendas[i].status = newStatus;
-  });
-  kbSelected.clear();
-  updateBatchBar();
-  renderKanban();
-  drawPipelineChart();
-  toast(`⏳ Salvando ${toMove.length} revenda(s)...`);
-
-  // ── Salva no banco em background ──────────────────────────
-  let ok=0, fail=0;
-  for(const rev of toMove){
-    const {error} = await sb
-      .from('revendas')
-      .update({ status: newStatus, atualizado_em: new Date().toISOString() })
-      .eq('id', rev.id);
-
-    if(error){
-      // Reverte este card
-      const i = DB.revendas.findIndex(x=>x.id===rev.id);
-      if(i > -1) DB.revendas[i].status = statusOriginal[rev.id];
-      fail++;
-      console.error('Erro ao mover', rev.nome, error.message);
-    } else {
-      ok++;
-      // Registra histórico
-      await inserirHistorico(rev.id, 'Mudança de etapa',
-        `${statusOriginal[rev.id]} → ${newStatus}`,
-        perfilAtual?.nome);
-    }
-  }
-
-  // Re-renderiza se houve reversões
-  if(fail > 0){
+  const executar = async (motivo) => {
+    // Otimistic UI
+    toMove.forEach(r => {
+      const i = DB.revendas.findIndex(x=>x.id===r.id);
+      if(i > -1) DB.revendas[i].status = newStatus;
+    });
+    kbSelected.clear();
+    updateBatchBar();
     renderKanban();
-    toast(`⚠️ ${ok} movida(s), ${fail} com erro`, 'warn');
-  } else {
-    toast(`✅ ${ok} revenda(s) movida(s) para ${newStatus}`);
-  }
+    drawPipelineChart();
+    toast('⏳ Salvando ' + toMove.length + ' revenda(s)...');
 
-  // Atualiza backup
-  try {
-    sessionStorage.setItem('sb_revendas_backup', JSON.stringify(
-      DB.revendas.map(r=>({id:r.id,nome:r.nome,status:r.status,
-        cs:r.cs,contratos:r.contratos,curva:r.curva,ingresso:r.ingresso,
-        cidade:r.cidade,uf:r.uf,email:r.email,tel:r.tel,
-        produtos:r.produtos,id_origem:r.id_origem,criadoEm:r.criadoEm}))
-    ));
-  } catch(e){}
+    let ok=0, fail=0;
+    for(const rev of toMove){
+      const {error} = await sb.from('revendas')
+        .update({status: newStatus, atualizado_em: new Date().toISOString()})
+        .eq('id', rev.id);
+
+      if(error){
+        const i = DB.revendas.findIndex(x=>x.id===rev.id);
+        if(i > -1) DB.revendas[i].status = statusOriginal[rev.id];
+        fail++;
+      } else {
+        ok++;
+        const desc = motivo
+          ? statusOriginal[rev.id] + ' → ' + newStatus + ' | Motivo: ' + motivo
+          : statusOriginal[rev.id] + ' → ' + newStatus;
+        await inserirHistorico(rev.id, 'Mudança de etapa', desc, perfilAtual?.nome);
+      }
+    }
+
+    if(fail > 0){ renderKanban(); toast('⚠️ ' + ok + ' movida(s), ' + fail + ' com erro','warn'); }
+    else toast('✅ ' + ok + ' revenda(s) movida(s) para ' + newStatus);
+
+    try {
+      sessionStorage.setItem('sb_revendas_backup', JSON.stringify(
+        DB.revendas.map(r=>({id:r.id,nome:r.nome,status:r.status,
+          cs:r.cs,contratos:r.contratos,curva:r.curva,ingresso:r.ingresso,
+          cidade:r.cidade,uf:r.uf,email:r.email,tel:r.tel,
+          produtos:r.produtos,id_origem:r.id_origem,criadoEm:r.criadoEm}))
+      ));
+    } catch(e){}
+  };
+
+  if(precisaMotivo(newStatus)){
+    abrirMotivoInativo(newStatus, executar);
+  } else {
+    await executar('');
+  }
 }
 
 function renderKanban(){
@@ -2240,81 +2237,64 @@ function kDragLeave(e){
 
 async function kDrop(e, newStatus){
   e.preventDefault();
-  const col=e.currentTarget;
-  col.style.background=''; col.style.outline='';
-  const id = e.dataTransfer.getData('text/plain')||dragId;
+  const col = e.currentTarget;
+  col.style.background = '';
+  col.style.outline    = '';
+
+  const id  = e.dataTransfer.getData('text/plain') || dragId;
   if(!id) return;
   const rev = (DB.revendas||[]).find(r=>r.id===id);
-  if(!rev || rev.status===newStatus) return;
+  if(!rev || rev.status === newStatus) return;
 
-  const old = rev.status;
-
-  // ── Atualiza cache e tela IMEDIATAMENTE (otimistic UI) ────
+  const old    = rev.status;
   const revIdx = DB.revendas.findIndex(r=>r.id===id);
-  if(revIdx > -1) DB.revendas[revIdx].status = newStatus;
-  renderKanban();
-  drawPipelineChart();
-  setTimeout(initKanbanScroll, 100);
 
-  // ── Salva no banco em background ──────────────────────────
-  // Executa o save (chamado diretamente ou após motivo)
-  var executarSave = async function(motivo){
-    var {error} = await sb.from('revendas')
-      .update({status:newStatus, atualizado_em:new Date().toISOString()})
+  // Função que executa o save após motivo (ou direto)
+  const executar = async (motivo) => {
+    // Otimistic UI
+    if(revIdx > -1) DB.revendas[revIdx].status = newStatus;
+    renderKanban();
+    drawPipelineChart();
+    setTimeout(initKanbanScroll, 100);
+
+    // Salva no banco
+    const {error} = await sb.from('revendas')
+      .update({status: newStatus, atualizado_em: new Date().toISOString()})
       .eq('id', id);
+
     if(error){
-      if(revIdx>-1) DB.revendas[revIdx].status=old;
+      // Reverte
+      if(revIdx > -1) DB.revendas[revIdx].status = old;
       renderKanban();
-      toast('Erro ao mover: '+error.message,'err');
+      toast('Erro ao mover: ' + error.message, 'err');
       return;
     }
-    var desc = motivo ? old+' → '+newStatus+' | Motivo: '+motivo : old+' → '+newStatus;
-    await inserirHistorico(id,'Mudança de etapa',desc,perfilAtual&&perfilAtual.nome);
+
+    // Histórico
+    const desc = motivo
+      ? old + ' → ' + newStatus + ' | Motivo: ' + motivo
+      : old + ' → ' + newStatus;
+    await inserirHistorico(id, 'Mudança de etapa', desc, perfilAtual?.nome);
+
+    // Backup
     try {
-      sessionStorage.setItem('sb_revendas_backup',JSON.stringify(
-        DB.revendas.map(function(r){return {id:r.id,nome:r.nome,status:r.status,cs:r.cs,
-          contratos:r.contratos,curva:r.curva,ingresso:r.ingresso,cidade:r.cidade,uf:r.uf,
-          email:r.email,tel:r.tel,produtos:r.produtos,id_origem:r.id_origem,criadoEm:r.criadoEm};})));
+      sessionStorage.setItem('sb_revendas_backup', JSON.stringify(
+        DB.revendas.map(r=>({id:r.id,nome:r.nome,status:r.status,
+          cs:r.cs,contratos:r.contratos,curva:r.curva,ingresso:r.ingresso,
+          cidade:r.cidade,uf:r.uf,email:r.email,tel:r.tel,
+          produtos:r.produtos,id_origem:r.id_origem,criadoEm:r.criadoEm}))
+      ));
     } catch(e){}
-    toast('✅ '+rev.nome+' → '+newStatus);
+
+    toast('✅ ' + rev.nome + ' → ' + newStatus);
   };
+
+  // Se precisa de motivo, abre modal ANTES de mover
   if(precisaMotivo(newStatus)){
-    if(revIdx>-1) DB.revendas[revIdx].status=old;
-    renderKanban();
-    abrirMotivoInativo(newStatus, executarSave);
-    return;
+    abrirMotivoInativo(newStatus, executar);
+  } else {
+    await executar('');
   }
-  var {error} = await sb.from('revendas')
-    .update({status:newStatus, atualizado_em:new Date().toISOString()})
-    .eq('id',id);
-  if(error){
-    if(revIdx>-1) DB.revendas[revIdx].status=old;
-    renderKanban();
-    toast('Erro ao mover: '+error.message,'err');
-    return;
-  }
-
-  // Registra histórico
-  await sb.from('historico_cards').insert({
-    revenda_id:   id,
-    tipo:         'Mudança de etapa',
-    descricao:    `${old} → ${newStatus}`,
-    manual:       false,
-    usuario_id:   sessaoAtual?.user?.id  || null,
-    usuario_nome: perfilAtual?.nome      || 'Sistema',
-  });
-
-  // Atualiza backup
-  try {
-    sessionStorage.setItem('sb_revendas_backup', JSON.stringify(
-      DB.revendas.map(r=>({id:r.id,nome:r.nome,status:r.status,
-        cs:r.cs,contratos:r.contratos,curva:r.curva,ingresso:r.ingresso,
-        cidade:r.cidade,uf:r.uf,email:r.email,tel:r.tel,
-        produtos:r.produtos,id_origem:r.id_origem,criadoEm:r.criadoEm}))
-    ));
-  } catch(e){}
-
-  toast(`✅ ${rev.nome} → ${newStatus}`);
 }
 
 function kCardClick(e, id){
@@ -2577,8 +2557,10 @@ async function moverCardInfoEtapa(revId){
     // Atualiza header do modal
     const sub = document.getElementById('mo-card-sub');
     if(sub){
-      sub.innerHTML = `<span style="color:${ETAPA_COLORS[newStatus]||'var(--acc)'};font-weight:600">${newStatus}</span>
-        &nbsp;·&nbsp; CS: ${rev.cs||'—'} &nbsp;·&nbsp; ${rev.contratos||'0'} contratos`;
+      const etapaCorCard = (getEtapas().find(e=>e.id===newStatus)||{}).cor||'var(--acc)';
+      sub.innerHTML = '<span style="color:'+etapaCorCard+';font-weight:600">'+newStatus+'</span>'
+        +' &nbsp;·&nbsp; CS: '+(rev.cs||'—')
+        +' &nbsp;·&nbsp; '+(rev.contratos||'0')+' contratos';
     }
 
     const desc = motivo ? `${old} → ${newStatus} | Motivo: ${motivo}` : `${old} → ${newStatus}`;
