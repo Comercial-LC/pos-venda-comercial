@@ -82,6 +82,10 @@ tr:hover td{background:var(--card2)}
 .kc{min-width:250px;width:250px;background:var(--bg2);border-radius:var(--rl);padding:14px;display:flex;flex-direction:column;gap:8px}
 .kch{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
 .kct{font-size:13px;font-weight:600}.kcc{background:var(--bdr);color:var(--txt2);padding:2px 8px;border-radius:20px;font-size:11px}
+.k-cards::-webkit-scrollbar{width:4px}
+.k-cards::-webkit-scrollbar-track{background:transparent}
+.k-cards::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:4px}
+.k-cards::-webkit-scrollbar-thumb:hover{background:var(--acc)}
 .kcard{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;cursor:pointer;transition:var(--tr)}
 .kcard:hover{border-color:var(--acc);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.2)}
 .pbar{background:var(--bdr);border-radius:3px;height:4px;overflow:hidden;margin-top:6px}
@@ -2235,11 +2239,11 @@ function renderKanban(){
         </div>
       </div>
       <div class="k-cards" data-col="${col.id}"
-        style="display:flex;flex-direction:column;gap:8px;flex:1;min-height:60px">
+        style="display:flex;flex-direction:column;gap:8px;flex:1;min-height:60px;overflow-y:auto;overflow-x:hidden;padding:0 2px 4px;scrollbar-width:thin;scrollbar-color:var(--bdr2) transparent">
         ${cardsHTML}
       </div>
       <button class="btn btn-s btn-sm"
-        style="width:100%;margin-top:8px;justify-content:center;font-size:11px"
+        style="width:calc(100% - 4px);margin:4px 2px 2px;justify-content:center;font-size:11px;flex-shrink:0"
         onclick="openMo('mo-rev')">+ Adicionar</button>
     </div>`;
   }).join('');
