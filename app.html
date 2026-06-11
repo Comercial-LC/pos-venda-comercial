@@ -5225,6 +5225,34 @@ async function excluirMeta(id){
   });
 }
 
+// ─── STATUS DE META (função central) ───────────────────────────────
+function calcMetaStatus(m){
+  const hoje     = new Date();
+  const mesAtual = hoje.getMonth()+1 === m.mes && hoje.getFullYear() === m.ano;
+  const diasMes  = new Date(m.ano, m.mes, 0).getDate();
+  const diaHoje  = mesAtual ? hoje.getDate() : diasMes;
+  const pct      = m.valor_meta>0 ? Math.min(Math.round((m.valor_atual/m.valor_meta)*100),100) : 0;
+  const esperado = m.valor_meta>0 ? Math.round((diaHoje/diasMes)*m.valor_meta) : 0;
+  const ritmoPct = esperado>0 ? Math.round((m.valor_atual/esperado)*100) : (m.valor_atual>0?100:0);
+  const delta    = m.valor_atual - esperado;
+  const faltam   = Math.max(0, m.valor_meta - m.valor_atual);
+  let cor, bg, borda, icon, label;
+  if(pct>=100){
+    cor='#22c55e';bg='rgba(34,197,94,0.12)';borda='#22c55e';icon='🏆';label='Meta atingida';
+  } else if(!mesAtual){
+    if(pct>=90){cor='#22c55e';bg='rgba(34,197,94,0.12)';borda='#22c55e';icon='✅';label='Atingida';}
+    else if(pct>=70){cor='#f59e0b';bg='rgba(245,158,11,0.12)';borda='#f59e0b';icon='⚠️';label='Atenção';}
+    else{cor='#ef4444';bg='rgba(239,68,68,0.12)';borda='#ef4444';icon='🔴';label='Crítica';}
+  } else if(ritmoPct>=90){
+    cor='#22c55e';bg='rgba(34,197,94,0.12)';borda='#22c55e';icon='✅';label='No ritmo';
+  } else if(ritmoPct>=70){
+    cor='#f59e0b';bg='rgba(245,158,11,0.12)';borda='#f59e0b';icon='⚠️';label='Atenção';
+  } else {
+    cor='#ef4444';bg='rgba(239,68,68,0.12)';borda='#ef4444';icon='🔴';label='Crítica';
+  }
+  return {pct,esperado,ritmoPct,delta,faltam,mesAtual,diaHoje,diasMes,cor,bg,borda,icon,label};
+}
+
 // ─── AUDITORIA ────────────────────────────────────────────────────
 async function renderAuditoria(){
   if(!perfilAtual || perfilAtual.perfil !== 'Administrador'){
