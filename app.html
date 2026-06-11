@@ -1271,17 +1271,27 @@ async function renderTVDashboard(){
   console.log('📺 TV revendas:', rv.length, '| penúltima:', penultimaEtapa, '| última:', ultimaEtapa);
   console.log('📺 TV contagem penúltima:', rv.filter(r=>r.status===penultimaEtapa).length);
 
-  const emJornada   = rv.filter(r=>r.status!==ultimaEtapa && r.status!==penultimaEtapa).length;
+  const emJornada   = rv.filter(r=>{
+    const s=(r.status||'').toLowerCase();
+    return !['inativo','inativa','perdido','cancelado','churn'].some(n=>s.includes(n))
+      && r.status!==ultimaEtapa && r.status!==penultimaEtapa;
+  }).length;
   const primCliente = rv.filter(r=>r.status===penultimaEtapa).length;
   const handover    = rv.filter(r=>r.status===ultimaEtapa).length;
   const atrasadas   = task.filter(t=>t.status!=='Concluída'&&t.vencimento&&t.vencimento<today()).length;
 
+  const tvInativos = rv.filter(r=>
+    ['inativo','inativa','perdido','cancelado','churn']
+      .some(n=>(r.status||'').toLowerCase().includes(n))
+  ).length;
+
   const kpisEl = document.getElementById('tv-kpis');
   if(kpisEl) kpisEl.innerHTML = [
-    {icon:'🏢', label:'Total de Revendas', val:rv.length,      cor:'var(--acc)'},
-    {icon:'🚀', label:'Em Jornada',        val:emJornada,      cor:'var(--ok)'},
-    {icon:'👤', label:penultimaEtapa,      val:primCliente,    cor:'var(--pur)'},
-    {icon:'🤝', label:ultimaEtapa,         val:handover,       cor:'var(--tel)'},
+    {icon:'🏢', label:'Total de Revendas', val:rv.length,    cor:'var(--acc)'},
+    {icon:'🚀', label:'Em Jornada',        val:emJornada,    cor:'var(--ok)'},
+    {icon:'👤', label:penultimaEtapa,      val:primCliente,  cor:'var(--pur)'},
+    {icon:'🤝', label:ultimaEtapa,         val:handover,     cor:'var(--tel)'},
+    {icon:'🚫', label:'Inativas',          val:tvInativos,   cor:'var(--err)'},
   ].map(k=>`
     <div style="background:var(--card);border:1px solid var(--bdr);border-radius:16px;
       padding:24px;text-align:center;border-top:4px solid ${k.cor}">
@@ -1791,22 +1801,31 @@ function renderDashboard(){
   const ultimaEtapa    = etapas[etapas.length-1]?.id || 'Handover';
   const penultimaEtapa = etapas[etapas.length-2]?.id || 'Primeiro Cliente';
 
-  const emJornada = rv.filter(r=>
-    r.status !== ultimaEtapa && r.status !== penultimaEtapa
-  ).length;
+  const emJornada = rv.filter(r=>{
+    const s = (r.status||'').toLowerCase();
+    const isInativa = ['inativo','inativa','perdido','cancelado','churn'].some(n=>s.includes(n));
+    return !isInativa && r.status !== ultimaEtapa && r.status !== penultimaEtapa;
+  }).length;
   const primeiroCliente = rv.filter(r=>r.status===penultimaEtapa).length;
   const handoverEtapa   = rv.filter(r=>r.status===ultimaEtapa).length;
   // Conta todas etapas intermediárias (Decola Produtos = 6ª etapa padrão)
   const etapaDecola = etapas[etapas.length-3]?.id || 'Decola Produtos';
   const decolaProd  = rv.filter(r=>r.status===etapaDecola).length;
 
+  // Conta revendas inativas (qualquer etapa com nome inativo)
+  const nomesInativos = ['inativo','inativa','perdido','cancelado','churn'];
+  const inativos = rv.filter(r=>
+    nomesInativos.some(n=>(r.status||'').toLowerCase().includes(n))
+  ).length;
+
   const kpis=[
-    {label:'Total de Revendas',             val:rv.length,          cls:'bl',icon:'🏢'},
-    {label:'Em Jornada',                    val:emJornada,          cls:'gn',icon:'🚀'},
-    {label: etapaDecola,                    val:decolaProd,         cls:'yw',icon:'📦'},
-    {label: penultimaEtapa,                 val:primeiroCliente,    cls:'tl',icon:'👤'},
-    {label: ultimaEtapa,                    val:handoverEtapa,      cls:'pu',icon:'🤝'},
-    {label:'Tarefas Atrasadas',             val:tAtras,             cls:'rd',icon:'⚠️'},
+    {label:'Total de Revendas',  val:rv.length,       cls:'bl',icon:'🏢'},
+    {label:'Em Jornada',         val:emJornada,        cls:'gn',icon:'🚀'},
+    {label: etapaDecola,         val:decolaProd,       cls:'yw',icon:'📦'},
+    {label: penultimaEtapa,      val:primeiroCliente,  cls:'tl',icon:'👤'},
+    {label: ultimaEtapa,         val:handoverEtapa,    cls:'pu',icon:'🤝'},
+    {label:'Inativas',           val:inativos,         cls:'rd',icon:'🚫'},
+    {label:'Tarefas Atrasadas',  val:tAtras,           cls:'rd',icon:'⚠️'},
   ];
   const kEl=document.getElementById('dash-kpis');
   if(kEl)kEl.innerHTML=kpis.map(k=>`<div class="mc ${k.cls}"><div style="font-size:24px;margin-bottom:8px">${k.icon}</div><div class="mv">${k.val}</div><div class="ml">${k.label}</div></div>`).join('');
@@ -2140,14 +2159,17 @@ function renderKanban(){
               <div style="font-size:10px;color:var(--txt3);margin-top:5px">${(r.produtos||[]).length}/${PRODUTOS.length} produtos</div>`
             : '';
           // Barra de progresso por etapa
-          // Inativo = 0% vermelho | Handover (última ativa) = 100%
-          const inativa = precisaMotivo(col.id);
+          // Detecta etapa inativa pelo nome (contém Inativo/Perdido/Cancelado/Churn)
+          const nomeInativo = ['inativo','inativa','perdido','cancelado','churn'];
+          const ehInativa   = nomeInativo.some(n => col.id.toLowerCase().includes(n));
           let pct, barColor;
-          if(inativa){
+          if(ehInativa){
+            // Inativo: barra vermelha 0%
             pct      = 0;
-            barColor = 'var(--err)';
+            barColor = '#ef4444';
           } else {
-            const colsAtivas  = COLS.filter(c => !precisaMotivo(c.id));
+            // Etapas ativas: progresso linear 0% → 100%
+            const colsAtivas  = COLS.filter(c => !nomeInativo.some(n=>c.id.toLowerCase().includes(n)));
             const etapaIdx    = colsAtivas.findIndex(c=>c.id===col.id);
             const totalAtivas = colsAtivas.length;
             pct      = totalAtivas > 1 ? Math.round((etapaIdx/(totalAtivas-1))*100) : 100;
