@@ -3738,18 +3738,25 @@ async function saveCfg(obj){
 
 async function carregarCfgDoSupabase(){
   try {
-    const {data} = await sb.from('configuracoes')
+    const {data, error} = await sb.from('configuracoes')
       .select('valor').eq('chave','lc_cfg').single();
+    if(error) throw error;
     if(data?.valor){
       const cfg = JSON.parse(data.valor);
       _cfgCache = cfg;
-      // Sincroniza localStorage também
       try { localStorage.setItem('lc_cfg', data.valor); } catch(e){}
-      console.log('✅ Config carregada do Supabase');
+      console.log('✅ Config carregada do Supabase:', Object.keys(cfg));
+      return cfg;
     }
   } catch(e){
+    // Fallback: usa localStorage
     console.warn('Config Supabase indisponível, usando localStorage');
+    try {
+      const s = localStorage.getItem('lc_cfg');
+      if(s) _cfgCache = JSON.parse(s);
+    } catch(e2){}
   }
+  return _cfgCache || {};
 }
 
 function getEtapas(){
@@ -4422,6 +4429,22 @@ function initApp(){
         payload=>{
           toast('🎉 Novo lead da Orion: '+(payload.new?.nome||'Lead'), 'ok');
           verificarLeadsOrion();
+        }
+      ).subscribe();
+
+    // Realtime: quando Admin muda configurações, todos recebem automaticamente
+    sb.channel('cfg_sync')
+      .on('postgres_changes',
+        {event:'*', schema:'public', table:'configuracoes'},
+        async (payload)=>{
+          console.log('⚙️ Config atualizada remotamente — recarregando...');
+          _cfgCache = null; // invalida cache
+          await carregarCfgDoSupabase();
+          aplicarConfigsSalvas();
+          // Re-renderiza o painel atual para refletir novas etapas
+          const painel = document.querySelector('.panel.on')?.id?.replace('p-','');
+          if(painel) renderPanel(painel);
+          toast('⚙️ Configurações atualizadas pelo administrador');
         }
       ).subscribe();
 
