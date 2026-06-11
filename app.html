@@ -1068,7 +1068,8 @@ select option{background:var(--bg2)}
       <div class="fr"><div class="fg"><label>Nome da Revenda *</label><input id="r-nome" placeholder="Ex: TechSol Soluções LTDA"></div><div class="fg"><label>CNPJ</label><input id="r-cnpj" placeholder="00.000.000/0001-00"></div></div>
       <div class="fr"><div class="fg"><label>Cidade *</label><input id="r-cidade" placeholder="São Paulo"></div><div class="fg"><label>UF *</label><select id="r-uf"><option value="">Selecione</option><option>SP</option><option>RJ</option><option>MG</option><option>PR</option><option>SC</option><option>RS</option><option>CE</option><option>BA</option><option>GO</option><option>DF</option><option>ES</option><option>PE</option><option>RN</option><option>PB</option><option>AM</option><option>PA</option><option>MT</option><option>MS</option><option>TO</option><option>MA</option></select></div></div>
       <div class="fr"><div class="fg"><label>E-mail</label><input id="r-email" type="email" placeholder="contato@empresa.com"></div><div class="fg"><label>Telefone</label><input id="r-tel" placeholder="(11) 99999-9999"></div></div>
-      <div class="fr"><div class="fg"><label>Responsável CS *</label><select id="r-cs"><option value="">Selecione o CS</option></select></div><div class="fg"><label>Status *</label><select id="r-status"><option>Nova Revenda</option></select></div></div>
+      <div class="fr"><div class="fg"><label>Responsável CS (LC) *</label><select id="r-cs"><option value="">Selecione o CS</option></select></div><div class="fg"><label>Status *</label><select id="r-status"><option>Nova Revenda</option></select></div></div>
+      <div class="fr"><div class="fg"><label>Responsável da Revenda</label><input id="r-resp-revenda" placeholder="Nome do responsável na empresa cliente"></div><div class="fg"><label>Cargo</label><input id="r-cargo" placeholder="Ex: Diretor, Gerente, Sócio..."></div></div>
       <div class="fr"><div class="fg"><label>Segmento</label><select id="r-seg"><option value="">Selecione</option><option>Tecnologia</option><option>Varejo</option><option>Serviços</option><option>Indústria</option><option>Saúde</option><option>Educação</option><option>Financeiro</option><option>Outros</option></select></div><div class="fg"><label>Porte</label><select id="r-porte"><option value="">Selecione</option><option>Pequeno</option><option>Médio</option><option>Grande</option></select></div></div>
       <div class="fr"><div class="fg"><label>Nº de Vendedores</label><input id="r-vend" type="number" placeholder="0"></div><div class="fg"><label>Data de Ingresso</label><input id="r-ingresso" type="date"></div></div>
       <div class="fg"><label>Observações</label><textarea id="r-obs" rows="3" placeholder="Informações adicionais..."></textarea></div>
@@ -2080,7 +2081,7 @@ function renderRevendas(){
     <td><div class="tdp">${r.nome}</div><div style="font-size:11px;color:var(--txt3)">${r.email||''}</div></td>
     <td style="font-size:11px">${perfilAtual?.pode_ver_cnpj ? (r.cnpj||'—') : (r.cnpj ? '••••••/••-••' : '—')}</td>
     <td>${r.cidade||'—'}${r.uf?' · '+r.uf:''}</td>
-    <td>${r.cs||'—'}</td>
+    <td>${r.resp_revenda||r.cs||'—'}</td>
     <td><span class="st ${stMap[r.status]||'st-on'}" style="color:${stColor[r.status]||'var(--acc)'}">${r.status||'Nova Revenda'}</span></td>
     <td>${r.contratos?`<span style="font-size:12px;font-weight:600">${r.contratos}</span>`:'—'}</td>
     <td style="font-size:11px">${fmtDate(r.ingresso)}</td>
@@ -2717,7 +2718,7 @@ function openCardModal(id){
   document.getElementById('mo-card-nome').textContent = r.nome;
   document.getElementById('mo-card-sub').innerHTML =
     `<span style="color:${etapaColor};font-weight:600">${r.status||'—'}</span>
-     &nbsp;·&nbsp; CS: ${r.cs||'—'}
+     &nbsp;·&nbsp; ${r.resp_revenda ? '👤 '+r.resp_revenda : 'CS: '+(r.cs||'—')}
      &nbsp;·&nbsp; ${r.contratos||'0'} contratos`;
   document.getElementById('mo-card-edit-btn').dataset.id = id;
 
@@ -2905,7 +2906,9 @@ function renderCardInfo(id){
     ['CNPJ',          cnpj],
     ['SEGMENTO',      rev.segmento],
     ['PORTE',         rev.porte],
-    ['RESPONSÁVEL CS',rev.cs],
+    ['RESPONSÁVEL CS (LC)', rev.cs],
+    ['RESPONSÁVEL DA REVENDA', rev.resp_revenda],
+    ['CARGO', rev.cargo],
     ['CONTRATOS',     rev.contratos],
     ['CURVA ABC',     rev.curva],
     ['INGRESSO',      fmtDate(rev.ingresso)],
