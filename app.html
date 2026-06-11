@@ -591,6 +591,9 @@ select option{background:var(--bg2)}
         <button class="cfg-tab" onclick="switchCfgTab('campos',this)"
           style="padding:10px 18px;font-size:13px;font-weight:500;border:none;background:none;
           color:var(--txt2);border-bottom:2px solid transparent;cursor:pointer">📋 Campos</button>
+        <button class="cfg-tab" onclick="switchCfgTab('motivos',this)"
+          style="padding:10px 18px;font-size:13px;font-weight:500;border:none;background:none;
+          color:var(--txt2);border-bottom:2px solid transparent;cursor:pointer">⚠️ Motivos</button>
         <button class="cfg-tab" onclick="switchCfgTab('sistema',this)"
           style="padding:10px 18px;font-size:13px;font-weight:500;border:none;background:none;
           color:var(--txt2);border-bottom:2px solid transparent;cursor:pointer">🔧 Sistema</button>
@@ -738,6 +741,35 @@ select option{background:var(--bg2)}
             <button class="btn btn-p" style="width:100%;margin-top:12px" onclick="salvarProdutos()">
               💾 Salvar produtos
             </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA: MOTIVOS ───────────────────────────────────── -->
+      <div id="cfg-tab-motivos" style="display:none">
+        <div class="g2">
+          <div class="card">
+            <div class="ct" style="margin-bottom:4px">⚠️ Motivos de inativação</div>
+            <div class="cs" style="margin-bottom:14px">Aparecem quando um card é movido para etapa inativa</div>
+            <div id="motivos-cfg-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+            <div style="display:flex;gap:8px;margin-bottom:14px">
+              <input id="novo-motivo-input" placeholder="Ex: Não tem interesse no momento" style="flex:1">
+              <button class="btn btn-p btn-sm" onclick="addMotivoCfg()">+ Adicionar</button>
+            </div>
+            <button class="btn btn-p" style="width:100%" onclick="salvarMotivos()">💾 Salvar motivos</button>
+          </div>
+          <div class="card">
+            <div class="ct" style="margin-bottom:10px">⚙️ Etapas que exigem motivo</div>
+            <div class="cs" style="margin-bottom:12px">Ao mover para estas etapas, o motivo é obrigatório</div>
+            <div id="etapas-motivo-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+            <div style="font-size:11px;color:var(--txt3);margin-bottom:10px">
+              💡 Detectado automaticamente: <strong>Inativo, Perdido, Cancelado, Churn</strong>
+            </div>
+            <div style="display:flex;gap:8px">
+              <input id="nova-etapa-motivo-input" placeholder="Ex: Sem interesse" style="flex:1">
+              <button class="btn btn-s btn-sm" onclick="addEtapaMotivo()">+ Adicionar</button>
+            </div>
+            <button class="btn btn-p" style="width:100%;margin-top:10px" onclick="salvarEtapasMotivo()">💾 Salvar</button>
           </div>
         </div>
       </div>
@@ -2225,16 +2257,40 @@ async function kDrop(e, newStatus){
   setTimeout(initKanbanScroll, 100);
 
   // ── Salva no banco em background ──────────────────────────
-  const {error} = await sb
-    .from('revendas')
-    .update({ status: newStatus, atualizado_em: new Date().toISOString() })
-    .eq('id', id);
-
-  if(error){
-    // Reverte se falhou
-    if(revIdx > -1) DB.revendas[revIdx].status = old;
+  // Executa o save (chamado diretamente ou após motivo)
+  var executarSave = async function(motivo){
+    var {error} = await sb.from('revendas')
+      .update({status:newStatus, atualizado_em:new Date().toISOString()})
+      .eq('id', id);
+    if(error){
+      if(revIdx>-1) DB.revendas[revIdx].status=old;
+      renderKanban();
+      toast('Erro ao mover: '+error.message,'err');
+      return;
+    }
+    var desc = motivo ? old+' → '+newStatus+' | Motivo: '+motivo : old+' → '+newStatus;
+    await inserirHistorico(id,'Mudança de etapa',desc,perfilAtual&&perfilAtual.nome);
+    try {
+      sessionStorage.setItem('sb_revendas_backup',JSON.stringify(
+        DB.revendas.map(function(r){return {id:r.id,nome:r.nome,status:r.status,cs:r.cs,
+          contratos:r.contratos,curva:r.curva,ingresso:r.ingresso,cidade:r.cidade,uf:r.uf,
+          email:r.email,tel:r.tel,produtos:r.produtos,id_origem:r.id_origem,criadoEm:r.criadoEm};})));
+    } catch(e){}
+    toast('✅ '+rev.nome+' → '+newStatus);
+  };
+  if(precisaMotivo(newStatus)){
+    if(revIdx>-1) DB.revendas[revIdx].status=old;
     renderKanban();
-    toast('Erro ao mover: '+error.message, 'err');
+    abrirMotivoInativo(newStatus, executarSave);
+    return;
+  }
+  var {error} = await sb.from('revendas')
+    .update({status:newStatus, atualizado_em:new Date().toISOString()})
+    .eq('id',id);
+  if(error){
+    if(revIdx>-1) DB.revendas[revIdx].status=old;
+    renderKanban();
+    toast('Erro ao mover: '+error.message,'err');
     return;
   }
 
@@ -2449,49 +2505,53 @@ function renderCardInfo(id){
   const el  = document.getElementById('card-info-list');
   if(!rev||!el) return;
 
-  // ── Selector de etapa ─────────────────────────────────────
   const etapas = getEtapas();
-  const etapaSelector = `
-    <div style="padding:12px;background:var(--bg2);border-radius:var(--r);
-      border:2px solid var(--acc);margin-bottom:14px">
-      <div style="font-size:10px;font-weight:600;color:var(--txt3);
-        text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">
-        ⚡ ETAPA DO PIPELINE
-      </div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <select id="card-etapa-select" style="flex:1;padding:8px 10px;font-size:13px;
-          font-weight:600;border-radius:var(--r);border:1px solid var(--bdr);
-          background:var(--card)">
-          ${etapas.map(e=>`<option value="${e.id}" ${e.id===rev.status?'selected':''}>${e.icon} ${e.id}</option>`).join('')}
-        </select>
-        <button class="btn btn-p btn-sm" onclick="moverCardInfoEtapa('${id}')">Mover ▶</button>
-      </div>
-    </div>`;
 
-  // ── Campos de informação ──────────────────────────────────
+  // Selector de etapa do pipeline
+  let html = '';
+  html += '<div style="padding:12px;background:var(--bg2);border-radius:var(--r);border:2px solid var(--acc);margin-bottom:14px">';
+  html += '<div style="font-size:10px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">⚡ ETAPA DO PIPELINE</div>';
+  html += '<div style="display:flex;align-items:center;gap:10px">';
+  html += '<select id="card-etapa-select" style="flex:1;padding:8px 10px;font-size:13px;font-weight:600;border-radius:var(--r);border:1px solid var(--bdr);background:var(--card)">';
+  etapas.forEach(function(e){
+    html += '<option value="' + e.id + '"' + (e.id===rev.status?' selected':'') + '>' + e.icon + ' ' + e.id + '</option>';
+  });
+  html += '</select>';
+  html += '<button class="btn btn-p btn-sm" id="btn-mover-etapa-card">Mover ▶</button>';
+  html += '</div></div>';
+
+  // Campos informativos
+  const cnpj = perfilAtual&&perfilAtual.pode_ver_cnpj ? (rev.cnpj||'—') : (rev.cnpj ? '••••••/••-••' : '—');
+  const cidUf = [rev.cidade, rev.uf].filter(Boolean).join(' / ') || '—';
   const campos = [
-    {l:'Nome',         v:rev.nome},
-    {l:'E-mail',       v:rev.email},
-    {l:'Telefone',     v:rev.tel},
-    {l:'Cidade / UF',  v:rev.cidade&&rev.uf?rev.cidade+' / '+rev.uf:rev.cidade||rev.uf},
-    {l:'CNPJ',         v:perfilAtual?.pode_ver_cnpj ? rev.cnpj : (rev.cnpj?'••••••/••-••':null)},
-    {l:'Segmento',     v:rev.segmento},
-    {l:'Porte',        v:rev.porte},
-    {l:'Responsável CS',v:rev.cs},
-    {l:'Contratos',    v:rev.contratos},
-    {l:'Curva ABC',    v:rev.curva},
-    {l:'Ingresso',     v:fmtDate(rev.ingresso)},
-    {l:'Observações',  v:rev.obs},
+    ['NOME',          rev.nome],
+    ['E-MAIL',        rev.email],
+    ['TELEFONE',      rev.tel],
+    ['CIDADE / UF',   cidUf],
+    ['CNPJ',          cnpj],
+    ['SEGMENTO',      rev.segmento],
+    ['PORTE',         rev.porte],
+    ['RESPONSÁVEL CS',rev.cs],
+    ['CONTRATOS',     rev.contratos],
+    ['CURVA ABC',     rev.curva],
+    ['INGRESSO',      fmtDate(rev.ingresso)],
+    ['OBSERVAÇÕES',   rev.obs],
   ];
 
-  el.innerHTML = etapaSelector + `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-    ${campos.map(c=>`
-      <div style="padding:12px;background:var(--bg2);border-radius:var(--r);border:1px solid var(--bdr)">
-        <div style="font-size:10px;font-weight:600;color:var(--txt3);text-transform:uppercase;
-          letter-spacing:.05em;margin-bottom:4px">${c.l}</div>
-        <div style="font-size:13px;font-weight:500">${c.v||'—'}</div>
-      </div>`).join('')}
-  </div>`;
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+  campos.forEach(function(c){
+    html += '<div style="padding:12px;background:var(--bg2);border-radius:var(--r);border:1px solid var(--bdr)">';
+    html += '<div style="font-size:10px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">' + c[0] + '</div>';
+    html += '<div style="font-size:13px;font-weight:500">' + (c[1]||'—') + '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  el.innerHTML = html;
+
+  // Adiciona evento ao botão após inserir no DOM
+  var btnMover = document.getElementById('btn-mover-etapa-card');
+  if(btnMover) btnMover.addEventListener('click', function(){ moverCardInfoEtapa(id); });
 }
 
 async function moverCardInfoEtapa(revId){
@@ -3756,6 +3816,133 @@ async function verificarLeadsOrion(){
   } catch(e) {}
 }
 
+// ─── MOTIVO DE INATIVAÇÃO ──────────────────────────────────────────
+function getEtapasComMotivo(){
+  var cfg = getCfg();
+  return cfg.etapasComMotivo || ['Inativo','Inativa','Perdido','Cancelado','Churn'];
+}
+function getMotivosPadrao(){
+  return ['Não tem interesse no momento','Preço acima do esperado','Escolheu concorrente',
+    'Empresa fechou / encerrou','Sem contato','Perfil não adequado','Outro motivo'];
+}
+function getMotivos(){
+  var cfg = getCfg();
+  return cfg.motivosInativo || getMotivosPadrao();
+}
+var _movPendente = null;
+function precisaMotivo(newStatus){
+  return getEtapasComMotivo().some(function(e){
+    return newStatus.toLowerCase().indexOf(e.toLowerCase()) !== -1;
+  });
+}
+function abrirMotivoInativo(newStatus, onConfirm){
+  _movPendente = {newStatus:newStatus, onConfirm:onConfirm};
+  var sel = document.getElementById('motivo-select');
+  var motivos = getMotivos();
+  if(sel){
+    sel.innerHTML = '<option value="">Selecione o motivo...</option>' +
+      motivos.map(function(m){ return '<option value="'+m+'">'+m+'</option>'; }).join('');
+  }
+  var nomeEl = document.getElementById('motivo-etapa-nome');
+  if(nomeEl) nomeEl.textContent = newStatus;
+  var outro = document.getElementById('motivo-outro-txt');
+  var obs   = document.getElementById('motivo-obs');
+  var wrap  = document.getElementById('motivo-outro-wrap');
+  if(outro) outro.value = '';
+  if(obs)   obs.value   = '';
+  if(wrap)  wrap.style.display = 'none';
+  openMo('mo-motivo-inativo');
+}
+function toggleMotivoOutro(){
+  var sel  = document.getElementById('motivo-select');
+  var wrap = document.getElementById('motivo-outro-wrap');
+  if(wrap) wrap.style.display = sel&&sel.value==='Outro motivo' ? 'block' : 'none';
+}
+function cancelarMotivoInativo(){
+  _movPendente = null;
+  closeMo('mo-motivo-inativo');
+}
+async function confirmarMotivoInativo(){
+  var sel   = document.getElementById('motivo-select');
+  var outro = document.getElementById('motivo-outro-txt');
+  var obs   = document.getElementById('motivo-obs');
+  var motivo = sel&&sel.value==='Outro motivo' ? (outro&&outro.value.trim()||'') : (sel&&sel.value||'');
+  if(!motivo){ toast('Selecione ou descreva o motivo','err'); return; }
+  var obsTexto = obs&&obs.value.trim()||'';
+  var motivoCompleto = obsTexto ? motivo+' — '+obsTexto : motivo;
+  closeMo('mo-motivo-inativo');
+  if(_movPendente&&_movPendente.onConfirm) await _movPendente.onConfirm(motivoCompleto);
+  _movPendente = null;
+}
+function renderMotivosCfg(){
+  var list = document.getElementById('motivos-cfg-list');
+  if(!list) return;
+  var motivos = getMotivos();
+  list.innerHTML = motivos.map(function(m,i){
+    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border:1px solid var(--bdr);border-radius:var(--r)">'
+      +'<input value="'+m+'" id="motivo-item-'+i+'" style="flex:1;padding:5px 8px;font-size:12px">'
+      +'<button onclick="removeMotivoCfg('+i+')" style="background:none;border:none;color:var(--err);cursor:pointer;font-size:14px">🗑️</button>'
+      +'</div>';
+  }).join('');
+}
+function addMotivoCfg(){
+  var input = document.getElementById('novo-motivo-input');
+  var nome = input&&input.value.trim();
+  if(!nome){ toast('Digite o motivo','err'); return; }
+  var motivos = getMotivos();
+  motivos.push(nome);
+  saveCfg({motivosInativo:motivos});
+  if(input) input.value='';
+  renderMotivosCfg();
+  toast('Motivo adicionado!');
+}
+function removeMotivoCfg(i){
+  var motivos = getMotivos();
+  motivos.splice(i,1);
+  saveCfg({motivosInativo:motivos});
+  renderMotivosCfg();
+}
+async function salvarMotivos(){
+  var motivos = getMotivos();
+  motivos.forEach(function(_,i){
+    var el = document.getElementById('motivo-item-'+i);
+    if(el) motivos[i] = el.value.trim()||motivos[i];
+  });
+  await saveCfg({motivosInativo:motivos});
+  toast('✅ Motivos salvos!');
+}
+function renderEtapasMotivosCfg(){
+  var list = document.getElementById('etapas-motivo-list');
+  if(!list) return;
+  var etapas = getEtapasComMotivo();
+  list.innerHTML = etapas.map(function(e,i){
+    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--errl);border:1px solid var(--err);border-radius:var(--r)">'
+      +'<span style="flex:1;font-size:12px;font-weight:500;color:var(--err)">⚠️ '+e+'</span>'
+      +'<button onclick="removeEtapaMotivo('+i+')" style="background:none;border:none;color:var(--err);cursor:pointer;font-size:14px">🗑️</button>'
+      +'</div>';
+  }).join('');
+}
+function addEtapaMotivo(){
+  var input = document.getElementById('nova-etapa-motivo-input');
+  var nome = input&&input.value.trim();
+  if(!nome){ toast('Digite o nome da etapa','err'); return; }
+  var etapas = getEtapasComMotivo();
+  etapas.push(nome);
+  saveCfg({etapasComMotivo:etapas});
+  if(input) input.value='';
+  renderEtapasMotivosCfg();
+}
+function removeEtapaMotivo(i){
+  var etapas = getEtapasComMotivo();
+  etapas.splice(i,1);
+  saveCfg({etapasComMotivo:etapas});
+  renderEtapasMotivosCfg();
+}
+async function salvarEtapasMotivo(){
+  await saveCfg({etapasComMotivo:getEtapasComMotivo()});
+  toast('✅ Salvo!');
+}
+
 // ─── CONFIGURAÇÕES ─────────────────────────────────────────────────
 
 // Etapas padrão
@@ -3856,7 +4043,7 @@ function getCampos(){
 
 // ── Troca de aba ───────────────────────────────────────────
 function switchCfgTab(tab, btn){
-  ['pipeline','aparencia','campos','sistema'].forEach(t=>{
+  ['pipeline','aparencia','campos','motivos','sistema'].forEach(t=>{
     const el = document.getElementById('cfg-tab-'+t);
     if(el) el.style.display = t===tab ? 'block' : 'none';
   });
