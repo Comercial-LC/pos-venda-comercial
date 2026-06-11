@@ -1552,11 +1552,11 @@ async function renderTVDashboard(){
   if(tvCfg.kpiInativas) todosKpis.push({icon:'🚫', label:'Inativas', val:tvInativos, cor:'var(--err)'});
 
   if(kpisEl) kpisEl.innerHTML = todosKpis.map(k=>`
-    <div style="background:var(--card);border:1px solid var(--bdr);border-radius:16px;
-      padding:24px;text-align:center;border-top:4px solid ${k.cor}">
-      <div style="font-size:36px;margin-bottom:8px">${k.icon}</div>
-      <div style="font-size:48px;font-weight:800;color:${k.cor};line-height:1">${k.val}</div>
-      <div style="font-size:14px;color:var(--txt2);margin-top:8px">${k.label}</div>
+    <div style="background:var(--card);border:1px solid var(--bdr);border-radius:12px;
+      padding:14px 10px;text-align:center;border-top:3px solid ${k.cor}">
+      <div style="font-size:24px;margin-bottom:4px">${k.icon}</div>
+      <div style="font-size:36px;font-weight:800;color:${k.cor};line-height:1">${k.val}</div>
+      <div style="font-size:12px;color:var(--txt2);margin-top:4px">${k.label}</div>
     </div>`).join('');
 
   // ── Metas Orion ───────────────────────────────────────────
@@ -1578,8 +1578,8 @@ async function renderTVDashboard(){
         ? '+'+s.delta+' acima'
         : s.delta+' abaixo';
       const deltaCor = s.delta >= 0 ? '#22c55e' : '#ef4444';
-      return '<div style="background:var(--card);border:1px solid var(--bdr);border-radius:12px;'
-        +'padding:18px;border-left:4px solid '+s.borda+';margin-bottom:8px">'
+      return '<div style="background:var(--card);border:1px solid var(--bdr);border-radius:10px;'
+        +'padding:12px 14px;border-left:3px solid '+s.borda+'">'
         // Header
         +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
           +'<div style="font-size:15px;font-weight:700;text-transform:uppercase">'+m.nome+'</div>'
@@ -1589,9 +1589,9 @@ async function renderTVDashboard(){
           +'</span>'
         +'</div>'
         // % grande
-        +'<div style="font-size:36px;font-weight:800;color:'+s.cor+';line-height:1;margin-bottom:8px">'+s.pct+'%</div>'
+        +'<div style="font-size:26px;font-weight:800;color:'+s.cor+';line-height:1;margin-bottom:6px">'+s.pct+'%</div>'
         // Barra dupla
-        +'<div style="position:relative;background:rgba(255,255,255,0.08);border-radius:6px;height:12px;overflow:hidden;margin-bottom:6px">'
+        +'<div style="position:relative;background:rgba(255,255,255,0.08);border-radius:4px;height:8px;overflow:hidden;margin-bottom:4px">'
           +(s.mesAtual ? '<div style="position:absolute;left:0;top:0;height:100%;background:rgba(255,255,255,0.06);width:'+barEsp+'%;border-radius:6px"></div>' : '')
           +'<div style="position:absolute;left:0;top:0;height:100%;background:'+s.cor+';width:'+s.pct+'%;border-radius:6px;transition:width .6s"></div>'
           +(s.mesAtual && barEsp<100 ? '<div style="position:absolute;top:0;height:100%;width:2px;background:rgba(255,255,255,0.35);left:'+barEsp+'%"></div>' : '')
@@ -1605,9 +1605,9 @@ async function renderTVDashboard(){
           : '<div style="margin-bottom:10px"></div>'
         )
         // Métricas
-        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">'
           +'<div style="text-align:center;padding:8px;background:rgba(255,255,255,0.05);border-radius:8px">'
-            +'<div style="font-size:18px;font-weight:700">'+m.valor_meta+'</div>'
+            +'<div style="font-size:15px;font-weight:700">'+m.valor_meta+'</div>'
             +'<div style="font-size:10px;color:rgba(255,255,255,0.4)">Meta</div>'
           +'</div>'
           +'<div style="text-align:center;padding:8px;background:'+s.bg+';border-radius:8px">'
