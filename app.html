@@ -1569,25 +1569,68 @@ async function renderTVDashboard(){
       .eq('ano',  now.getFullYear())
       .order('percentual', {ascending:true});
     if(metasErr) console.warn('TV metas:', metasErr.message);
+    // Usa calcMetaStatus para cores e ritmo consistentes
     metasEl.innerHTML = (metas||[]).length ? (metas||[]).map(m=>{
-      const pct = Math.min(Math.round(m.percentual||0),100);
-      const cor = m.status==='atingida'?'var(--ok)':m.status==='atencao'?'var(--warn)':'var(--err)';
-      const icone = m.status==='atingida'?'🟢':m.status==='atencao'?'🟡':'🔴';
-      return `<div style="background:var(--card);border:1px solid var(--bdr);border-radius:12px;padding:18px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div style="font-size:14px;font-weight:700">${m.nome}</div>
-          <span style="font-size:13px;font-weight:700;color:${cor}">${icone} ${pct}%</span>
-        </div>
-        <div style="background:var(--bdr);border-radius:4px;height:12px;overflow:hidden;margin-bottom:8px">
-          <div style="height:100%;background:${cor};width:${pct}%;border-radius:4px;transition:width .6s"></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--txt2)">
-          <span>Atual: <strong style="color:${cor}">${m.valor_atual}</strong></span>
-          <span>Meta: <strong>${m.valor_meta}</strong></span>
-          <span>Faltam: <strong style="color:var(--err)">${Math.max(0,m.valor_meta-m.valor_atual)}</strong></span>
-        </div>
-      </div>`;
-    }).join('') : '<div style="color:var(--txt3);font-size:13px;padding:16px">Nenhuma meta cadastrada para este mês.</div>';
+      const s = calcMetaStatus(m);
+      const barEsp = s.mesAtual ? Math.round((s.esperado/Math.max(m.valor_meta,1))*100) : 100;
+      const deltaStr = s.delta >= 0
+        ? '+'+s.delta+' acima'
+        : s.delta+' abaixo';
+      const deltaCor = s.delta >= 0 ? '#22c55e' : '#ef4444';
+      return '<div style="background:var(--card);border:1px solid var(--bdr);border-radius:12px;'
+        +'padding:18px;border-left:4px solid '+s.borda+';margin-bottom:8px">'
+        // Header
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+          +'<div style="font-size:15px;font-weight:700;text-transform:uppercase">'+m.nome+'</div>'
+          +'<span style="padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;'
+            +'background:'+s.bg+';color:'+s.cor+';border:1px solid '+s.borda+'">'
+            +s.icon+' '+s.label
+          +'</span>'
+        +'</div>'
+        // % grande
+        +'<div style="font-size:36px;font-weight:800;color:'+s.cor+';line-height:1;margin-bottom:8px">'+s.pct+'%</div>'
+        // Barra dupla
+        +'<div style="position:relative;background:rgba(255,255,255,0.08);border-radius:6px;height:12px;overflow:hidden;margin-bottom:6px">'
+          +(s.mesAtual ? '<div style="position:absolute;left:0;top:0;height:100%;background:rgba(255,255,255,0.06);width:'+barEsp+'%;border-radius:6px"></div>' : '')
+          +'<div style="position:absolute;left:0;top:0;height:100%;background:'+s.cor+';width:'+s.pct+'%;border-radius:6px;transition:width .6s"></div>'
+          +(s.mesAtual && barEsp<100 ? '<div style="position:absolute;top:0;height:100%;width:2px;background:rgba(255,255,255,0.35);left:'+barEsp+'%"></div>' : '')
+        +'</div>'
+        // Ritmo
+        +(s.mesAtual
+          ? '<div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:10px">'
+            +'<span>Dia '+s.diaHoje+'/'+s.diasMes+' · Esperado: <strong style="color:rgba(255,255,255,0.8)">'+s.esperado+'</strong></span>'
+            +'<span style="color:'+deltaCor+'">'+deltaStr+' do esperado</span>'
+            +'</div>'
+          : '<div style="margin-bottom:10px"></div>'
+        )
+        // Métricas
+        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px">'
+          +'<div style="text-align:center;padding:8px;background:rgba(255,255,255,0.05);border-radius:8px">'
+            +'<div style="font-size:18px;font-weight:700">'+m.valor_meta+'</div>'
+            +'<div style="font-size:10px;color:rgba(255,255,255,0.4)">Meta</div>'
+          +'</div>'
+          +'<div style="text-align:center;padding:8px;background:'+s.bg+';border-radius:8px">'
+            +'<div style="font-size:18px;font-weight:700;color:'+s.cor+'">'+m.valor_atual+'</div>'
+            +'<div style="font-size:10px;color:rgba(255,255,255,0.4)">Atual</div>'
+          +'</div>'
+          +'<div style="text-align:center;padding:8px;background:rgba(239,68,68,0.12);border-radius:8px">'
+            +'<div style="font-size:18px;font-weight:700;color:#ef4444">'+s.faltam+'</div>'
+            +'<div style="font-size:10px;color:rgba(255,255,255,0.4)">Faltam</div>'
+          +'</div>'
+          +(s.mesAtual
+            ? '<div style="text-align:center;padding:8px;background:rgba(255,255,255,0.05);border-radius:8px;'
+              +'border:1px solid '+(s.projecao>=m.valor_meta?'#22c55e':'#f59e0b')+'">'
+              +'<div style="font-size:18px;font-weight:700;color:'+(s.projecao>=m.valor_meta?'#22c55e':'#f59e0b')+'">'+s.projecao+'</div>'
+              +'<div style="font-size:10px;color:rgba(255,255,255,0.4)">Projeção</div>'
+              +'</div>'
+            : '<div style="text-align:center;padding:8px;background:rgba(255,255,255,0.05);border-radius:8px">'
+              +'<div style="font-size:18px;font-weight:700;color:rgba(255,255,255,0.4)">'
+              +(m.valor_meta>0?Math.round((m.valor_atual/m.valor_meta)*100)+'%':'—')
+              +'</div><div style="font-size:10px;color:rgba(255,255,255,0.4)">Resultado</div></div>'
+          )
+        +'</div>'
+      +'</div>';
+    }).join('') : '<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:16px">Nenhuma meta cadastrada para este mês.</div>';
   }
 
   // ── Pipeline por etapa ────────────────────────────────────
