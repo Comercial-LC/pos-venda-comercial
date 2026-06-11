@@ -1595,8 +1595,14 @@ function renderPanel(name){
 
 // ─── Modals ────────────────────────────────────────────────────────
 function openMo(id){
-  populateSelects();
-  document.getElementById(id).classList.add('op');
+  // Não chama populateSelects para modais de sistema (motivo, limpar, confirmar)
+  const modaisSistema = ['mo-motivo-inativo','mo-limpar','mo-confirm','mo-convite'];
+  if(!modaisSistema.includes(id)){
+    try { populateSelects(); } catch(e){ console.warn('populateSelects:', e.message); }
+  }
+  const el = document.getElementById(id);
+  if(!el){ console.error('openMo: elemento não encontrado:', id); return; }
+  el.classList.add('op');
 }
 function closeMo(id){document.getElementById(id).classList.remove('op')}
 document.querySelectorAll('.mo-ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('op')}));
