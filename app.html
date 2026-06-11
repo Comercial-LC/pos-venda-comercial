@@ -1849,17 +1849,15 @@ function renderDashboard(){
   // Pipeline funil por etapa
   const tpcEl=document.getElementById('dash-tpc');
   if(tpcEl){
-    const ETAPAS_DASH=[
-      {id:'Nova Revenda',icon:'🆕',color:'var(--txt2)'},
-      {id:'Implantação',icon:'🔧',color:'var(--acc)'},
-      {id:'Liberação Web',icon:'🌐',color:'var(--pur)'},
-      {id:'Academy',icon:'🎓',color:'#ec4899'},
-      {id:'Decola Instalação',icon:'🚀',color:'var(--warn)'},
-      {id:'Decola Produtos',icon:'📦',color:'#f97316'},
-      {id:'Primeiro Cliente',icon:'👤',color:'var(--ok)'},
-      {id:'Handover',icon:'🤝',color:'var(--tel)'},
-    ];
-    const maxRev = Math.max(...ETAPAS_DASH.map(e=>rv.filter(r=>r.status===e.id).length), 1);
+    // Usa etapas configuradas — inclui Inativo, exclui do cálculo de barra
+    const nomesInativosTpc = ['inativo','inativa','perdido','cancelado','churn'];
+    const ETAPAS_DASH = getEtapas().map(e=>({
+      id:    e.id,
+      icon:  e.icon,
+      color: nomesInativosTpc.some(n=>e.id.toLowerCase().includes(n)) ? '#ef4444' : (e.cor||'var(--acc)'),
+      inativa: nomesInativosTpc.some(n=>e.id.toLowerCase().includes(n)),
+    }));
+    const maxRev = Math.max(...ETAPAS_DASH.filter(e=>!e.inativa).map(e=>rv.filter(r=>r.status===e.id).length), 1);
     tpcEl.innerHTML = ETAPAS_DASH.map(e=>{
       const cnt = rv.filter(r=>r.status===e.id).length;
       const pct = Math.round(cnt/maxRev*100);
