@@ -1385,7 +1385,7 @@ function ativarModoTV(){
           <div id="tv-metas" style="display:flex;flex-direction:column;gap:10px"></div>
         </div>
         <div id="tv-pipeline-wrap" style="flex:1;min-height:0;display:flex;flex-direction:column">
-            <div style="font-size:13px;font-weight:700;color:var(--txt);margin-bottom:8px;flex-shrink:0">⚡ Pipeline de Onboarding</div>
+            <div style="font-size:12px;font-weight:700;color:var(--txt3);margin-bottom:6px;flex-shrink:0;text-transform:uppercase;letter-spacing:.05em">⚡ Pipeline de Onboarding</div>
             <div id="tv-pipeline" style="display:flex;flex-direction:column;gap:6px;flex:1;overflow-y:auto;scrollbar-width:none"></div>
           </div>
       </div>
@@ -1552,11 +1552,13 @@ async function renderTVDashboard(){
   if(tvCfg.kpiInativas) todosKpis.push({icon:'🚫', label:'Inativas', val:tvInativos, cor:'var(--err)'});
 
   if(kpisEl) kpisEl.innerHTML = todosKpis.map(k=>`
-    <div style="background:var(--card);border:1px solid var(--bdr);border-radius:12px;
-      padding:14px 10px;text-align:center;border-top:3px solid ${k.cor}">
-      <div style="font-size:24px;margin-bottom:4px">${k.icon}</div>
-      <div style="font-size:36px;font-weight:800;color:${k.cor};line-height:1">${k.val}</div>
-      <div style="font-size:12px;color:var(--txt2);margin-top:4px">${k.label}</div>
+    <div style="background:var(--card);border:1px solid var(--bdr);border-radius:10px;
+      padding:12px 8px;text-align:center;border-top:3px solid ${k.cor};display:flex;align-items:center;gap:10px;justify-content:center">
+      <div style="font-size:22px">${k.icon}</div>
+      <div>
+        <div style="font-size:32px;font-weight:800;color:${k.cor};line-height:1">${k.val}</div>
+        <div style="font-size:11px;color:var(--txt2);margin-top:2px;white-space:nowrap">${k.label}</div>
+      </div>
     </div>`).join('');
 
   // ── Metas Orion ───────────────────────────────────────────
