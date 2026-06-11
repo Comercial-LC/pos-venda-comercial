@@ -4025,39 +4025,49 @@ async function carregarMetas(){
       const pct  = Math.min(Math.round(m.percentual || 0), 100);
       const faltam = Math.max(0, m.valor_meta - m.valor_atual);
       const cfg  = m.status === 'atingida'
-        ? {cor:'var(--ok)',   bg:'var(--okl)',   icone:'🟢', label:'Atingida'}
+        ? {cor:'#22c55e', bg:'rgba(34,197,94,0.12)', icone:'✅', label:'Atingida'}
         : m.status === 'atencao'
-        ? {cor:'var(--warn)', bg:'var(--warnl)', icone:'🟡', label:'Atenção'}
-        : {cor:'var(--err)',  bg:'var(--errl)',  icone:'🔴', label:'Crítica'};
+        ? {cor:'#f59e0b', bg:'rgba(245,158,11,0.12)', icone:'⚠️', label:'Atenção'}
+        : {cor:'#ef4444', bg:'rgba(239,68,68,0.12)',  icone:'🔴', label:'Crítica'};
+
+      // Recalcula com ritmo diário (mais preciso que o status salvo no banco)
+      const _s = calcMetaStatus(m);
+      const barEsp2 = _s.mesAtual ? Math.round((_s.esperado/Math.max(m.valor_meta,1))*100) : 100;
+      const dStr = _s.delta>=0
+        ? `<span style="color:#22c55e">+${_s.delta} acima do esperado</span>`
+        : `<span style="color:#ef4444">${_s.delta} abaixo do esperado</span>`;
 
       return `<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--rl);
-                padding:18px;border-left:4px solid ${cfg.cor}">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">
+                padding:18px;border-left:4px solid ${_s.borda}">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px">
           <div>
             <div style="font-size:13px;font-weight:700">${m.nome}</div>
-            <div style="font-size:11px;color:var(--txt3);margin-top:2px">Meta mensal · ${m.tipo}</div>
+            <div style="font-size:11px;color:var(--txt3);margin-top:2px">Meta mensal · ${m.tipo||'quantidade'}</div>
           </div>
           <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;
-            background:${cfg.bg};color:${cfg.cor}">
-            ${cfg.icone} ${cfg.label}
+            background:${_s.bg};color:${_s.cor};border:1px solid ${_s.borda}">
+            ${_s.icon} ${_s.label}
           </span>
         </div>
-        <div style="font-size:32px;font-weight:800;color:${cfg.cor};margin-bottom:8px">${pct}%</div>
-        <div style="background:var(--bg2);border-radius:3px;height:8px;overflow:hidden;margin-bottom:10px">
-          <div style="height:100%;border-radius:3px;background:${cfg.cor};
-            width:${pct}%;transition:width .6s ease"></div>
+        <div style="font-size:32px;font-weight:800;color:${_s.cor};margin-bottom:8px">${_s.pct}%</div>
+        <div style="position:relative;background:var(--bg2);border-radius:4px;height:10px;overflow:hidden;margin-bottom:6px">
+          ${_s.mesAtual ? `<div style="position:absolute;left:0;top:0;height:100%;background:rgba(255,255,255,0.08);width:${barEsp2}%;border-radius:4px"></div>` : ''}
+          <div style="position:absolute;left:0;top:0;height:100%;background:${_s.cor};width:${_s.pct}%;border-radius:4px;transition:width .6s"></div>
+          ${_s.mesAtual && barEsp2<100 ? `<div style="position:absolute;top:0;height:100%;width:2px;background:rgba(255,255,255,0.4);left:${barEsp2}%"></div>` : ''}
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        ${_s.mesAtual ? `<div style="font-size:10px;color:var(--txt3);margin-bottom:8px;display:flex;justify-content:space-between">
+          <span>Dia ${_s.diaHoje}/${_s.diasMes} · Esperado: <strong>${_s.esperado}</strong></span>${dStr}</div>` : '<div style="margin-bottom:8px"></div>'}
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
           <div style="text-align:center;padding:8px;background:var(--bg2);border-radius:var(--r)">
-            <div style="font-size:18px;font-weight:700">${m.valor_meta}</div>
+            <div style="font-size:16px;font-weight:700">${m.valor_meta}</div>
             <div style="font-size:10px;color:var(--txt3)">Meta</div>
           </div>
-          <div style="text-align:center;padding:8px;background:${cfg.bg};border-radius:var(--r)">
-            <div style="font-size:18px;font-weight:700;color:${cfg.cor}">${m.valor_atual}</div>
+          <div style="text-align:center;padding:8px;background:${_s.bg};border-radius:var(--r)">
+            <div style="font-size:16px;font-weight:700;color:${_s.cor}">${m.valor_atual}</div>
             <div style="font-size:10px;color:var(--txt3)">Atual</div>
           </div>
-          <div style="text-align:center;padding:8px;background:var(--errl);border-radius:var(--r)">
-            <div style="font-size:18px;font-weight:700;color:var(--err)">${faltam}</div>
+          <div style="text-align:center;padding:8px;background:rgba(239,68,68,0.1);border-radius:var(--r)">
+            <div style="font-size:16px;font-weight:700;color:#ef4444">${_s.faltam}</div>
             <div style="font-size:10px;color:var(--txt3)">Faltam</div>
           </div>
         </div>
