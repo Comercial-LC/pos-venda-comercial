@@ -4919,12 +4919,8 @@ async function renderMetas(){
   const mes = parseInt(document.getElementById('meta-mes-sel')?.value || new Date().getMonth()+1);
   const ano = parseInt(document.getElementById('meta-ano-sel')?.value || new Date().getFullYear());
 
-  // Carrega metas do Supabase
   const {data, error} = await sb.from('orion_metas')
-    .select('*')
-    .eq('mes', mes)
-    .eq('ano', ano)
-    .order('nome');
+    .select('*').eq('mes', mes).eq('ano', ano).order('nome');
 
   const cardsEl = document.getElementById('metas-painel-cards');
   if(!cardsEl) return;
@@ -4935,56 +4931,134 @@ async function renderMetas(){
       <div style="font-size:14px">Nenhuma meta para ${MESES_NOMES[mes]} ${ano}</div>
       <div style="font-size:12px;margin-top:6px">Clique em <strong>+ Nova meta</strong> para adicionar</div>
     </div>`;
-  } else {
-    cardsEl.innerHTML = data.map(m => {
-      const pct     = Math.min(Math.round((m.valor_atual/Math.max(m.valor_meta,1))*100), 100);
-      const faltam  = Math.max(0, m.valor_meta - m.valor_atual);
-      const cfg     = pct >= 100
-        ? {cor:'var(--ok)',   bg:'var(--okl)',   icon:'🟢', label:'Atingida'}
-        : pct >= 70
-        ? {cor:'var(--warn)', bg:'var(--warnl)', icon:'🟡', label:'Atenção'}
-        : {cor:'var(--err)',  bg:'var(--errl)',  icon:'🔴', label:'Crítica'};
-
-      return `<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--rl);
-        padding:20px;border-left:4px solid ${cfg.cor}">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
-          <div>
-            <div style="font-size:14px;font-weight:700">${m.nome}</div>
-            <div style="font-size:11px;color:var(--txt3)">${m.tipo} · ${MESES_NOMES[m.mes]} ${m.ano}</div>
-          </div>
-          <div style="display:flex;gap:6px;align-items:center">
-            <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;
-              background:${cfg.bg};color:${cfg.cor}">${cfg.icon} ${cfg.label}</span>
-            <button onclick="editarMeta('${m.id}')" title="Editar"
-              style="background:none;border:none;color:var(--txt3);cursor:pointer;font-size:14px">✏️</button>
-            <button onclick="excluirMeta('${m.id}')" title="Excluir"
-              style="background:none;border:none;color:var(--err);cursor:pointer;font-size:14px">🗑️</button>
-          </div>
-        </div>
-        <div style="font-size:36px;font-weight:800;color:${cfg.cor};margin-bottom:8px">${pct}%</div>
-        <div style="background:var(--bg2);border-radius:4px;height:10px;overflow:hidden;margin-bottom:12px">
-          <div style="height:100%;background:${cfg.cor};width:${pct}%;border-radius:4px;transition:width .6s"></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-          <div style="text-align:center;padding:10px;background:var(--bg2);border-radius:var(--r)">
-            <div style="font-size:22px;font-weight:700">${m.valor_meta}</div>
-            <div style="font-size:10px;color:var(--txt3)">Meta</div>
-          </div>
-          <div style="text-align:center;padding:10px;background:${cfg.bg};border-radius:var(--r)">
-            <div style="font-size:22px;font-weight:700;color:${cfg.cor}">${m.valor_atual}</div>
-            <div style="font-size:10px;color:var(--txt3)">Realizado</div>
-          </div>
-          <div style="text-align:center;padding:10px;background:var(--errl);border-radius:var(--r)">
-            <div style="font-size:22px;font-weight:700;color:var(--err)">${faltam}</div>
-            <div style="font-size:10px;color:var(--txt3)">Faltam</div>
-          </div>
-        </div>
-        ${(() => { try { const r=m._orion_raw?JSON.parse(m._orion_raw):{}; return r.descricao ? `<div style="font-size:11px;color:var(--txt3);margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr)">${r.descricao}</div>` : ''; } catch(e){return '';} })()}
-      </div>`;
-    }).join('');
+    await renderMetasHistorico();
+    return;
   }
 
-  // Histórico — todos os meses/anos
+  // Calcula ritmo diário
+  const hoje     = new Date();
+  const mesAtual = hoje.getMonth()+1 === mes && hoje.getFullYear() === ano;
+  const diasMes  = new Date(ano, mes, 0).getDate();
+  const diaHoje  = mesAtual ? hoje.getDate() : diasMes;
+  const diasUteis= diaHoje; // simplificado — pode refinar para dias úteis
+
+  cardsEl.innerHTML = data.map(m => {
+    const pct    = m.valor_meta > 0 ? Math.min(Math.round((m.valor_atual/m.valor_meta)*100),100) : 0;
+    const faltam = Math.max(0, m.valor_meta - m.valor_atual);
+
+    // Ritmo esperado: quanto deveria ter no dia de hoje
+    const esperado    = mesAtual ? Math.round((diaHoje/diasMes)*m.valor_meta) : m.valor_meta;
+    const ritmoPct    = esperado > 0 ? Math.round((m.valor_atual/esperado)*100) : 100;
+    const deltaRitmo  = m.valor_atual - esperado;
+
+    // Projeção ao fim do mês
+    const projecao = diaHoje > 0 ? Math.round((m.valor_atual/diaHoje)*diasMes) : 0;
+
+    // Status baseado no ritmo (como a Orion)
+    let cfg;
+    if(pct >= 100){
+      cfg = {cor:'#22c55e', bg:'#14532d22', borda:'#22c55e', icon:'🏆', label:'Meta atingida', labelCor:'#22c55e'};
+    } else if(ritmoPct >= 90){
+      cfg = {cor:'#22c55e', bg:'#14532d22', borda:'#22c55e', icon:'✅', label:'No ritmo',       labelCor:'#22c55e'};
+    } else if(ritmoPct >= 70){
+      cfg = {cor:'#f59e0b', bg:'#78350f22', borda:'#f59e0b', icon:'⚠️', label:'Atenção',        labelCor:'#f59e0b'};
+    } else {
+      cfg = {cor:'#ef4444', bg:'#7f1d1d22', borda:'#ef4444', icon:'🔴', label:'Crítica',         labelCor:'#ef4444'};
+    }
+
+    // Barra dupla: realizado (cor) + esperado (cinza)
+    const barEsperado = mesAtual ? Math.round((esperado/m.valor_meta)*100) : 100;
+    const deltaStr    = deltaRitmo >= 0
+      ? `<span style="color:#22c55e;font-size:11px">+${deltaRitmo} acima do esperado</span>`
+      : `<span style="color:#ef4444;font-size:11px">${deltaRitmo} abaixo do esperado</span>`;
+
+    // Descrição
+    let descHtml = '';
+    try {
+      const raw = m._orion_raw ? JSON.parse(m._orion_raw) : {};
+      if(raw.descricao) descHtml = `<div style="font-size:11px;color:var(--txt3);margin-top:8px;
+        padding-top:8px;border-top:1px solid var(--bdr)">${raw.descricao}</div>`;
+    } catch(e){}
+
+    return `<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--rl);
+      padding:20px;border-left:4px solid ${cfg.borda}">
+
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+        <div>
+          <div style="font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.03em">${m.nome}</div>
+          <div style="font-size:11px;color:var(--txt3);margin-top:2px">${m.tipo||'quantidade'} · ${MESES_NOMES[m.mes]} ${m.ano}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;
+            background:${cfg.bg};color:${cfg.labelCor};border:1px solid ${cfg.borda}">
+            ${cfg.icon} ${cfg.label}
+          </span>
+          <button onclick="editarMeta('${m.id}')"
+            style="background:none;border:none;color:var(--txt3);cursor:pointer;font-size:14px" title="Editar">✏️</button>
+          <button onclick="excluirMeta('${m.id}')"
+            style="background:none;border:none;color:var(--err);cursor:pointer;font-size:14px" title="Excluir">🗑️</button>
+        </div>
+      </div>
+
+      <!-- % grande -->
+      <div style="font-size:40px;font-weight:800;color:${cfg.cor};line-height:1;margin-bottom:10px">${pct}%</div>
+
+      <!-- Barra dupla: esperado + realizado -->
+      <div style="position:relative;background:var(--bg2);border-radius:6px;height:12px;overflow:hidden;margin-bottom:6px">
+        <!-- Barra esperado (fundo cinza) -->
+        <div style="position:absolute;left:0;top:0;height:100%;background:rgba(255,255,255,0.1);
+          width:${barEsperado}%;border-radius:6px"></div>
+        <!-- Barra realizado -->
+        <div style="position:absolute;left:0;top:0;height:100%;background:${cfg.cor};
+          width:${pct}%;border-radius:6px;transition:width .6s"></div>
+        <!-- Marcador do esperado -->
+        ${mesAtual && barEsperado < 100 ? `<div style="position:absolute;top:0;height:100%;width:2px;
+          background:rgba(255,255,255,0.5);left:${barEsperado}%"></div>` : ''}
+      </div>
+
+      <!-- Legenda da barra -->
+      ${mesAtual ? `<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--txt3);margin-bottom:12px">
+        <span>0</span>
+        <span style="color:rgba(255,255,255,0.4)">↑ esperado hoje: ${esperado}</span>
+        <span>${m.valor_meta}</span>
+      </div>` : ''}
+
+      <!-- 4 métricas -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+        <div style="text-align:center;padding:10px 6px;background:var(--bg2);border-radius:var(--r)">
+          <div style="font-size:20px;font-weight:700">${m.valor_meta}</div>
+          <div style="font-size:10px;color:var(--txt3)">Meta</div>
+        </div>
+        <div style="text-align:center;padding:10px 6px;background:${cfg.bg};border-radius:var(--r)">
+          <div style="font-size:20px;font-weight:700;color:${cfg.cor}">${m.valor_atual}</div>
+          <div style="font-size:10px;color:var(--txt3)">Atual</div>
+        </div>
+        <div style="text-align:center;padding:10px 6px;background:var(--errl);border-radius:var(--r)">
+          <div style="font-size:20px;font-weight:700;color:var(--err)">${faltam}</div>
+          <div style="font-size:10px;color:var(--txt3)">Faltam</div>
+        </div>
+        ${mesAtual ? `<div style="text-align:center;padding:10px 6px;background:var(--bg2);border-radius:var(--r);
+          border:1px solid ${projecao>=m.valor_meta?'#22c55e':'#f59e0b'}">
+          <div style="font-size:20px;font-weight:700;color:${projecao>=m.valor_meta?'#22c55e':'#f59e0b'}">${projecao}</div>
+          <div style="font-size:10px;color:var(--txt3)">Projeção</div>
+        </div>` : `<div style="text-align:center;padding:10px 6px;background:var(--bg2);border-radius:var(--r)">
+          <div style="font-size:20px;font-weight:700;color:var(--txt3)">${diasMes}d</div>
+          <div style="font-size:10px;color:var(--txt3)">Dias mês</div>
+        </div>`}
+      </div>
+
+      <!-- Ritmo -->
+      ${mesAtual ? `<div style="display:flex;align-items:center;justify-content:space-between;
+        padding:8px 10px;background:var(--bg2);border-radius:var(--r);font-size:12px">
+        <span style="color:var(--txt2)">📅 Dia ${diaHoje}/${diasMes} · Esperado: <strong>${esperado}</strong></span>
+        ${deltaStr}
+      </div>` : ''}
+
+      ${descHtml}
+    </div>`;
+  }).join('');
+
   await renderMetasHistorico();
 }
 
