@@ -1029,6 +1029,44 @@ select option{background:var(--bg2)}
   </div>
 </div>
 
+<!-- Modal: Motivo de Inativação -->
+<div class="mo-ov" id="mo-motivo-inativo">
+  <div class="mo" style="width:480px">
+    <div class="moh">
+      <div>
+        <div class="mot">⚠️ Motivo da inativação</div>
+        <div style="font-size:12px;color:var(--txt3);margin-top:2px">
+          Informe o motivo antes de mover para <strong id="motivo-etapa-nome">Inativo</strong>
+        </div>
+      </div>
+    </div>
+    <div class="mob">
+      <div class="fg">
+        <label>Motivo *</label>
+        <select id="motivo-select" onchange="toggleMotivoOutro()">
+          <option value="">Selecione o motivo...</option>
+        </select>
+      </div>
+      <div class="fg" id="motivo-outro-wrap" style="display:none">
+        <label>Descreva o motivo *</label>
+        <textarea id="motivo-outro-txt" rows="3"
+          placeholder="Descreva o motivo da inativação..."
+          style="width:100%;resize:vertical"></textarea>
+      </div>
+      <div class="fg">
+        <label>Observação adicional (opcional)</label>
+        <textarea id="motivo-obs" rows="2"
+          placeholder="Informações complementares..."
+          style="width:100%;resize:vertical"></textarea>
+      </div>
+    </div>
+    <div class="mof">
+      <button class="btn btn-s" onclick="cancelarMotivoInativo()">Cancelar</button>
+      <button class="btn btn-d" onclick="confirmarMotivoInativo()">✅ Confirmar inativação</button>
+    </div>
+  </div>
+</div>
+
 <!-- Confirm delete modal -->
 <div class="mo-ov" id="mo-confirm">
   <div class="mo" style="width:380px">
