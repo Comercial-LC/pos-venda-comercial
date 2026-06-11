@@ -61,7 +61,7 @@ tr:hover td{background:var(--card2)}
 .tdp{color:var(--txt);font-weight:500}
 .st{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500}
 .st::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
-.st-on{background:var(--accl);color:var(--acc)}.st-ok{background:var(--okl);color:var(--ok)}.st-tr{background:var(--warnl);color:var(--warn)}.st-off{background:var(--errl);color:var(--err)}.st-dn{background:var(--tell);color:var(--tel)}
+.st-on{background:var(--accl);color:var(--acc)}.st-rd{background:#2d0a0a;color:#ef4444}.st-ok{background:var(--okl);color:var(--ok)}.st-tr{background:var(--warnl);color:var(--warn)}.st-off{background:var(--errl);color:var(--err)}.st-dn{background:var(--tell);color:var(--tel)}
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:var(--tr);font-family:var(--font)}
 .btn-p{background:var(--acc);color:#0A0A0F;font-weight:700}.btn-p:hover{background:var(--acc2);color:#0A0A0F}
 .btn-s{background:var(--card);border:1px solid var(--bdr);color:var(--txt)}.btn-s:hover{border-color:var(--bdr2);background:var(--card2)}
@@ -248,14 +248,6 @@ select option{background:var(--bg2)}
       </div>
       <div class="fp" id="rev-filters">
         <button class="fp-p on" onclick="setRevFilter('')">Todas</button>
-        <button class="fp-p" onclick="setRevFilter('Nova Revenda')">🆕 Nova Revenda</button>
-        <button class="fp-p" onclick="setRevFilter('Implantação')">🔧 Implantação</button>
-        <button class="fp-p" onclick="setRevFilter('Liberação Web')">🌐 Liberação Web</button>
-        <button class="fp-p" onclick="setRevFilter('Academy')">🎓 Academy</button>
-        <button class="fp-p" onclick="setRevFilter('Decola Instalação')">🚀 Decola Instalação</button>
-        <button class="fp-p" onclick="setRevFilter('Decola Produtos')">📦 Decola Produtos</button>
-        <button class="fp-p" onclick="setRevFilter('Primeiro Cliente')">👤 Primeiro Cliente</button>
-        <button class="fp-p" onclick="setRevFilter('Handover')">🤝 Handover</button>
       </div>
       <div class="card">
         <div style="overflow-x:auto;overflow-y:auto;max-height:70vh">
@@ -1837,14 +1829,17 @@ function renderDashboard(){
   // Recent revendas table
   const dRev=document.getElementById('dash-revendas');
   if(dRev){
-    // stMap dinâmico baseado nas etapas configuradas
+    // stMap dinâmico — Inativo sempre vermelho
+    const nomesInatRev = ['inativo','inativa','perdido','cancelado','churn'];
     const etps = getEtapas();
     const stMap = {};
     etps.forEach((e,i)=>{
-      if(i===0) stMap[e.id]='st-tr';
-      else if(i===etps.length-1) stMap[e.id]='st-dn';
-      else if(i===etps.length-2) stMap[e.id]='st-ok';
-      else stMap[e.id]='st-on';
+      const ehInativa = nomesInatRev.some(n=>e.id.toLowerCase().includes(n));
+      if(ehInativa)            stMap[e.id]='st-rd'; // vermelho
+      else if(i===0)           stMap[e.id]='st-tr'; // cinza
+      else if(i===etps.length-1) stMap[e.id]='st-dn'; // teal
+      else if(i===etps.length-2) stMap[e.id]='st-ok'; // verde
+      else                     stMap[e.id]='st-on'; // azul
     });
     const recent=[...rv].sort((a,b)=>new Date(b.criadoEm||0)-new Date(a.criadoEm||0)).slice(0,5);
     dRev.innerHTML=recent.length?recent.map(r=>`<tr><td><div class="tdp">${r.nome}</div><div style="font-size:11px;color:var(--txt3)">${r.cidade||''} ${r.uf?'· '+r.uf:''}</div></td><td>${r.cs||'—'}</td><td><span class="st ${stMap[r.status]||'st-on'}">${r.status}</span></td><td>${r.tpc?`<span class="badge ${r.tpc<=15?'bg-ok':r.tpc<=30?'bg-warn':'bg-err'} bg-sm">${r.tpc}d</span>`:'—'}</td></tr>`).join(''):`<tr><td colspan="4"><div class="empty" style="padding:20px"><div>Nenhuma revenda cadastrada</div></div></td></tr>`;
