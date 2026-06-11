@@ -2216,7 +2216,7 @@ function renderKanban(){
         ondragenter="kDragEnter(event,'${col.id}')"
         ondragleave="kDragLeave(event)"
         ondrop="kDrop(event,'${col.id}')"
-        style="transition:background .15s;min-width:230px;width:230px">
+        style="transition:background .15s;min-width:230px;width:230px;max-height:calc(100vh - 200px);display:flex;flex-direction:column">
       <div style="margin-bottom:10px">
         <div style="display:flex;align-items:center;justify-content:space-between">
           <div style="display:flex;align-items:center;gap:6px">
