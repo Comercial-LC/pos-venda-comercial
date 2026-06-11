@@ -147,6 +147,7 @@ select option{background:var(--bg2)}
     <div class="nav-it" onclick="go('pipeline')"><span class="nav-ic">⚡</span><span class="nav-label">Pipeline Kanban</span></div>
     <div class="nav-sec">Gestão</div>
     <div class="nav-it" onclick="go('tarefas')"><span class="nav-ic">✅</span><span class="nav-label">Tarefas</span></div>
+    <div class="nav-it" onclick="go('metas')"><span class="nav-ic">🎯</span><span class="nav-label">Metas</span></div>
     <div class="nav-it" onclick="go('timeline')"><span class="nav-ic">🕐</span><span class="nav-label">Timeline</span></div>
     <div class="nav-it" onclick="go('treinamentos')"><span class="nav-ic">🎓</span><span class="nav-label">Treinamentos</span></div>
     <div class="nav-it" onclick="go('handover')"><span class="nav-ic">🤝</span><span class="nav-label">Handover</span></div>
@@ -339,6 +340,53 @@ select option{background:var(--bg2)}
           </div>
         </div>
         <div style="overflow-x:auto"><table><thead><tr><th>Tarefa</th><th>Revenda</th><th>Responsável</th><th>Prioridade</th><th>Vencimento</th><th>Status</th><th>Ações</th></tr></thead><tbody id="all-tasks-body"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- METAS -->
+    <div class="panel" id="p-metas">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div>
+          <div style="font-size:19px;font-weight:700">🎯 Metas Comerciais</div>
+          <div style="font-size:12px;color:var(--txt3);margin-top:2px">Gerencie as metas manualmente até a integração com a Orion</div>
+        </div>
+        <button class="btn btn-p" onclick="abrirNovaMeta()">+ Nova meta</button>
+      </div>
+
+      <!-- Seletor de mês/ano -->
+      <div style="display:flex;align-items:center;gap:10px;margin:16px 0;flex-wrap:wrap">
+        <div style="font-size:13px;font-weight:600;color:var(--txt2)">Visualizando:</div>
+        <select id="meta-mes-sel" onchange="renderMetas()" style="padding:6px 10px;font-size:13px;border-radius:var(--r)">
+          <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+          <option value="3">Março</option><option value="4">Abril</option>
+          <option value="5">Maio</option><option value="6">Junho</option>
+          <option value="7">Julho</option><option value="8">Agosto</option>
+          <option value="9">Setembro</option><option value="10">Outubro</option>
+          <option value="11">Novembro</option><option value="12">Dezembro</option>
+        </select>
+        <select id="meta-ano-sel" onchange="renderMetas()" style="padding:6px 10px;font-size:13px;border-radius:var(--r)">
+          <option value="2024">2024</option><option value="2025">2025</option>
+          <option value="2026" selected>2026</option><option value="2027">2027</option>
+        </select>
+        <button class="btn btn-s btn-sm" onclick="renderMetas()">🔄 Atualizar</button>
+      </div>
+
+      <!-- Cards de metas -->
+      <div id="metas-painel-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;margin-bottom:24px"></div>
+
+      <!-- Histórico de metas -->
+      <div class="card">
+        <div class="ch">
+          <div class="ct">📊 Histórico de metas</div>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr><th>Meta</th><th>Mês/Ano</th><th>Objetivo</th><th>Realizado</th><th>%</th><th>Status</th><th>Ações</th></tr>
+            </thead>
+            <tbody id="metas-historico-tbody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -990,6 +1038,69 @@ select option{background:var(--bg2)}
   </div>
 </div>
 
+<!-- Modal: Meta -->
+<div class="mo-ov" id="mo-meta">
+  <div class="mo" style="width:480px">
+    <div class="moh">
+      <div class="mot" id="mo-meta-titulo">🎯 Nova meta</div>
+      <button class="btn btn-s btn-sm" onclick="closeMo('mo-meta')">✕</button>
+    </div>
+    <div class="mob">
+      <input type="hidden" id="meta-edit-id">
+      <div class="fg">
+        <label>Nome da meta *</label>
+        <input id="meta-nome" placeholder="Ex: Contrato de Novas Revendas">
+      </div>
+      <div class="fr">
+        <div class="fg">
+          <label>Tipo</label>
+          <select id="meta-tipo">
+            <option value="quantidade">Quantidade</option>
+            <option value="valor">Valor (R$)</option>
+            <option value="percentual">Percentual (%)</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Mês *</label>
+          <select id="meta-mes">
+            <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+            <option value="3">Março</option><option value="4">Abril</option>
+            <option value="5">Maio</option><option value="6">Junho</option>
+            <option value="7">Julho</option><option value="8">Agosto</option>
+            <option value="9">Setembro</option><option value="10">Outubro</option>
+            <option value="11">Novembro</option><option value="12">Dezembro</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Ano *</label>
+          <select id="meta-ano">
+            <option value="2024">2024</option><option value="2025">2025</option>
+            <option value="2026" selected>2026</option><option value="2027">2027</option>
+          </select>
+        </div>
+      </div>
+      <div class="fr">
+        <div class="fg">
+          <label>Objetivo (meta) *</label>
+          <input id="meta-objetivo" type="number" min="0" placeholder="Ex: 35">
+        </div>
+        <div class="fg">
+          <label>Realizado atual *</label>
+          <input id="meta-atual" type="number" min="0" placeholder="Ex: 10">
+        </div>
+      </div>
+      <div class="fg">
+        <label>Descrição (opcional)</label>
+        <input id="meta-desc" placeholder="Ex: Novas revendas ativas no mês">
+      </div>
+    </div>
+    <div class="mof">
+      <button class="btn btn-s" onclick="closeMo('mo-meta')">Cancelar</button>
+      <button class="btn btn-p" onclick="salvarMeta()">💾 Salvar meta</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Limpar todos os dados -->
 <div class="mo-ov" id="mo-limpar">
   <div class="mo" style="width:480px">
@@ -1596,6 +1707,7 @@ function renderPanel(name){
     fn[name]();
     if(name==='pipeline') setTimeout(initKanbanScroll, 150);
     if(name==='importacao') setTimeout(verificarBanco, 500);
+    if(name==='metas'){ const now=new Date(); const ms=document.getElementById('meta-mes-sel'); const as=document.getElementById('meta-ano-sel'); if(ms)ms.value=now.getMonth()+1; if(as)as.value=now.getFullYear(); }
   }
 }
 
@@ -4636,6 +4748,200 @@ async function criarPerfilConvidado(uid, email, nome, perfil){
     pode_ver_relatorios:    document.getElementById('cp-relatorio')?.checked|| false,
     pode_handover:          document.getElementById('cp-handover')?.checked || false,
   }, {onConflict:'id'});
+}
+
+// ─── METAS MANUAIS ─────────────────────────────────────────────────
+const MESES_NOMES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+async function renderMetas(){
+  const mes = parseInt(document.getElementById('meta-mes-sel')?.value || new Date().getMonth()+1);
+  const ano = parseInt(document.getElementById('meta-ano-sel')?.value || new Date().getFullYear());
+
+  // Carrega metas do Supabase
+  const {data, error} = await sb.from('orion_metas')
+    .select('*')
+    .eq('mes', mes)
+    .eq('ano', ano)
+    .order('nome');
+
+  const cardsEl = document.getElementById('metas-painel-cards');
+  if(!cardsEl) return;
+
+  if(!data?.length){
+    cardsEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--txt3)">
+      <div style="font-size:40px;margin-bottom:12px">🎯</div>
+      <div style="font-size:14px">Nenhuma meta para ${MESES_NOMES[mes]} ${ano}</div>
+      <div style="font-size:12px;margin-top:6px">Clique em <strong>+ Nova meta</strong> para adicionar</div>
+    </div>`;
+  } else {
+    cardsEl.innerHTML = data.map(m => {
+      const pct     = Math.min(Math.round((m.valor_atual/Math.max(m.valor_meta,1))*100), 100);
+      const faltam  = Math.max(0, m.valor_meta - m.valor_atual);
+      const cfg     = pct >= 100
+        ? {cor:'var(--ok)',   bg:'var(--okl)',   icon:'🟢', label:'Atingida'}
+        : pct >= 70
+        ? {cor:'var(--warn)', bg:'var(--warnl)', icon:'🟡', label:'Atenção'}
+        : {cor:'var(--err)',  bg:'var(--errl)',  icon:'🔴', label:'Crítica'};
+
+      return `<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--rl);
+        padding:20px;border-left:4px solid ${cfg.cor}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+          <div>
+            <div style="font-size:14px;font-weight:700">${m.nome}</div>
+            <div style="font-size:11px;color:var(--txt3)">${m.tipo} · ${MESES_NOMES[m.mes]} ${m.ano}</div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;
+              background:${cfg.bg};color:${cfg.cor}">${cfg.icon} ${cfg.label}</span>
+            <button onclick="editarMeta('${m.id}')" title="Editar"
+              style="background:none;border:none;color:var(--txt3);cursor:pointer;font-size:14px">✏️</button>
+            <button onclick="excluirMeta('${m.id}')" title="Excluir"
+              style="background:none;border:none;color:var(--err);cursor:pointer;font-size:14px">🗑️</button>
+          </div>
+        </div>
+        <div style="font-size:36px;font-weight:800;color:${cfg.cor};margin-bottom:8px">${pct}%</div>
+        <div style="background:var(--bg2);border-radius:4px;height:10px;overflow:hidden;margin-bottom:12px">
+          <div style="height:100%;background:${cfg.cor};width:${pct}%;border-radius:4px;transition:width .6s"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <div style="text-align:center;padding:10px;background:var(--bg2);border-radius:var(--r)">
+            <div style="font-size:22px;font-weight:700">${m.valor_meta}</div>
+            <div style="font-size:10px;color:var(--txt3)">Meta</div>
+          </div>
+          <div style="text-align:center;padding:10px;background:${cfg.bg};border-radius:var(--r)">
+            <div style="font-size:22px;font-weight:700;color:${cfg.cor}">${m.valor_atual}</div>
+            <div style="font-size:10px;color:var(--txt3)">Realizado</div>
+          </div>
+          <div style="text-align:center;padding:10px;background:var(--errl);border-radius:var(--r)">
+            <div style="font-size:22px;font-weight:700;color:var(--err)">${faltam}</div>
+            <div style="font-size:10px;color:var(--txt3)">Faltam</div>
+          </div>
+        </div>
+        ${m.descricao ? `<div style="font-size:11px;color:var(--txt3);margin-top:10px;padding-top:10px;
+          border-top:1px solid var(--bdr)">${m.descricao}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  // Histórico — todos os meses/anos
+  await renderMetasHistorico();
+}
+
+async function renderMetasHistorico(){
+  const tbody = document.getElementById('metas-historico-tbody');
+  if(!tbody) return;
+
+  const {data} = await sb.from('orion_metas')
+    .select('*')
+    .order('ano', {ascending:false})
+    .order('mes', {ascending:false})
+    .order('nome');
+
+  if(!data?.length){
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--txt3)">Nenhuma meta cadastrada</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = data.map(m => {
+    const pct = Math.min(Math.round((m.valor_atual/Math.max(m.valor_meta,1))*100),100);
+    const cfg = pct>=100?{cor:'var(--ok)',label:'✅ Atingida'}
+               :pct>=70 ?{cor:'var(--warn)',label:'⚠️ Atenção'}
+               :         {cor:'var(--err)', label:'🔴 Crítica'};
+    return `<tr>
+      <td><strong>${m.nome}</strong></td>
+      <td>${MESES_NOMES[m.mes]} ${m.ano}</td>
+      <td>${m.valor_meta}</td>
+      <td style="color:${cfg.cor};font-weight:600">${m.valor_atual}</td>
+      <td style="color:${cfg.cor};font-weight:700">${pct}%</td>
+      <td><span style="color:${cfg.cor};font-size:12px">${cfg.label}</span></td>
+      <td>
+        <button onclick="editarMeta('${m.id}')" class="btn btn-s btn-sm">✏️</button>
+        <button onclick="excluirMeta('${m.id}')" class="btn btn-d btn-sm">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function abrirNovaMeta(){
+  document.getElementById('meta-edit-id').value = '';
+  document.getElementById('meta-nome').value    = '';
+  document.getElementById('meta-objetivo').value = '';
+  document.getElementById('meta-atual').value   = '';
+  document.getElementById('meta-desc').value    = '';
+  document.getElementById('meta-tipo').value    = 'quantidade';
+  // Seta mês/ano atual
+  const now = new Date();
+  document.getElementById('meta-mes').value = now.getMonth()+1;
+  document.getElementById('meta-ano').value = now.getFullYear();
+  document.getElementById('mo-meta-titulo').textContent = '🎯 Nova meta';
+  openMo('mo-meta');
+}
+
+async function editarMeta(id){
+  const {data, error} = await sb.from('orion_metas').select('*').eq('id',id).single();
+  if(error||!data){ toast('Erro ao carregar meta','err'); return; }
+  document.getElementById('meta-edit-id').value  = data.id;
+  document.getElementById('meta-nome').value     = data.nome;
+  document.getElementById('meta-tipo').value     = data.tipo||'quantidade';
+  document.getElementById('meta-mes').value      = data.mes;
+  document.getElementById('meta-ano').value      = data.ano;
+  document.getElementById('meta-objetivo').value = data.valor_meta;
+  document.getElementById('meta-atual').value    = data.valor_atual;
+  document.getElementById('meta-desc').value     = data.descricao||'';
+  document.getElementById('mo-meta-titulo').textContent = '✏️ Editar meta';
+  openMo('mo-meta');
+}
+
+async function salvarMeta(){
+  const editId  = document.getElementById('meta-edit-id').value;
+  const nome    = document.getElementById('meta-nome').value.trim();
+  const objetivo = parseFloat(document.getElementById('meta-objetivo').value)||0;
+  const atual   = parseFloat(document.getElementById('meta-atual').value)||0;
+  const mes     = parseInt(document.getElementById('meta-mes').value);
+  const ano     = parseInt(document.getElementById('meta-ano').value);
+  const tipo    = document.getElementById('meta-tipo').value;
+  const desc    = document.getElementById('meta-desc').value.trim();
+
+  if(!nome){ toast('Nome da meta é obrigatório','err'); return; }
+  if(!objetivo){ toast('Defina o objetivo da meta','err'); return; }
+
+  const pct    = objetivo > 0 ? Math.round((atual/objetivo)*100) : 0;
+  const status = pct>=100?'atingida':pct>=70?'atencao':'critica';
+
+  const payload = {
+    nome, tipo, valor_meta:objetivo, valor_atual:atual,
+    percentual:pct, mes, ano, status,
+    descricao: desc||null,
+    atualizado_em: new Date().toISOString(),
+  };
+
+  let error;
+  if(editId){
+    const {error:e} = await sb.from('orion_metas').update(payload).eq('id',editId);
+    error = e;
+  } else {
+    const {error:e} = await sb.from('orion_metas')
+      .upsert({...payload}, {onConflict:'nome,mes,ano'});
+    error = e;
+  }
+
+  if(error){ toast('Erro ao salvar: '+error.message,'err'); return; }
+
+  closeMo('mo-meta');
+  toast('✅ Meta salva com sucesso!');
+  await renderMetas();
+  await carregarMetas(); // atualiza dashboard
+}
+
+async function excluirMeta(id){
+  confirmAction('Excluir esta meta permanentemente?', async ()=>{
+    const {error} = await sb.from('orion_metas').delete().eq('id',id);
+    if(error){ toast('Erro: '+error.message,'err'); return; }
+    toast('Meta excluída','warn');
+    await renderMetas();
+    await carregarMetas();
+  });
 }
 
 // ─── AUDITORIA ────────────────────────────────────────────────────
