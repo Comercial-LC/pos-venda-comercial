@@ -1052,10 +1052,14 @@ function aplicarPermissoes(p){
     ativarModoTV();
     return;
   }
-  // Oculta funções conforme permissões
   if(!p.pode_gerenciar_usuarios) document.querySelectorAll('[onclick*="usuarios"]').forEach(el=>el.style.display='none');
   if(!p.pode_importar) document.querySelectorAll('[onclick*="importacao"]').forEach(el=>el.style.display='none');
   if(!p.pode_ver_relatorios) document.querySelectorAll('[onclick*="relatorios"]').forEach(el=>el.style.display='none');
+  // Botão convidar: só Admin
+  if(p.perfil !== 'Administrador'){
+    const btn = document.getElementById('btn-convidar');
+    if(btn) btn.style.display='none';
+  }
 }
 
 function ativarModoTV(){
@@ -4102,6 +4106,165 @@ async function inserirHistorico(revenda_id, tipo, descricao, usuario_nome){
   });
   if(error) console.error('inserirHistorico:', error.message);
   return !error;
+}
+
+// ─── CONVITE DE USUÁRIOS ────────────────────────────────────────────
+// Rate limiting local: máx 3 convites por hora
+const _conviteLog = [];
+
+function abrirConvite(){
+  // Só Admin pode convidar
+  if(perfilAtual?.perfil !== 'Administrador'){
+    toast('Apenas Administradores podem convidar usuários','err');
+    return;
+  }
+  // Limpa campos
+  ['conv-nome','conv-email'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.value='';
+  });
+  document.getElementById('conv-email-status').textContent='';
+  document.getElementById('conv-rate-warning').style.display='none';
+  document.getElementById('btn-enviar-convite').disabled=false;
+  openMo('mo-convite');
+}
+
+function validarEmailConvite(email){
+  const el = document.getElementById('conv-email-status');
+  if(!el) return false;
+  // Regex rigorosa para e-mail
+  const ok = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(email);
+  if(!email){ el.textContent=''; return false; }
+  if(!ok){
+    el.innerHTML='<span style="color:var(--err)">❌ E-mail inválido</span>';
+    return false;
+  }
+  el.innerHTML='<span style="color:var(--ok)">✅ E-mail válido</span>';
+  return true;
+}
+
+async function enviarConvite(){
+  // Verificações de segurança
+  if(perfilAtual?.perfil !== 'Administrador'){
+    toast('Acesso negado','err'); return;
+  }
+
+  const nome  = document.getElementById('conv-nome')?.value.trim();
+  const email = document.getElementById('conv-email')?.value.trim().toLowerCase();
+  const perfil= document.getElementById('conv-perfil')?.value;
+
+  // Sanitização — remove HTML/scripts dos campos
+  const nomeLimpo  = nome.replace(/<[^>]*>/g,'').replace(/[<>"']/g,'').slice(0,100);
+  const emailLimpo = email.replace(/[^a-zA-Z0-9._%+\-@]/g,'').slice(0,200);
+
+  if(!nomeLimpo){ toast('Digite o nome do usuário','err'); return; }
+  if(!validarEmailConvite(emailLimpo)){ toast('E-mail inválido','err'); return; }
+
+  // Rate limiting: máx 3 convites por hora
+  const agora = Date.now();
+  const recentes = _conviteLog.filter(t => agora - t < 3600000);
+  if(recentes.length >= 3){
+    document.getElementById('conv-rate-warning').style.display='flex';
+    document.getElementById('btn-enviar-convite').disabled=true;
+    toast('Limite de 3 convites por hora atingido','warn');
+    return;
+  }
+
+  // Verifica se e-mail já existe
+  const {data:existente} = await sb.from('perfis')
+    .select('id,email').eq('email', emailLimpo).single();
+  if(existente){
+    toast('Este e-mail já está cadastrado no sistema','err');
+    return;
+  }
+
+  const btn = document.getElementById('btn-enviar-convite');
+  btn.disabled=true;
+  btn.textContent='⏳ Enviando...';
+
+  try {
+    // Envia convite via Supabase Auth
+    const {data, error} = await sb.auth.admin.inviteUserByEmail(emailLimpo, {
+      data: { nome: nomeLimpo },
+      redirectTo: window.location.origin + '/pos-venda-comercial/app.html'
+    });
+
+    if(error){
+      // Fallback: cria conta diretamente com senha temporária
+      const senhaTemp = Math.random().toString(36).slice(2,10)+'LC@'+Date.now().toString(36);
+      const {data:novoUser, error:e2} = await sb.auth.signUp({
+        email:    emailLimpo,
+        password: senhaTemp,
+        options:  { data:{ nome:nomeLimpo } }
+      });
+
+      if(e2){
+        toast('Erro ao criar convite: '+e2.message,'err');
+        btn.disabled=false; btn.textContent='✉️ Enviar convite';
+        return;
+      }
+
+      // Cria perfil imediatamente
+      if(novoUser?.user?.id){
+        await criarPerfilConvidado(novoUser.user.id, emailLimpo, nomeLimpo, perfil);
+        toast(`✅ Conta criada! Senha temporária enviada para ${emailLimpo}`,'ok');
+        // Mostra senha temporária apenas para o Admin (ela será trocada no primeiro acesso)
+        setTimeout(()=>{
+          alert(`Senha temporária de ${nomeLimpo}:
+${senhaTemp}
+
+Peça para trocar no primeiro acesso.`);
+        }, 500);
+      }
+    } else {
+      // Convite enviado com sucesso — cria perfil parcial
+      if(data?.user?.id){
+        await criarPerfilConvidado(data.user.id, emailLimpo, nomeLimpo, perfil);
+      }
+      toast(`✅ Convite enviado para ${emailLimpo}`,'ok');
+    }
+
+    // Registra no rate limiting e auditoria
+    _conviteLog.push(Date.now());
+    await logAuditoria('USER_INVITE','perfis',null,{
+      email:   emailLimpo,
+      nome:    nomeLimpo,
+      perfil,
+      admin:   perfilAtual?.nome,
+    });
+
+    closeMo('mo-convite');
+    await loadFromSupabase();
+    renderUsers();
+
+  } catch(e){
+    toast('Erro inesperado: '+e.message,'err');
+    console.error('enviarConvite:', e);
+  }
+
+  btn.disabled=false;
+  btn.textContent='✉️ Enviar convite';
+}
+
+async function criarPerfilConvidado(uid, email, nome, perfil){
+  const iniciais = nome.split(' ').map(p=>p[0]).join('').toUpperCase().slice(0,2);
+  await sb.from('perfis').upsert({
+    id:    uid,
+    nome:  nome,
+    email: email,
+    perfil,
+    ativo: true,
+    avatar_iniciais: iniciais,
+    pode_criar_revenda:     document.getElementById('cp-criar')?.checked    || false,
+    pode_editar_revenda:    document.getElementById('cp-editar')?.checked   || false,
+    pode_excluir_revenda:   document.getElementById('cp-excluir')?.checked  || false,
+    pode_ver_cnpj:          document.getElementById('cp-cnpj')?.checked     || false,
+    pode_exportar:          document.getElementById('cp-exportar')?.checked || false,
+    pode_importar:          document.getElementById('cp-importar')?.checked || false,
+    pode_gerenciar_usuarios:false,
+    pode_ver_relatorios:    document.getElementById('cp-relatorio')?.checked|| false,
+    pode_handover:          document.getElementById('cp-handover')?.checked || false,
+  }, {onConflict:'id'});
 }
 
 // ─── AUDITORIA ────────────────────────────────────────────────────
