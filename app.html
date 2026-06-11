@@ -1520,10 +1520,11 @@ async function renderTVDashboard(){
   const tvMetasWrap = document.getElementById('tv-metas-wrap-tv');
   const tvPipeWrap = document.getElementById('tv-pipeline-wrap');
   const tvAtivWrap = document.getElementById('tv-atividades-wrap');
-  if(tvKpisWrap)  tvKpisWrap.style.display  = tvCfg.showKpis       ? '' : 'none';
-  if(tvMetasWrap) tvMetasWrap.style.display = tvCfg.showMetas      ? '' : 'none';
-  if(tvPipeWrap)  tvPipeWrap.style.display  = tvCfg.showPipeline   ? '' : 'none';
-  if(tvAtivWrap)  tvAtivWrap.style.display  = tvCfg.showAtividades ? '' : 'none';
+  // Só oculta se EXPLICITAMENTE false (não quando cfg não carregou)
+  if(tvKpisWrap)  tvKpisWrap.style.display  = tvCfg.showKpis       === false ? 'none' : '';
+  if(tvMetasWrap) tvMetasWrap.style.display = tvCfg.showMetas      === false ? 'none' : '';
+  if(tvPipeWrap)  tvPipeWrap.style.display  = tvCfg.showPipeline   === false ? 'none' : '';
+  if(tvAtivWrap)  tvAtivWrap.style.display  = tvCfg.showAtividades === false ? 'none' : '';
 
   // Grid de KPIs dinâmico
   const tvKpisGrid = document.getElementById('tv-kpis');
@@ -1604,7 +1605,7 @@ async function renderTVDashboard(){
           : '<div style="margin-bottom:10px"></div>'
         )
         // Métricas
-        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px">'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'
           +'<div style="text-align:center;padding:8px;background:rgba(255,255,255,0.05);border-radius:8px">'
             +'<div style="font-size:18px;font-weight:700">'+m.valor_meta+'</div>'
             +'<div style="font-size:10px;color:rgba(255,255,255,0.4)">Meta</div>'
@@ -1617,17 +1618,7 @@ async function renderTVDashboard(){
             +'<div style="font-size:18px;font-weight:700;color:#ef4444">'+s.faltam+'</div>'
             +'<div style="font-size:10px;color:rgba(255,255,255,0.4)">Faltam</div>'
           +'</div>'
-          +(s.mesAtual
-            ? '<div style="text-align:center;padding:8px;background:rgba(255,255,255,0.05);border-radius:8px;'
-              +'border:1px solid '+(s.projecao>=m.valor_meta?'#22c55e':'#f59e0b')+'">'
-              +'<div style="font-size:18px;font-weight:700;color:'+(s.projecao>=m.valor_meta?'#22c55e':'#f59e0b')+'">'+s.projecao+'</div>'
-              +'<div style="font-size:10px;color:rgba(255,255,255,0.4)">Projeção</div>'
-              +'</div>'
-            : '<div style="text-align:center;padding:8px;background:rgba(255,255,255,0.05);border-radius:8px">'
-              +'<div style="font-size:18px;font-weight:700;color:rgba(255,255,255,0.4)">'
-              +(m.valor_meta>0?Math.round((m.valor_atual/m.valor_meta)*100)+'%':'—')
-              +'</div><div style="font-size:10px;color:rgba(255,255,255,0.4)">Resultado</div></div>'
-          )
+
         +'</div>'
       +'</div>';
     }).join('') : '<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:16px">Nenhuma meta cadastrada para este mês.</div>';
@@ -4024,8 +4015,10 @@ async function carregarMetas(){
     // Mostra o bloco
     document.getElementById('dash-metas-wrap').style.display='block';
     document.getElementById('dash-meta-mes').textContent = `${MESES[mes]} ${ano}`;
-    document.getElementById('dash-meta-atualizado').textContent =
-      `Atualizado: ${new Date(data[0].atualizado_em||data[0].criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}`;
+    const tsRef = data[0].atualizado_em || data[0].criado_em;
+    document.getElementById('dash-meta-atualizado').textContent = tsRef
+      ? 'Atualizado: '+new Date(tsRef).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})
+      : '';
 
     const cards = document.getElementById('dash-metas-cards');
     cards.innerHTML = data.map(m => {
@@ -5067,8 +5060,8 @@ async function renderMetas(){
         <span>${m.valor_meta}</span>
       </div>` : ''}
 
-      <!-- 4 métricas -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+      <!-- 3 métricas (sem projeção) -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
         <div style="text-align:center;padding:10px 6px;background:var(--bg2);border-radius:var(--r)">
           <div style="font-size:20px;font-weight:700">${m.valor_meta}</div>
           <div style="font-size:10px;color:var(--txt3)">Meta</div>
@@ -5081,14 +5074,6 @@ async function renderMetas(){
           <div style="font-size:20px;font-weight:700;color:var(--err)">${faltam}</div>
           <div style="font-size:10px;color:var(--txt3)">Faltam</div>
         </div>
-        ${mesAtual ? `<div style="text-align:center;padding:10px 6px;background:var(--bg2);border-radius:var(--r);
-          border:1px solid ${projecao>=m.valor_meta?'#22c55e':'#f59e0b'}">
-          <div style="font-size:20px;font-weight:700;color:${projecao>=m.valor_meta?'#22c55e':'#f59e0b'}">${projecao}</div>
-          <div style="font-size:10px;color:var(--txt3)">Projeção</div>
-        </div>` : `<div style="text-align:center;padding:10px 6px;background:var(--bg2);border-radius:var(--r)">
-          <div style="font-size:20px;font-weight:700;color:var(--txt3)">${diasMes}d</div>
-          <div style="font-size:10px;color:var(--txt3)">Dias mês</div>
-        </div>`}
       </div>
 
       <!-- Ritmo -->
