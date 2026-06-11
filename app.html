@@ -4398,7 +4398,7 @@ function getCampos(){
 }
 
 // ── Troca de aba ───────────────────────────────────────────
-function switchCfgTab(tab, btn){
+async function switchCfgTab(tab, btn){
   ['pipeline','aparencia','campos','motivos','tv','sistema'].forEach(t=>{
     const el = document.getElementById('cfg-tab-'+t);
     if(el) el.style.display = t===tab ? 'block' : 'none';
@@ -4412,6 +4412,16 @@ function switchCfgTab(tab, btn){
     btn.style.color = 'var(--acc)';
     btn.style.borderBottomColor = 'var(--acc)';
     btn.classList.add('on');
+  }
+  // Ao abrir aba TV: garante config atualizada antes de renderizar
+  if(tab === 'tv'){
+    await carregarCfgDoSupabase();
+    carregarCfgTVForm();
+  }
+  // Ao abrir Pipeline: recarrega etapas
+  if(tab === 'pipeline'){
+    await carregarCfgDoSupabase();
+    renderEtapasCfg();
   }
 }
 
@@ -5185,19 +5195,28 @@ function carregarCfgTVForm(){
     const nomesInat    = ['inativo','inativa','perdido','cancelado','churn'];
     const selecionadas = tv.etapasKpi;
 
-    listEl.innerHTML = etapas.map(e=>{
-      const inativa  = nomesInat.some(n=>e.id.toLowerCase().includes(n));
-      const checked  = selecionadas.includes(e.id);
-      const cor      = inativa ? '#ef4444' : (e.cor||'var(--acc)');
-      return '<label style="display:flex;justify-content:space-between;align-items:center;'
-        +'font-size:12px;cursor:pointer;padding:6px 8px;background:var(--card);'
-        +'border-radius:var(--r);border-left:3px solid '+cor+'">'
-        +'<span>'+e.icon+' '+e.id+'</span>'
-        +'<input type="checkbox" class="tv-etapa-kpi-chk" data-etapa="'+e.id+'"'
-        +(checked?' checked':'')
-        +' style="width:16px;height:16px;accent-color:var(--acc)">'
-        +'</label>';
-    }).join('');
+    if(!etapas || etapas.length === 0){
+      listEl.innerHTML = '<div style="font-size:12px;color:var(--txt3);padding:8px">Carregando etapas...</div>';
+    } else {
+      listEl.innerHTML = etapas.map(e=>{
+        const inativa = nomesInat.some(n=>e.id.toLowerCase().includes(n));
+        const checked = selecionadas.length === 0 || selecionadas.includes(e.id);
+        const cor     = inativa ? '#ef4444' : (e.cor||'var(--acc)');
+        return '<label style="display:flex;justify-content:space-between;align-items:center;'
+          +'font-size:12px;cursor:pointer;padding:8px 10px;background:var(--card);'
+          +'border-radius:var(--r);border-left:3px solid '+cor+';margin-bottom:2px">'
+          +'<div style="display:flex;align-items:center;gap:8px">'
+          +'<span style="font-size:16px">'+e.icon+'</span>'
+          +'<div>'
+          +'<div style="font-weight:500">'+e.id+'</div>'
+          +'<div style="font-size:10px;color:var(--txt3)">Exibe contagem desta etapa como KPI</div>'
+          +'</div></div>'
+          +'<input type="checkbox" class="tv-etapa-kpi-chk" data-etapa="'+e.id+'"'
+          +(checked?' checked':'')
+          +' style="width:18px;height:18px;accent-color:var(--acc);flex-shrink:0">'
+          +'</label>';
+      }).join('');
+    }
   }
 
   atualizarPreviewTV();
