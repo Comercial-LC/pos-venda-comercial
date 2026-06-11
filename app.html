@@ -2140,8 +2140,19 @@ function renderKanban(){
               <div style="font-size:10px;color:var(--txt3);margin-top:5px">${(r.produtos||[]).length}/${PRODUTOS.length} produtos</div>`
             : '';
           // Barra de progresso por etapa
-          const etapaIdx = COLS.findIndex(c=>c.id===col.id);
-          const pct = Math.round((etapaIdx/(COLS.length-1))*100);
+          // Inativo = 0% vermelho | Handover (última ativa) = 100%
+          const inativa = precisaMotivo(col.id);
+          let pct, barColor;
+          if(inativa){
+            pct      = 0;
+            barColor = 'var(--err)';
+          } else {
+            const colsAtivas  = COLS.filter(c => !precisaMotivo(c.id));
+            const etapaIdx    = colsAtivas.findIndex(c=>c.id===col.id);
+            const totalAtivas = colsAtivas.length;
+            pct      = totalAtivas > 1 ? Math.round((etapaIdx/(totalAtivas-1))*100) : 100;
+            barColor = col.color;
+          }
           return `<div class="kcard"
               draggable="true"
               data-id="${r.id}"
@@ -2167,10 +2178,10 @@ function renderKanban(){
             ${prodCheck}
             <!-- Barra de progresso da jornada -->
             <div style="margin-top:8px">
-              <div class="pbar"><div class="pfill" style="width:${pct}%;background:${col.color}"></div></div>
+              <div class="pbar"><div class="pfill" style="width:${pct}%;background:${barColor}"></div></div>
               <div style="display:flex;justify-content:space-between;margin-top:3px">
                 <span style="font-size:10px;color:var(--txt3)">${fmtDate(r.ingresso)}</span>
-                <span style="font-size:10px;color:${col.color};font-weight:600">${pct}%</span>
+                <span style="font-size:10px;color:${barColor};font-weight:600">${pct}%</span>
               </div>
             </div>
           </div>`;
