@@ -5014,69 +5014,78 @@ function abrirNovaMeta(){
 }
 
 async function editarMeta(id){
-  const {data, error} = await sb.from('orion_metas').select('*').eq('id',id).single();
-  if(error||!data){ toast('Erro ao carregar meta','err'); return; }
+  const {data, error} = await sb.from('orion_metas')
+    .select('*').eq('id', id).single();
+  if(error || !data){ toast('Erro ao carregar meta','err'); return; }
+
   document.getElementById('meta-edit-id').value  = data.id;
-  document.getElementById('meta-nome').value     = data.nome;
-  if(data.tipo) document.getElementById('meta-tipo').value = data.tipo;
+  document.getElementById('meta-nome').value     = data.nome || '';
   document.getElementById('meta-mes').value      = data.mes;
   document.getElementById('meta-ano').value      = data.ano;
-  document.getElementById('meta-objetivo').value = data.valor_meta;
-  document.getElementById('meta-atual').value    = data.valor_atual;
-  // descricao está em _orion_raw se existir
+  document.getElementById('meta-objetivo').value = data.valor_meta || '';
+  document.getElementById('meta-atual').value    = data.valor_atual || '';
+
+  if(data.tipo && document.getElementById('meta-tipo'))
+    document.getElementById('meta-tipo').value = data.tipo;
+
+  // Lê descrição do _orion_raw
   try {
     const raw = data._orion_raw ? JSON.parse(data._orion_raw) : {};
-    document.getElementById('meta-desc').value = raw.descricao||'';
-  } catch(e) { document.getElementById('meta-desc').value = ''; }
+    if(document.getElementById('meta-desc'))
+      document.getElementById('meta-desc').value = raw.descricao || '';
+  } catch(e){
+    if(document.getElementById('meta-desc'))
+      document.getElementById('meta-desc').value = '';
+  }
+
   document.getElementById('mo-meta-titulo').textContent = '✏️ Editar meta';
   openMo('mo-meta');
 }
 
 async function salvarMeta(){
-  const editId  = document.getElementById('meta-edit-id').value;
-  const nome    = document.getElementById('meta-nome').value.trim();
-  const objetivo = parseFloat(document.getElementById('meta-objetivo').value)||0;
-  const atual   = parseFloat(document.getElementById('meta-atual').value)||0;
-  const mes     = parseInt(document.getElementById('meta-mes').value);
-  const ano     = parseInt(document.getElementById('meta-ano').value);
-  const tipo    = document.getElementById('meta-tipo').value;
-  const desc    = document.getElementById('meta-desc').value.trim();
+  const editId   = document.getElementById('meta-edit-id').value.trim();
+  const nome     = document.getElementById('meta-nome').value.trim();
+  const tipo     = document.getElementById('meta-tipo')?.value || 'quantidade';
+  const objetivo = parseFloat(document.getElementById('meta-objetivo').value) || 0;
+  const atual    = parseFloat(document.getElementById('meta-atual').value)    || 0;
+  const mes      = parseInt(document.getElementById('meta-mes').value);
+  const ano      = parseInt(document.getElementById('meta-ano').value);
+  const desc     = document.getElementById('meta-desc')?.value.trim() || '';
 
-  if(!nome){ toast('Nome da meta é obrigatório','err'); return; }
-  if(!objetivo){ toast('Defina o objetivo da meta','err'); return; }
+  if(!nome)    { toast('Nome da meta é obrigatório','err'); return; }
+  if(!objetivo){ toast('Defina o objetivo da meta','err');  return; }
 
-  const pct    = objetivo > 0 ? Math.round((atual/objetivo)*100) : 0;
-  const status = pct>=100?'atingida':pct>=70?'atencao':'critica';
+  const pct    = objetivo > 0 ? Math.round((atual / objetivo) * 100) : 0;
+  const status = pct >= 100 ? 'atingida' : pct >= 70 ? 'atencao' : 'critica';
 
-  // Payload com apenas colunas garantidas na tabela
   const payload = {
     nome,
-    valor_meta: objetivo,
-    valor_atual: atual,
-    percentual: pct,
+    tipo,
+    valor_meta:   objetivo,
+    valor_atual:  atual,
+    percentual:   pct,
     mes,
     ano,
     status,
+    _orion_raw:   desc ? JSON.stringify({descricao: desc}) : null,
+    atualizado_em: new Date().toISOString(),
   };
-  // Adiciona campos opcionais apenas se existirem na tabela
-  try { payload.tipo = tipo; } catch(e){}
 
   let error;
   if(editId){
-    const {error:e} = await sb.from('orion_metas').update(payload).eq('id',editId);
-    error = e;
+    const res = await sb.from('orion_metas').update(payload).eq('id', editId);
+    error = res.error;
   } else {
-    const {error:e} = await sb.from('orion_metas')
-      .upsert(payload, {onConflict:'nome,mes,ano'});
-    error = e;
+    const res = await sb.from('orion_metas').insert(payload);
+    error = res.error;
   }
 
-  if(error){ toast('Erro ao salvar: '+error.message,'err'); return; }
+  if(error){ toast('Erro ao salvar: ' + error.message, 'err'); return; }
 
   closeMo('mo-meta');
   toast('✅ Meta salva com sucesso!');
   await renderMetas();
-  await carregarMetas(); // atualiza dashboard
+  await carregarMetas();
 }
 
 async function excluirMeta(id){
