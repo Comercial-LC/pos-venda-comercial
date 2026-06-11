@@ -895,7 +895,7 @@ select option{background:var(--bg2)}
 
       <!-- Aba Informações -->
       <div id="card-tab-info" style="display:none;padding:18px 22px">
-        <div id="card-info-content" style="display:grid;grid-template-columns:1fr 1fr;gap:12px"></div>
+        <div id="card-info-content"></div>
       </div>
 
       <!-- Aba Produtos (Decola) -->
@@ -2502,7 +2502,7 @@ async function deletarNotaCard(revId, notaId){
 
 function renderCardInfo(id){
   const rev = DB.revendas.find(r=>r.id===id);
-  const el  = document.getElementById('card-info-list');
+  const el  = document.getElementById('card-info-content') || document.getElementById('card-info-list');
   if(!rev||!el) return;
 
   const etapas = getEtapas();
