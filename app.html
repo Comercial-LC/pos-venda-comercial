@@ -2446,21 +2446,103 @@ async function deletarNotaCard(revId, notaId){
 
 function renderCardInfo(id){
   const rev = DB.revendas.find(r=>r.id===id);
-  if(!rev) return;
-  const el = document.getElementById('card-info-content');
-  if(!el) return;
-  const fields = [
-    {l:'Nome',v:rev.nome},{l:'E-mail',v:rev.email},{l:'Telefone',v:rev.tel},
-    {l:'Cidade / UF',v:(rev.cidade||'')+(rev.uf?' · '+rev.uf:'')},
-    {l:'CNPJ',v:rev.cnpj},{l:'Segmento',v:rev.segmento},{l:'Porte',v:rev.porte},
-    {l:'Responsável CS',v:rev.cs},{l:'Contratos',v:rev.contratos},
-    {l:'Curva ABC',v:rev.curva},{l:'Ingresso',v:fmtDate(rev.ingresso)},{l:'Observações',v:rev.obs},
+  const el  = document.getElementById('card-info-list');
+  if(!rev||!el) return;
+
+  // ── Selector de etapa ─────────────────────────────────────
+  const etapas = getEtapas();
+  const etapaSelector = `
+    <div style="padding:12px;background:var(--bg2);border-radius:var(--r);
+      border:2px solid var(--acc);margin-bottom:14px">
+      <div style="font-size:10px;font-weight:600;color:var(--txt3);
+        text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">
+        ⚡ ETAPA DO PIPELINE
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <select id="card-etapa-select" style="flex:1;padding:8px 10px;font-size:13px;
+          font-weight:600;border-radius:var(--r);border:1px solid var(--bdr);
+          background:var(--card)">
+          ${etapas.map(e=>`<option value="${e.id}" ${e.id===rev.status?'selected':''}>${e.icon} ${e.id}</option>`).join('')}
+        </select>
+        <button class="btn btn-p btn-sm" onclick="moverCardInfoEtapa('${id}')">Mover ▶</button>
+      </div>
+    </div>`;
+
+  // ── Campos de informação ──────────────────────────────────
+  const campos = [
+    {l:'Nome',         v:rev.nome},
+    {l:'E-mail',       v:rev.email},
+    {l:'Telefone',     v:rev.tel},
+    {l:'Cidade / UF',  v:rev.cidade&&rev.uf?rev.cidade+' / '+rev.uf:rev.cidade||rev.uf},
+    {l:'CNPJ',         v:perfilAtual?.pode_ver_cnpj ? rev.cnpj : (rev.cnpj?'••••••/••-••':null)},
+    {l:'Segmento',     v:rev.segmento},
+    {l:'Porte',        v:rev.porte},
+    {l:'Responsável CS',v:rev.cs},
+    {l:'Contratos',    v:rev.contratos},
+    {l:'Curva ABC',    v:rev.curva},
+    {l:'Ingresso',     v:fmtDate(rev.ingresso)},
+    {l:'Observações',  v:rev.obs},
   ];
-  el.innerHTML = fields.map(f=>`
-    <div style="padding:10px;background:var(--bg2);border-radius:var(--r)">
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--txt3);margin-bottom:3px">${f.l}</div>
-      <div style="font-size:13px;font-weight:500">${f.v||'—'}</div>
-    </div>`).join('');
+
+  el.innerHTML = etapaSelector + `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    ${campos.map(c=>`
+      <div style="padding:12px;background:var(--bg2);border-radius:var(--r);border:1px solid var(--bdr)">
+        <div style="font-size:10px;font-weight:600;color:var(--txt3);text-transform:uppercase;
+          letter-spacing:.05em;margin-bottom:4px">${c.l}</div>
+        <div style="font-size:13px;font-weight:500">${c.v||'—'}</div>
+      </div>`).join('')}
+  </div>`;
+}
+
+async function moverCardInfoEtapa(revId){
+  const sel       = document.getElementById('card-etapa-select');
+  const newStatus = sel?.value;
+  if(!newStatus) return;
+
+  const rev = DB.revendas.find(r=>r.id===revId);
+  if(!rev || rev.status === newStatus){
+    toast('Revenda já está nesta etapa','warn'); return;
+  }
+  const old = rev.status;
+
+  const executarMover = async (motivo) => {
+    const {error} = await sb.from('revendas')
+      .update({status:newStatus, atualizado_em:new Date().toISOString()})
+      .eq('id', revId);
+    if(error){ toast('Erro: '+error.message,'err'); return; }
+
+    const i = DB.revendas.findIndex(r=>r.id===revId);
+    if(i>-1) DB.revendas[i].status = newStatus;
+
+    // Atualiza header do modal
+    const sub = document.getElementById('mo-card-sub');
+    if(sub){
+      sub.innerHTML = `<span style="color:${ETAPA_COLORS[newStatus]||'var(--acc)'};font-weight:600">${newStatus}</span>
+        &nbsp;·&nbsp; CS: ${rev.cs||'—'} &nbsp;·&nbsp; ${rev.contratos||'0'} contratos`;
+    }
+
+    const desc = motivo ? `${old} → ${newStatus} | Motivo: ${motivo}` : `${old} → ${newStatus}`;
+    await inserirHistorico(revId,'Mudança de etapa',desc,perfilAtual?.nome);
+
+    try {
+      sessionStorage.setItem('sb_revendas_backup', JSON.stringify(
+        DB.revendas.map(r=>({id:r.id,nome:r.nome,status:r.status,
+          cs:r.cs,contratos:r.contratos,curva:r.curva,ingresso:r.ingresso,
+          cidade:r.cidade,uf:r.uf,email:r.email,tel:r.tel,
+          produtos:r.produtos,id_origem:r.id_origem,criadoEm:r.criadoEm}))
+      ));
+    } catch(e){}
+
+    renderKanban(); drawPipelineChart();
+    toast(`✅ ${rev.nome} → ${newStatus}`);
+    setTimeout(()=>renderCardHistorico(revId), 300);
+  };
+
+  if(precisaMotivo(newStatus)){
+    abrirMotivoInativo(newStatus, executarMover);
+  } else {
+    await executarMover('');
+  }
 }
 
 function renderCardProdutos(id){
