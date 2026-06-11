@@ -830,11 +830,31 @@ select option{background:var(--bg2)}
             <div class="ct" style="margin-bottom:4px">📺 Blocos exibidos na TV</div>
             <div class="cs" style="margin-bottom:14px">Escolha quais seções aparecem no dashboard da TV</div>
             <div style="display:flex;flex-direction:column;gap:10px" id="tv-blocos-list">
-              <label class="cb" style="justify-content:space-between;padding:10px;background:var(--bg2);border-radius:var(--r)">
-                <div><div style="font-weight:600;font-size:13px">📊 KPIs principais</div>
-                <div style="font-size:11px;color:var(--txt3)">Total revendas, Em jornada, Decola 1 Cliente, Handover, Inativas</div></div>
-                <input type="checkbox" id="tv-show-kpis" checked style="width:18px;height:18px;accent-color:var(--acc)">
-              </label>
+              <div style="padding:10px;background:var(--bg2);border-radius:var(--r)">
+                <div style="font-weight:600;font-size:13px;margin-bottom:8px">📊 KPIs — selecione quais exibir</div>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <label style="display:flex;justify-content:space-between;align-items:center;font-size:12px;cursor:pointer">
+                    <span>🏢 Total de Revendas</span>
+                    <input type="checkbox" id="tv-kpi-total" checked style="width:16px;height:16px;accent-color:var(--acc)">
+                  </label>
+                  <label style="display:flex;justify-content:space-between;align-items:center;font-size:12px;cursor:pointer">
+                    <span>🚀 Em Jornada</span>
+                    <input type="checkbox" id="tv-kpi-jornada" checked style="width:16px;height:16px;accent-color:var(--acc)">
+                  </label>
+                  <label style="display:flex;justify-content:space-between;align-items:center;font-size:12px;cursor:pointer">
+                    <span>👤 Penúltima etapa (ex: Decola 1 Cliente)</span>
+                    <input type="checkbox" id="tv-kpi-penultima" checked style="width:16px;height:16px;accent-color:var(--acc)">
+                  </label>
+                  <label style="display:flex;justify-content:space-between;align-items:center;font-size:12px;cursor:pointer">
+                    <span>🤝 Última etapa (ex: Handover)</span>
+                    <input type="checkbox" id="tv-kpi-ultima" checked style="width:16px;height:16px;accent-color:var(--acc)">
+                  </label>
+                  <label style="display:flex;justify-content:space-between;align-items:center;font-size:12px;cursor:pointer">
+                    <span>🚫 Inativas</span>
+                    <input type="checkbox" id="tv-kpi-inativas" checked style="width:16px;height:16px;accent-color:var(--acc)">
+                  </label>
+                </div>
+              </div>
               <label class="cb" style="justify-content:space-between;padding:10px;background:var(--bg2);border-radius:var(--r)">
                 <div><div style="font-weight:600;font-size:13px">🎯 Metas comerciais</div>
                 <div style="font-size:11px;color:var(--txt3)">Metas do mês atual com barra de progresso</div></div>
@@ -1506,13 +1526,16 @@ async function renderTVDashboard(){
   if(tvKpisGrid) tvKpisGrid.style.gridTemplateColumns = 'repeat('+tvCfg.kpisColunas+',1fr)';
 
   const kpisEl = document.getElementById('tv-kpis');
-  if(kpisEl) kpisEl.innerHTML = [
-    {icon:'🏢', label:'Total de Revendas', val:rv.length,    cor:'var(--acc)'},
-    {icon:'🚀', label:'Em Jornada',        val:emJornada,    cor:'var(--ok)'},
-    {icon:'👤', label:penultimaEtapa,      val:primCliente,  cor:'var(--pur)'},
-    {icon:'🤝', label:ultimaEtapa,         val:handover,     cor:'var(--tel)'},
-    {icon:'🚫', label:'Inativas',          val:tvInativos,   cor:'var(--err)'},
-  ].map(k=>`
+  // Filtra KPIs conforme configuração
+  const todosKpis = [
+    {icon:'🏢', label:'Total de Revendas', val:rv.length,   cor:'var(--acc)', key:'kpiTotal'},
+    {icon:'🚀', label:'Em Jornada',        val:emJornada,   cor:'var(--ok)', key:'kpiJornada'},
+    {icon:'👤', label:penultimaEtapa,      val:primCliente, cor:'var(--pur)', key:'kpiPenultima'},
+    {icon:'🤝', label:ultimaEtapa,         val:handover,    cor:'var(--tel)', key:'kpiUltima'},
+    {icon:'🚫', label:'Inativas',          val:tvInativos,  cor:'var(--err)', key:'kpiInativas'},
+  ].filter(k => tvCfg[k.key] !== false);
+
+  if(kpisEl) kpisEl.innerHTML = todosKpis.map(k=>`
     <div style="background:var(--card);border:1px solid var(--bdr);border-radius:16px;
       padding:24px;text-align:center;border-top:4px solid ${k.cor}">
       <div style="font-size:36px;margin-bottom:8px">${k.icon}</div>
@@ -4931,8 +4954,7 @@ async function renderMetas(){
             <div style="font-size:10px;color:var(--txt3)">Faltam</div>
           </div>
         </div>
-        ${m.descricao ? `<div style="font-size:11px;color:var(--txt3);margin-top:10px;padding-top:10px;
-          border-top:1px solid var(--bdr)">${m.descricao}</div>` : ''}
+        ${(() => { try { const r=m._orion_raw?JSON.parse(m._orion_raw):{}; return r.descricao ? `<div style="font-size:11px;color:var(--txt3);margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr)">${r.descricao}</div>` : ''; } catch(e){return '';} })()}
       </div>`;
     }).join('');
   }
@@ -5001,7 +5023,11 @@ async function editarMeta(id){
   document.getElementById('meta-ano').value      = data.ano;
   document.getElementById('meta-objetivo').value = data.valor_meta;
   document.getElementById('meta-atual').value    = data.valor_atual;
-  document.getElementById('meta-desc').value     = data.descricao||'';
+  // descricao está em _orion_raw se existir
+  try {
+    const raw = data._orion_raw ? JSON.parse(data._orion_raw) : {};
+    document.getElementById('meta-desc').value = raw.descricao||'';
+  } catch(e) { document.getElementById('meta-desc').value = ''; }
   document.getElementById('mo-meta-titulo').textContent = '✏️ Editar meta';
   openMo('mo-meta');
 }
@@ -5025,7 +5051,7 @@ async function salvarMeta(){
   const payload = {
     nome, tipo, valor_meta:objetivo, valor_atual:atual,
     percentual:pct, mes, ano, status,
-    descricao: desc||null,
+    _orion_raw: desc ? JSON.stringify({descricao:desc}) : null,
     atualizado_em: new Date().toISOString(),
   };
 
@@ -5087,14 +5113,19 @@ async function renderAuditoria(){
 function getTVCfg(){
   const cfg = getCfg();
   return {
-    showKpis:       cfg.tvShowKpis       !== false,
-    showMetas:      cfg.tvShowMetas      !== false,
-    showPipeline:   cfg.tvShowPipeline   !== false,
-    showAtividades: cfg.tvShowAtividades !== false,
-    titulo:         cfg.tvTitulo         || 'Portal Sucesso da Revenda',
-    subtitulo:      cfg.tvSubtitulo      || 'LC Sistemas',
-    corDestaque:    cfg.tvCorDestaque    || '#F5C518',
-    kpisColunas:    cfg.tvKpisColunas    || 4,
+    showKpis:         cfg.tvShowKpis       !== false,
+    showMetas:        cfg.tvShowMetas      !== false,
+    showPipeline:     cfg.tvShowPipeline   !== false,
+    showAtividades:   cfg.tvShowAtividades !== false,
+    kpiTotal:         cfg.tvKpiTotal       !== false,
+    kpiJornada:       cfg.tvKpiJornada     !== false,
+    kpiPenultima:     cfg.tvKpiPenultima   !== false,
+    kpiUltima:        cfg.tvKpiUltima      !== false,
+    kpiInativas:      cfg.tvKpiInativas    !== false,
+    titulo:           cfg.tvTitulo         || 'Portal Sucesso da Revenda',
+    subtitulo:        cfg.tvSubtitulo      || 'LC Sistemas',
+    corDestaque:      cfg.tvCorDestaque    || '#F5C518',
+    kpisColunas:      cfg.tvKpisColunas    || 4,
   };
 }
 
@@ -5103,6 +5134,11 @@ function carregarCfgTVForm(){
   const set = (id, val) => { const el=document.getElementById(id); if(el) el.value=val; };
   const chk = (id, val) => { const el=document.getElementById(id); if(el) el.checked=val; };
   chk('tv-show-kpis',       tv.showKpis);
+  chk('tv-kpi-total',       tv.kpiTotal);
+  chk('tv-kpi-jornada',     tv.kpiJornada);
+  chk('tv-kpi-penultima',   tv.kpiPenultima);
+  chk('tv-kpi-ultima',      tv.kpiUltima);
+  chk('tv-kpi-inativas',    tv.kpiInativas);
   chk('tv-show-metas',      tv.showMetas);
   chk('tv-show-pipeline',   tv.showPipeline);
   chk('tv-show-atividades', tv.showAtividades);
@@ -5137,6 +5173,11 @@ async function salvarCfgTV(){
   const g = id => document.getElementById(id);
   await saveCfg({
     tvShowKpis:       g('tv-show-kpis')?.checked       !== false,
+    tvKpiTotal:       g('tv-kpi-total')?.checked        !== false,
+    tvKpiJornada:     g('tv-kpi-jornada')?.checked      !== false,
+    tvKpiPenultima:   g('tv-kpi-penultima')?.checked    !== false,
+    tvKpiUltima:      g('tv-kpi-ultima')?.checked       !== false,
+    tvKpiInativas:    g('tv-kpi-inativas')?.checked     !== false,
     tvShowMetas:      g('tv-show-metas')?.checked      !== false,
     tvShowPipeline:   g('tv-show-pipeline')?.checked   !== false,
     tvShowAtividades: g('tv-show-atividades')?.checked !== false,
