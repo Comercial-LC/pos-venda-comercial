@@ -638,6 +638,9 @@ select option{background:var(--bg2)}
         <button class="cfg-tab" onclick="switchCfgTab('motivos',this)"
           style="padding:10px 18px;font-size:13px;font-weight:500;border:none;background:none;
           color:var(--txt2);border-bottom:2px solid transparent;cursor:pointer">⚠️ Motivos</button>
+        <button class="cfg-tab" onclick="switchCfgTab('tv',this)"
+          style="padding:10px 18px;font-size:13px;font-weight:500;border:none;background:none;
+          color:var(--txt2);border-bottom:2px solid transparent;cursor:pointer">📺 TV</button>
         <button class="cfg-tab" onclick="switchCfgTab('sistema',this)"
           style="padding:10px 18px;font-size:13px;font-weight:500;border:none;background:none;
           color:var(--txt2);border-bottom:2px solid transparent;cursor:pointer">🔧 Sistema</button>
@@ -815,6 +818,87 @@ select option{background:var(--bg2)}
             </div>
             <button class="btn btn-p" style="width:100%;margin-top:10px" onclick="salvarEtapasMotivo()">💾 Salvar</button>
           </div>
+        </div>
+      </div>
+
+      <!-- ABA: TV ────────────────────────────────────────── -->
+      <div id="cfg-tab-tv" style="display:none">
+        <div class="g2">
+
+          <!-- Blocos visíveis -->
+          <div class="card">
+            <div class="ct" style="margin-bottom:4px">📺 Blocos exibidos na TV</div>
+            <div class="cs" style="margin-bottom:14px">Escolha quais seções aparecem no dashboard da TV</div>
+            <div style="display:flex;flex-direction:column;gap:10px" id="tv-blocos-list">
+              <label class="cb" style="justify-content:space-between;padding:10px;background:var(--bg2);border-radius:var(--r)">
+                <div><div style="font-weight:600;font-size:13px">📊 KPIs principais</div>
+                <div style="font-size:11px;color:var(--txt3)">Total revendas, Em jornada, Decola 1 Cliente, Handover, Inativas</div></div>
+                <input type="checkbox" id="tv-show-kpis" checked style="width:18px;height:18px;accent-color:var(--acc)">
+              </label>
+              <label class="cb" style="justify-content:space-between;padding:10px;background:var(--bg2);border-radius:var(--r)">
+                <div><div style="font-weight:600;font-size:13px">🎯 Metas comerciais</div>
+                <div style="font-size:11px;color:var(--txt3)">Metas do mês atual com barra de progresso</div></div>
+                <input type="checkbox" id="tv-show-metas" checked style="width:18px;height:18px;accent-color:var(--acc)">
+              </label>
+              <label class="cb" style="justify-content:space-between;padding:10px;background:var(--bg2);border-radius:var(--r)">
+                <div><div style="font-weight:600;font-size:13px">⚡ Pipeline por etapa</div>
+                <div style="font-size:11px;color:var(--txt3)">Funil com contagem por etapa</div></div>
+                <input type="checkbox" id="tv-show-pipeline" checked style="width:18px;height:18px;accent-color:var(--acc)">
+              </label>
+              <label class="cb" style="justify-content:space-between;padding:10px;background:var(--bg2);border-radius:var(--r)">
+                <div><div style="font-weight:600;font-size:13px">🕐 Últimas atividades</div>
+                <div style="font-size:11px;color:var(--txt3)">6 atividades mais recentes</div></div>
+                <input type="checkbox" id="tv-show-atividades" checked style="width:18px;height:18px;accent-color:var(--acc)">
+              </label>
+            </div>
+            <button class="btn btn-p" style="width:100%;margin-top:14px" onclick="salvarCfgTV()">
+              💾 Salvar configurações da TV
+            </button>
+          </div>
+
+          <!-- Layout e aparência TV -->
+          <div>
+            <div class="card" style="margin-bottom:14px">
+              <div class="ct" style="margin-bottom:14px">🎨 Aparência da TV</div>
+              <div class="fg">
+                <label>Título exibido na TV</label>
+                <input id="tv-titulo" value="Portal Sucesso da Revenda" placeholder="Título principal">
+              </div>
+              <div class="fg">
+                <label>Subtítulo</label>
+                <input id="tv-subtitulo" value="LC Sistemas" placeholder="Subtítulo">
+              </div>
+              <div class="fg">
+                <label>Cor de destaque</label>
+                <div style="display:flex;gap:8px;align-items:center">
+                  <input type="color" id="tv-cor-destaque" value="#F5C518"
+                    style="width:44px;height:36px;padding:2px;cursor:pointer;border-radius:var(--r)">
+                  <span style="font-size:12px;color:var(--txt3)">Linha de separação e contadores</span>
+                </div>
+              </div>
+              <div class="fg">
+                <label>KPIs por linha</label>
+                <select id="tv-kpis-colunas">
+                  <option value="4">4 KPIs por linha</option>
+                  <option value="3">3 KPIs por linha</option>
+                  <option value="5">5 KPIs por linha</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="ct" style="margin-bottom:10px">ℹ️ Preview</div>
+              <div style="background:var(--bg);border-radius:var(--r);padding:12px;font-size:11px;color:var(--txt3)">
+                <div style="font-weight:600;font-size:13px;color:var(--acc);margin-bottom:4px" id="tv-preview-titulo">Portal Sucesso da Revenda</div>
+                <div style="margin-bottom:8px" id="tv-preview-sub">LC Sistemas</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap" id="tv-preview-blocos"></div>
+              </div>
+              <div style="font-size:11px;color:var(--txt3);margin-top:8px">
+                💡 As configurações são aplicadas automaticamente na próxima vez que a TV for aberta ou recarregada.
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -1266,22 +1350,24 @@ function ativarModoTV(){
       </div>
 
       <!-- KPIs grandes -->
-      <div id="tv-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px"></div>
+      <div id="tv-kpis-wrap" style="margin-bottom:24px">
+        <div id="tv-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px"></div>
+      </div>
 
       <!-- Metas + Pipeline -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
-        <div>
+        <div id="tv-metas-wrap-tv">
           <div style="font-size:14px;font-weight:700;color:var(--txt);margin-bottom:12px">🎯 Meta Comercial do Mês</div>
           <div id="tv-metas" style="display:flex;flex-direction:column;gap:10px"></div>
         </div>
-        <div>
+        <div id="tv-pipeline-wrap">
           <div style="font-size:14px;font-weight:700;color:var(--txt);margin-bottom:12px">⚡ Pipeline de Onboarding</div>
           <div id="tv-pipeline" style="display:flex;flex-direction:column;gap:8px"></div>
         </div>
       </div>
 
       <!-- Últimas atividades -->
-      <div>
+      <div id="tv-atividades-wrap">
         <div style="font-size:14px;font-weight:700;color:var(--txt);margin-bottom:12px">🕐 Últimas Atividades</div>
         <div id="tv-atividades" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px"></div>
       </div>
@@ -1391,6 +1477,33 @@ async function renderTVDashboard(){
     ['inativo','inativa','perdido','cancelado','churn']
       .some(n=>(r.status||'').toLowerCase().includes(n))
   ).length;
+
+  // Aplica configurações da TV
+  const tvCfg = getTVCfg();
+
+  // Título e subtítulo
+  const tvTitEl = document.querySelector('#tv-dash .tv-titulo');
+  if(tvTitEl) tvTitEl.textContent = tvCfg.titulo;
+  const tvSubEl = document.querySelector('#tv-dash .tv-subtitulo');
+  if(tvSubEl) tvSubEl.textContent = tvCfg.subtitulo;
+
+  // Cor de destaque
+  const tvBorda = document.querySelector('#tv-dash .tv-borda');
+  if(tvBorda) tvBorda.style.borderBottomColor = tvCfg.corDestaque;
+
+  // Mostra/oculta blocos
+  const tvKpisWrap = document.getElementById('tv-kpis-wrap');
+  const tvMetasWrap = document.getElementById('tv-metas-wrap-tv');
+  const tvPipeWrap = document.getElementById('tv-pipeline-wrap');
+  const tvAtivWrap = document.getElementById('tv-atividades-wrap');
+  if(tvKpisWrap)  tvKpisWrap.style.display  = tvCfg.showKpis       ? '' : 'none';
+  if(tvMetasWrap) tvMetasWrap.style.display = tvCfg.showMetas      ? '' : 'none';
+  if(tvPipeWrap)  tvPipeWrap.style.display  = tvCfg.showPipeline   ? '' : 'none';
+  if(tvAtivWrap)  tvAtivWrap.style.display  = tvCfg.showAtividades ? '' : 'none';
+
+  // Grid de KPIs dinâmico
+  const tvKpisGrid = document.getElementById('tv-kpis');
+  if(tvKpisGrid) tvKpisGrid.style.gridTemplateColumns = 'repeat('+tvCfg.kpisColunas+',1fr)';
 
   const kpisEl = document.getElementById('tv-kpis');
   if(kpisEl) kpisEl.innerHTML = [
@@ -4248,7 +4361,7 @@ function getCampos(){
 
 // ── Troca de aba ───────────────────────────────────────────
 function switchCfgTab(tab, btn){
-  ['pipeline','aparencia','campos','motivos','sistema'].forEach(t=>{
+  ['pipeline','aparencia','campos','motivos','tv','sistema'].forEach(t=>{
     const el = document.getElementById('cfg-tab-'+t);
     if(el) el.style.display = t===tab ? 'block' : 'none';
   });
@@ -4967,6 +5080,72 @@ async function renderAuditoria(){
     <td style="font-size:11px;color:var(--txt2);max-width:180px;overflow:hidden;text-overflow:ellipsis">${a.detalhe?JSON.stringify(a.detalhe).slice(0,60):'—'}</td>
     <td style="font-size:11px;white-space:nowrap">${new Date(a.criado_em).toLocaleString('pt-BR')}</td>
   </tr>`).join('');
+}
+
+// ─── CONFIGURAÇÃO DA TV ─────────────────────────────────────────────
+
+function getTVCfg(){
+  const cfg = getCfg();
+  return {
+    showKpis:       cfg.tvShowKpis       !== false,
+    showMetas:      cfg.tvShowMetas      !== false,
+    showPipeline:   cfg.tvShowPipeline   !== false,
+    showAtividades: cfg.tvShowAtividades !== false,
+    titulo:         cfg.tvTitulo         || 'Portal Sucesso da Revenda',
+    subtitulo:      cfg.tvSubtitulo      || 'LC Sistemas',
+    corDestaque:    cfg.tvCorDestaque    || '#F5C518',
+    kpisColunas:    cfg.tvKpisColunas    || 4,
+  };
+}
+
+function carregarCfgTVForm(){
+  const tv = getTVCfg();
+  const set = (id, val) => { const el=document.getElementById(id); if(el) el.value=val; };
+  const chk = (id, val) => { const el=document.getElementById(id); if(el) el.checked=val; };
+  chk('tv-show-kpis',       tv.showKpis);
+  chk('tv-show-metas',      tv.showMetas);
+  chk('tv-show-pipeline',   tv.showPipeline);
+  chk('tv-show-atividades', tv.showAtividades);
+  set('tv-titulo',          tv.titulo);
+  set('tv-subtitulo',       tv.subtitulo);
+  set('tv-cor-destaque',    tv.corDestaque);
+  set('tv-kpis-colunas',    tv.kpisColunas);
+  atualizarPreviewTV();
+}
+
+function atualizarPreviewTV(){
+  const titulo    = document.getElementById('tv-titulo')?.value   || 'Portal Sucesso da Revenda';
+  const subtitulo = document.getElementById('tv-subtitulo')?.value|| 'LC Sistemas';
+  const blocos    = [
+    {id:'tv-show-kpis',       label:'📊 KPIs'},
+    {id:'tv-show-metas',      label:'🎯 Metas'},
+    {id:'tv-show-pipeline',   label:'⚡ Pipeline'},
+    {id:'tv-show-atividades', label:'🕐 Atividades'},
+  ].filter(b=>document.getElementById(b.id)?.checked);
+
+  const t = document.getElementById('tv-preview-titulo');
+  const s = document.getElementById('tv-preview-sub');
+  const b = document.getElementById('tv-preview-blocos');
+  if(t) t.textContent = titulo;
+  if(s) s.textContent = subtitulo;
+  if(b) b.innerHTML = blocos.map(bl=>
+    '<span style="padding:3px 8px;background:var(--accl);color:var(--acc);border-radius:4px;font-size:11px">'+bl.label+'</span>'
+  ).join('');
+}
+
+async function salvarCfgTV(){
+  const g = id => document.getElementById(id);
+  await saveCfg({
+    tvShowKpis:       g('tv-show-kpis')?.checked       !== false,
+    tvShowMetas:      g('tv-show-metas')?.checked      !== false,
+    tvShowPipeline:   g('tv-show-pipeline')?.checked   !== false,
+    tvShowAtividades: g('tv-show-atividades')?.checked !== false,
+    tvTitulo:         g('tv-titulo')?.value            || 'Portal Sucesso da Revenda',
+    tvSubtitulo:      g('tv-subtitulo')?.value         || 'LC Sistemas',
+    tvCorDestaque:    g('tv-cor-destaque')?.value      || '#F5C518',
+    tvKpisColunas:    parseInt(g('tv-kpis-colunas')?.value)||4,
+  });
+  toast('✅ Configurações da TV salvas! Serão aplicadas no próximo acesso da TV.');
 }
 
 // ─── LIMPEZA DE DADOS ──────────────────────────────────────────────
