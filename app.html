@@ -1384,10 +1384,10 @@ function ativarModoTV(){
           <div style="font-size:14px;font-weight:700;color:var(--txt);margin-bottom:12px">🎯 Meta Comercial do Mês</div>
           <div id="tv-metas" style="display:flex;flex-direction:column;gap:10px"></div>
         </div>
-        <div id="tv-pipeline-wrap">
-          <div style="font-size:14px;font-weight:700;color:var(--txt);margin-bottom:12px">⚡ Pipeline de Onboarding</div>
-          <div id="tv-pipeline" style="display:flex;flex-direction:column;gap:8px"></div>
-        </div>
+        <div id="tv-pipeline-wrap" style="flex:1;min-height:0;display:flex;flex-direction:column">
+            <div style="font-size:13px;font-weight:700;color:var(--txt);margin-bottom:8px;flex-shrink:0">⚡ Pipeline de Onboarding</div>
+            <div id="tv-pipeline" style="display:flex;flex-direction:column;gap:6px;flex:1;overflow-y:auto;scrollbar-width:none"></div>
+          </div>
       </div>
 
       <!-- Últimas atividades -->
