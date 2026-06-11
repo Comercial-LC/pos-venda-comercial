@@ -5018,7 +5018,7 @@ async function editarMeta(id){
   if(error||!data){ toast('Erro ao carregar meta','err'); return; }
   document.getElementById('meta-edit-id').value  = data.id;
   document.getElementById('meta-nome').value     = data.nome;
-  document.getElementById('meta-tipo').value     = data.tipo||'quantidade';
+  if(data.tipo) document.getElementById('meta-tipo').value = data.tipo;
   document.getElementById('meta-mes').value      = data.mes;
   document.getElementById('meta-ano').value      = data.ano;
   document.getElementById('meta-objetivo').value = data.valor_meta;
@@ -5048,12 +5048,18 @@ async function salvarMeta(){
   const pct    = objetivo > 0 ? Math.round((atual/objetivo)*100) : 0;
   const status = pct>=100?'atingida':pct>=70?'atencao':'critica';
 
+  // Payload com apenas colunas garantidas na tabela
   const payload = {
-    nome, tipo, valor_meta:objetivo, valor_atual:atual,
-    percentual:pct, mes, ano, status,
-    _orion_raw: desc ? JSON.stringify({descricao:desc}) : null,
-    atualizado_em: new Date().toISOString(),
+    nome,
+    valor_meta: objetivo,
+    valor_atual: atual,
+    percentual: pct,
+    mes,
+    ano,
+    status,
   };
+  // Adiciona campos opcionais apenas se existirem na tabela
+  try { payload.tipo = tipo; } catch(e){}
 
   let error;
   if(editId){
@@ -5061,7 +5067,7 @@ async function salvarMeta(){
     error = e;
   } else {
     const {error:e} = await sb.from('orion_metas')
-      .upsert({...payload}, {onConflict:'nome,mes,ano'});
+      .upsert(payload, {onConflict:'nome,mes,ano'});
     error = e;
   }
 
