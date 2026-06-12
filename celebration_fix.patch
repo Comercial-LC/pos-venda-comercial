@@ -1,0 +1,144 @@
+*** Begin Patch
+*** Update File: app.html
+@@
+-async function adicionarPontoMeta(metaId, nomeMeta) {
+-  try {
+-    // Busca a meta atual
+-    const { data: meta, error: errGet } = await sb
+-      .from('orion_metas')
+-      .select('*')
+-      .eq('id', metaId)
+-      .single();
+-    
+-    if (errGet || !meta) {
+-      toast('Erro ao carregar meta', 'err');
+-      return;
+-    }
+-    
+-    // Incrementa o valor
+-    const novoValor = (meta.valor_atual || 0) + 1;
+-    const novoPercentual = meta.valor_meta > 0 ? Math.round((novoValor / meta.valor_meta) * 100) : 0;
+-    const metaFoiBatida = meta.valor_atual < meta.valor_meta && novoValor >= meta.valor_meta;
+-    
+-    // Atualiza no banco
+-    const { error: errUpdate } = await sb
+-      .from('orion_metas')
+-      .update({
+-        valor_atual: novoValor,
+-        percentual: novoPercentual,
+-        status: novoPercentual >= 100 ? 'atingida' : 'em_progresso',
+-        atualizado_em: new Date().toISOString(),
+-      })
+-      .eq('id', metaId);
+-    
+-    if (errUpdate) {
+-      toast('Erro ao atualizar meta: ' + errUpdate.message, 'err');
+-      return;
+-    }
+-    
+-    // Sempre dispara animação ao adicionar ponto
+-    dispararFoguete();
+-    setTimeout(() => {
+-      criarFogosArtificio(8);
+-      criarConfete(10);
+-    }, 300);
+-    
+-    // Se bateu a meta, dispara celebração completa
+-    if (metaFoiBatida) {
+-      setTimeout(() => {
+-        mostrarModalParabens(nomeMeta);
+-      }, 1500);
+-      toast(`🏆 Meta ${nomeMeta} alcançada!`, 'ok');
+-      
+-      // Log de auditoria
+-      await logAuditoria('META_ATINGIDA', 'orion_metas', metaId, {
+-        nome: nomeMeta,
+-        valor: novoValor,
+-        meta: meta.valor_meta,
+-      });
+-    } else {
+-      toast(`✅ +1 ponto adicionado! (${novoValor}/${meta.valor_meta})`, 'ok');
+-    }
+-    
+-    // Re-renderiza as metas
+-    await renderMetas();
+-    await carregarMetas();
+-    
+-  } catch (e) {
+-    console.error('adicionarPontoMeta:', e);
+-    toast('Erro ao adicionar ponto: ' + e.message, 'err');
+-  }
+-}
++async function adicionarPontoMeta(metaId, nomeMeta) {
++  try {
++    // DISPARA ANIMAÇÕES IMEDIATAMENTE
++    dispararFoguete();
++    setTimeout(() => {
++      criarFogosArtificio(12);
++      criarConfete(15);
++    }, 300);
++
++    // Busca a meta atual do Supabase
++    const { data: meta, error: errGet } = await sb
++      .from('orion_metas')
++      .select('*')
++      .eq('id', metaId)
++      .single();
++
++    if (errGet || !meta) {
++      console.error('Erro ao buscar meta:', errGet?.message);
++      toast('❌ Erro ao carregar meta', 'err');
++      return;
++    }
++
++    // Calcula novo valor
++    const novoValor = (meta.valor_atual || 0) + 1;
++    const novoPercentual = meta.valor_meta > 0 ? Math.round((novoValor / meta.valor_meta) * 100) : 0;
++    const metaBatida = novoValor >= meta.valor_meta;
++
++    // Atualiza no Supabase
++    const { error: errUpdate } = await sb
++      .from('orion_metas')
++      .update({
++        valor_atual: novoValor,
++        percentual: novoPercentual,
++        status: metaBatida ? 'atingida' : 'em_progresso',
++        atualizado_em: new Date().toISOString(),
++      })
++      .eq('id', metaId);
++
++    if (errUpdate) {
++      console.error('Erro ao atualizar meta:', errUpdate.message);
++      toast('❌ Erro ao atualizar: ' + errUpdate.message, 'err');
++      return;
++    }
++
++    // Mensagem + Modal (se bateu meta)
++    if (metaBatida) {
++      setTimeout(() => {
++        mostrarModalParabens(nomeMeta);
++      }, 800);
++      toast(`🏆 META ATINGIDA: ${nomeMeta}!`, 'ok');
++      
++      // Log de auditoria
++      await logAuditoria('META_ATINGIDA', 'orion_metas', metaId, {
++        nome: nomeMeta,
++        valor: novoValor,
++        meta: meta.valor_meta,
++      }).catch(e => console.warn('Erro auditoria:', e.message));
++    } else {
++      toast(`✅ +1 ponto! (${novoValor}/${meta.valor_meta})`, 'ok');
++    }
++
++    // Recarrega as visualizações
++    setTimeout(() => {
++      if(typeof carregarMetas === 'function') carregarMetas();
++      if(typeof renderMetas === 'function') renderMetas();
++    }, 500);
++
++  } catch (e) {
++    console.error('❌ Erro em adicionarPontoMeta:', e);
++    toast('❌ Erro: ' + e.message, 'err');
++  }
++}
+*** End Patch
