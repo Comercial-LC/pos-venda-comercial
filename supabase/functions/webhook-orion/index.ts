@@ -18,16 +18,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-orion-signature, x-webhook-secret',
 }
 
-// ── Chave gerada (SHA-256 HMAC) ──────────────────────────────────
+// ── Verificação de assinatura (apenas via headers — nunca query string) ──
 async function verificarAssinatura(req: Request, body: string): Promise<boolean> {
-  // Aceita token via header OU via query string (?token=...)
-  const url = new URL(req.url)
+  // Token aceito apenas em headers seguros (nunca em query string — evita vazamento em logs)
   const sigHeader = req.headers.get('x-orion-signature') ||
                     req.headers.get('x-webhook-secret')  ||
-                    req.headers.get('authorization')?.replace('Bearer ','') ||
-                    url.searchParams.get('token')         ||
-                    url.searchParams.get('secret')        ||
-                    url.searchParams.get('key')
+                    req.headers.get('authorization')?.replace('Bearer ','')
   if (!sigHeader) return false
 
   // Modo 1: token simples — comparação em tempo constante via HMAC para evitar timing attack
