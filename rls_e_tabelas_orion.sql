@@ -61,7 +61,7 @@ create policy "orion_leads_insert" on public.orion_leads_vendidos
   for insert with check (true);  -- Edge Function usa service role
 
 create policy "orion_leads_update" on public.orion_leads_vendidos
-  for update using (public.estou_ativo());
+  for update using (public.meu_perfil() in ('Administrador','CS Manager'));
 
 create policy "orion_leads_delete" on public.orion_leads_vendidos
   for delete using (public.meu_perfil() = 'Administrador');
@@ -74,7 +74,7 @@ create policy "orion_metas_insert" on public.orion_metas
   for insert with check (true);
 
 create policy "orion_metas_update" on public.orion_metas
-  for update using (true);
+  for update using (public.meu_perfil() = 'Administrador');
 
 create policy "orion_metas_delete" on public.orion_metas
   for delete using (public.meu_perfil() = 'Administrador');
@@ -114,8 +114,7 @@ create policy "revendas_select" on public.revendas
 create policy "revendas_insert" on public.revendas
   for insert with check (
     public.estou_ativo() and (
-      (select pode_criar_revenda from public.perfis where id = auth.uid())
-      or auth.uid() is null  -- permite service role (sistema)
+      select pode_criar_revenda from public.perfis where id = auth.uid()
     )
   );
 
@@ -142,7 +141,7 @@ create policy "historico_select" on public.historico_cards
   for select using (public.estou_ativo());
 
 create policy "historico_insert" on public.historico_cards
-  for insert with check (public.estou_ativo() or auth.uid() is null);
+  for insert with check (public.estou_ativo());
 
 create policy "historico_delete" on public.historico_cards
   for delete using (
@@ -179,7 +178,7 @@ create policy "atividades_select" on public.atividades
   for select using (public.estou_ativo());
 
 create policy "atividades_insert" on public.atividades
-  for insert with check (public.estou_ativo() or auth.uid() is null);
+  for insert with check (public.estou_ativo());
 
 create policy "atividades_delete" on public.atividades
   for delete using (public.meu_perfil() = 'Administrador');
@@ -204,21 +203,42 @@ drop policy if exists "importacoes_all" on public.importacoes;
 
 create policy "treinamentos_select" on public.treinamentos
   for select using (public.estou_ativo());
-create policy "treinamentos_write" on public.treinamentos
-  for all using (public.estou_ativo() and
+create policy "treinamentos_insert" on public.treinamentos
+  for insert with check (public.estou_ativo() and
     public.meu_perfil() in ('Administrador','CS Manager'));
+create policy "treinamentos_update" on public.treinamentos
+  for update using (public.estou_ativo() and
+    public.meu_perfil() in ('Administrador','CS Manager'))
+  with check (public.estou_ativo() and
+    public.meu_perfil() in ('Administrador','CS Manager'));
+create policy "treinamentos_delete" on public.treinamentos
+  for delete using (public.meu_perfil() = 'Administrador');
 
 create policy "handovers_select" on public.handovers
   for select using (public.estou_ativo());
-create policy "handovers_write" on public.handovers
-  for all using (public.estou_ativo() and (
+create policy "handovers_insert" on public.handovers
+  for insert with check (public.estou_ativo() and (
     select pode_handover from public.perfis where id = auth.uid()
   ));
+create policy "handovers_update" on public.handovers
+  for update using (public.estou_ativo() and (
+    select pode_handover from public.perfis where id = auth.uid()
+  )) with check (public.estou_ativo() and (
+    select pode_handover from public.perfis where id = auth.uid()
+  ));
+create policy "handovers_delete" on public.handovers
+  for delete using (public.meu_perfil() = 'Administrador');
 
 create policy "importacoes_select" on public.importacoes
   for select using (public.estou_ativo());
-create policy "importacoes_write" on public.importacoes
-  for all using (public.estou_ativo() and (
+create policy "importacoes_insert" on public.importacoes
+  for insert with check (public.estou_ativo() and (
+    select pode_importar from public.perfis where id = auth.uid()
+  ));
+create policy "importacoes_update" on public.importacoes
+  for update using (public.estou_ativo() and (
+    select pode_importar from public.perfis where id = auth.uid()
+  )) with check (public.estou_ativo() and (
     select pode_importar from public.perfis where id = auth.uid()
   ));
 
@@ -270,5 +290,20 @@ create index if not exists idx_orion_metas_mes
   on public.orion_metas(mes, ano);
 create index if not exists idx_orion_leads_origem
   on public.orion_leads_vendidos(id_origem);
+
+-- ── 7. ÍNDICES ADICIONAIS DE PERFORMANCE ─────────────────────
+create index if not exists idx_revendas_nome      on public.revendas(nome);
+create index if not exists idx_revendas_ingresso  on public.revendas(ingresso);
+create index if not exists idx_revendas_id_origem on public.revendas(id_origem);
+create index if not exists idx_revendas_cs_id     on public.revendas(cs_id);
+create index if not exists idx_tarefas_vencimento on public.tarefas(vencimento);
+create index if not exists idx_tarefas_status     on public.tarefas(status);
+create index if not exists idx_tarefas_responsavel on public.tarefas(responsavel_id);
+create index if not exists idx_historico_usuario  on public.historico_cards(usuario_id);
+create index if not exists idx_historico_tipo     on public.historico_cards(tipo);
+create index if not exists idx_handovers_revenda  on public.handovers(revenda_id);
+create index if not exists idx_atividades_tipo    on public.atividades(tipo);
+create index if not exists idx_auditoria_acao     on public.auditoria(acao);
+create index if not exists idx_orion_leads_proc   on public.orion_leads_vendidos(processado);
 
 select '✅ RLS blindado + tabelas Orion criadas com sucesso!' as resultado;
