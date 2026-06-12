@@ -4,9 +4,19 @@
 // ═══════════════════════════════════════════════════════════════════
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!
-const SUPABASE_SERVICE  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const ORION_WEBHOOK_SECRET = Deno.env.get('ORION_WEBHOOK_SECRET')!  // chave secreta
+const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')
+const SUPABASE_SERVICE  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+const ORION_WEBHOOK_SECRET = Deno.env.get('ORION_WEBHOOK_SECRET')
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE || !ORION_WEBHOOK_SECRET) {
+  throw new Error('Variáveis de ambiente obrigatórias não configuradas: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ORION_WEBHOOK_SECRET')
+}
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-orion-signature, x-webhook-secret',
+}
 
 // ── Chave gerada (SHA-256 HMAC) ──────────────────────────────────
 async function verificarAssinatura(req: Request, body: string): Promise<boolean> {
@@ -20,12 +30,20 @@ async function verificarAssinatura(req: Request, body: string): Promise<boolean>
                     url.searchParams.get('key')
   if (!sigHeader) return false
 
-  // Suporta dois modos:
-  // 1. Token simples: header === ORION_WEBHOOK_SECRET
-  // 2. HMAC-SHA256: header === HMAC(secret, body)
-  if (sigHeader === ORION_WEBHOOK_SECRET) return true
+  // Modo 1: token simples — comparação em tempo constante via HMAC para evitar timing attack
+  const enc = new TextEncoder()
+  const keyMat = crypto.getRandomValues(new Uint8Array(32))
+  const hmacKey = await crypto.subtle.importKey('raw', keyMat, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const [macA, macB] = await Promise.all([
+    crypto.subtle.sign('HMAC', hmacKey, enc.encode(sigHeader)),
+    crypto.subtle.sign('HMAC', hmacKey, enc.encode(ORION_WEBHOOK_SECRET)),
+  ])
+  const vaA = new Uint8Array(macA), vaB = new Uint8Array(macB)
+  let diff = 0
+  for (let i = 0; i < vaA.length; i++) diff |= vaA[i] ^ vaB[i]
+  if (diff === 0) return true
 
-  // Verifica HMAC
+  // Modo 2: HMAC-SHA256 — verifica assinatura do body
   const key = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(ORION_WEBHOOK_SECRET),
@@ -87,49 +105,60 @@ function normalizarMeta(payload: any): any {
 Deno.serve(async (req: Request) => {
   // CORS para o dashboard poder consultar
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin':  '*',
-        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-orion-signature, x-webhook-secret',
-      }
-    })
+    return new Response(null, { headers: corsHeaders })
   }
 
   const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE)
 
   // ── GET /webhook-orion?tipo=metas — dashboard busca metas ───────
   if (req.method === 'GET') {
+    // Requer autenticação via JWT do usuário
+    const authHeader = req.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return Response.json({ error: 'Autenticação necessária' }, {
+        status: 401,
+        headers: corsHeaders,
+      })
+    }
+    const userToken = authHeader.slice(7)
+    const { data: { user }, error: authErr } = await sb.auth.getUser(userToken)
+    if (authErr || !user) {
+      return Response.json({ error: 'Token inválido ou expirado' }, {
+        status: 401,
+        headers: corsHeaders,
+      })
+    }
+
     const url    = new URL(req.url)
     const tipo   = url.searchParams.get('tipo')
     const mes    = url.searchParams.get('mes')    || new Date().getMonth() + 1
     const ano    = url.searchParams.get('ano')    || new Date().getFullYear()
 
     if (tipo === 'metas') {
-      const { data, error } = await sb
+      const { data } = await sb
         .from('orion_metas')
         .select('*')
         .eq('mes', mes)
         .eq('ano', ano)
         .order('criado_em', { ascending: false })
       return Response.json({ success: true, data: data || [] }, {
-        headers: { 'Access-Control-Allow-Origin': '*' }
+        headers: corsHeaders,
       })
     }
 
     if (tipo === 'leads_vendidos') {
-      const { data, error } = await sb
+      const { data } = await sb
         .from('orion_leads_vendidos')
         .select('*')
         .order('criado_em', { ascending: false })
         .limit(50)
       return Response.json({ success: true, data: data || [] }, {
-        headers: { 'Access-Control-Allow-Origin': '*' }
+        headers: corsHeaders,
       })
     }
 
     return Response.json({ ok: true, msg: 'Webhook Orion ativo' }, {
-      headers: { 'Access-Control-Allow-Origin': '*' }
+      headers: corsHeaders,
     })
   }
 
@@ -283,7 +312,5 @@ Deno.serve(async (req: Request) => {
     resultados.aviso = 'Evento não reconhecido — salvo para análise'
   }
 
-  return Response.json({ success: true, ...resultados }, {
-    headers: { 'Access-Control-Allow-Origin': '*' }
-  })
+  return Response.json({ success: true, ...resultados }, { headers: corsHeaders })
 })
