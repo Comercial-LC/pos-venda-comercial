@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co https://api.anthropic.com; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; frame-ancestors 'none';">
 <title>Portal Sucesso da Revenda — LC Sistemas</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -127,6 +128,86 @@ select option{background:var(--bg2)}
 .empty{text-align:center;padding:48px 20px;color:var(--txt3)}
 .empty-ic{font-size:44px;margin-bottom:12px;opacity:.5}
 .tag{padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;display:inline-flex;align-items:center;gap:3px}
+
+/* ═══ ANIMAÇÕES DE CELEBRAÇÃO: FOGUETE, FOGOS E CHAMPANHE ═══ */
+
+/* Container de foguete */
+.rocket-container{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;pointer-events:none;width:60px;height:60px}
+
+/* Foguete */
+.rocket{font-size:50px;animation:fogueteSubir 2s ease-out forwards,fogueteGirar 2s ease-in-out infinite}
+
+@keyframes fogueteSubir{
+  0%{transform:translateY(100vh);opacity:1}
+  100%{transform:translateY(-100vh);opacity:0}
+}
+
+@keyframes fogueteGirar{
+  0%{transform:rotateZ(0deg)}
+  50%{transform:rotateZ(-5deg)}
+  100%{transform:rotateZ(5deg)}
+}
+
+/* Fogos de artifício */
+.fireworks-container{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9998}
+
+.firework{position:fixed;font-size:30px;animation:explodirFogo 1.5s ease-out forwards;pointer-events:none}
+
+@keyframes explodirFogo{
+  0%{
+    opacity:1;
+    transform:translate(0,0) scale(1);
+  }
+  100%{
+    opacity:0;
+    transform:translate(var(--tx),var(--ty)) scale(0.2);
+  }
+}
+
+/* Champanhe/Confete */
+.confete-piece{position:fixed;font-size:20px;animation:cair 3s ease-in forwards;pointer-events:none}
+
+@keyframes cair{
+  0%{
+    opacity:1;
+    transform:translateY(-10vh) rotateZ(0deg) translateX(0);
+  }
+  100%{
+    opacity:0;
+    transform:translateY(100vh) rotateZ(360deg) translateX(var(--offset));
+  }
+}
+
+/* Modal de parabéns */
+.modal-celebracao{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10000;background:linear-gradient(135deg,#6B2FA0,#F5C518);border-radius:20px;padding:40px;max-width:500px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.8);animation:aparecer 0.5s ease-out forwards}
+
+.modal-celebracao h2{font-size:36px;color:#fff;margin-bottom:15px;font-weight:800}
+
+.modal-celebracao p{font-size:18px;color:rgba(255,255,255,0.95);margin-bottom:25px;line-height:1.6}
+
+.modal-celebracao .btn{background:#fff;color:#6B2FA0;font-weight:700;padding:12px 30px;font-size:16px;border:none;cursor:pointer;border-radius:10px;transition:all 0.3s;margin:0 auto;display:inline-block}
+
+.modal-celebracao .btn:hover{transform:scale(1.05);box-shadow:0 8px 20px rgba(0,0,0,0.3)}
+
+@keyframes aparecer{
+  0%{
+    opacity:0;
+    transform:translate(-50%,-50%) scale(0.8);
+  }
+  100%{
+    opacity:1;
+    transform:translate(-50%,-50%) scale(1);
+  }
+}
+
+/* Sobreposição do modal */
+.celebracao-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;animation:fadeIn 0.4s ease-out forwards}
+
+@keyframes fadeIn{
+  0%{opacity:0}
+  100%{opacity:1}
+}
+
 @media(max-width:900px){.g2,.g31,.fr{grid-template-columns:1fr}.tb-search{display:none}.mg{grid-template-columns:1fr 1fr}}
 </style>
 </head>
@@ -240,7 +321,7 @@ select option{background:var(--bg2)}
       </div>
       <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
         <div style="flex:1;min-width:200px;position:relative">
-          <input type="text" id="rev-search" placeholder="Buscar por nome, CNPJ, cidade..." oninput="renderRevendas()" style="padding-left:32px">
+          <input type="text" id="rev-search" placeholder="Buscar por nome, CNPJ, cidade..." oninput="clearTimeout(this._t);this._t=setTimeout(renderRevendas,250)" style="padding-left:32px">
           <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--txt3)">🔍</span>
         </div>
         <select id="rev-status" onchange="renderRevendas()" style="width:180px"><option value="">Todos status</option><option>Nova Revenda</option><option>Implantação</option><option>Liberação Web</option><option>Academy</option><option>Decola Instalação</option><option>Decola Produtos</option><option>Primeiro Cliente</option><option>Handover</option></select>
@@ -364,10 +445,11 @@ select option{background:var(--bg2)}
           <option value="9">Setembro</option><option value="10">Outubro</option>
           <option value="11">Novembro</option><option value="12">Dezembro</option>
         </select>
-        <select id="meta-ano-sel" onchange="renderMetas()" style="padding:6px 10px;font-size:13px;border-radius:var(--r)">
-          <option value="2024">2024</option><option value="2025">2025</option>
-          <option value="2026" selected>2026</option><option value="2027">2027</option>
-        </select>
+        <select id="meta-ano-sel" onchange="renderMetas()" style="padding:6px 10px;font-size:13px;border-radius:var(--r)"></select>
+        <script>
+          (function(){const cur=new Date().getFullYear(),sel=document.getElementById('meta-ano-sel');
+          for(let y=cur-1;y<=cur+3;y++){const o=document.createElement('option');o.value=y;o.textContent=y;if(y===cur)o.selected=true;sel.appendChild(o);}})();
+        </script>
         <button class="btn btn-s btn-sm" onclick="renderMetas()">🔄 Atualizar</button>
       </div>
 
@@ -1623,6 +1705,11 @@ async function renderTVDashboard(){
           +'</div>'
 
         +'</div>'
+        +'<button class="btn btn-p" style="width:100%;margin-top:12px;padding:10px;font-weight:700;'
+          +'background:#F5C518;color:#0A0A0F;border:none;border-radius:6px;cursor:pointer;font-size:13px" '
+          +'onclick="adicionarPontoMeta(\''+m.id+'\', \''+m.nome.replace(/'/g,"&#39;")+'\')">'
+          +'🚀 Adicionar +1 Ponto'
+        +'</button>'
       +'</div>';
     }).join('') : '<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:16px">Nenhuma meta cadastrada para este mês.</div>';
   }
@@ -1688,7 +1775,7 @@ async function fazerLogout(){
 // Log de auditoria helper
 async function logAuditoria(acao, tabela='', registroId='', detalhe={}){
   if(!sessaoAtual) return;
-  await await sb.from('auditoria').insert({
+  await sb.from('auditoria').insert({
     usuario_id:sessaoAtual.user.id,
     usuario_nome:perfilAtual?.nome||'',
     usuario_email:sessaoAtual?.user?.email||'',
@@ -1698,7 +1785,8 @@ async function logAuditoria(acao, tabela='', registroId='', detalhe={}){
 
 // ─── Storage helpers (Supabase como fonte única) ──────────────────
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
-function fmtDate(d){if(!d)return'—';try{const dt=new Date(d.includes('T')?d:d+'T00:00:00');return dt.toLocaleDateString('pt-BR')}catch{return d}}
+function safe(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+function fmtDate(d){if(!d)return'—';try{const s=String(d);const dt=new Date(s.includes('T')?s:s+'T00:00:00');return dt.toLocaleDateString('pt-BR')}catch{return String(d)}}
 function today(){return new Date().toISOString().slice(0,10)}
 
 // DB em memória — cache local sincronizado com Supabase
@@ -1706,6 +1794,7 @@ const DB = {
   revendas:[],usuarios:[],tarefas:[],
   atividades:[],treinamentos:[],handovers:[],
   importHistory:[],
+  _carregado: false,
 };
 
 // Carrega dados do Supabase para o cache local
@@ -1933,17 +2022,17 @@ function populateSelects(){
   if(selEtapaCfg){
     const valCfg = selEtapaCfg.value;
     selEtapaCfg.innerHTML = getEtapas()
-      .map(e=>'<option value="'+e.id+'">'+e.icon+' '+e.id+'</option>')
+      .map(e=>`<option value="${safe(e.id)}">${safe(e.icon)} ${safe(e.id)}</option>`)
       .join('');
     if(valCfg) selEtapaCfg.value = valCfg;
   }
-  const csOpts=DB.usuarios.filter(u=>u.ativo).map(u=>`<option>${u.nome}</option>`).join('');
-  const revOpts=DB.revendas.map(r=>`<option>${r.nome}</option>`).join('');
+  const csOpts=DB.usuarios.filter(u=>u.ativo).map(u=>`<option value="${safe(u.nome)}">${safe(u.nome)}</option>`).join('');
+  const revOpts=DB.revendas.map(r=>`<option value="${safe(r.nome)}">${safe(r.nome)}</option>`).join('');
   ['r-cs','t-resp','h-cs'].forEach(id=>{const el=document.getElementById(id);if(el){const cur=el.value;el.innerHTML='<option value="">Selecione</option>'+csOpts;el.value=cur}});
   ['t-revenda','a-revenda','h-revenda'].forEach(id=>{const el=document.getElementById(id);if(el){const cur=el.value;el.innerHTML='<option value="">Selecione</option>'+revOpts;el.value=cur}});
   // CS filter in revendas
   const csF=document.getElementById('rev-cs');
-  if(csF){const cur=csF.value;csF.innerHTML='<option value="">Todos CS</option>'+DB.usuarios.filter(u=>u.ativo).map(u=>`<option>${u.nome}</option>`).join('');csF.value=cur}
+  if(csF){const cur=csF.value;csF.innerHTML='<option value="">Todos CS</option>'+DB.usuarios.filter(u=>u.ativo).map(u=>`<option value="${safe(u.nome)}">${safe(u.nome)}</option>`).join('');csF.value=cur}
 }
 
 // ─── Toast ─────────────────────────────────────────────────────────
@@ -1958,12 +2047,13 @@ function toast(msg,type='ok'){
   toastT=setTimeout(()=>t.classList.remove('show'),3500);
 }
 
-// ─── Clear demo data ───────────────────────────────────────────────
+// ─── Clear local cache ─────────────────────────────────────────────
 function clearAllData(){
-  if(!confirm('Apagar TODOS os dados e começar do zero?\n\nEsta ação não pode ser desfeita.'))return;
-  Object.keys(DB).forEach(k=>{DB[k]=[];persist(k)});
-  toast('Dados apagados. Sistema limpo!','warn');
-  renderDashboard();
+  if(!confirm('Limpar cache local e recarregar dados do servidor?\n\nOs dados no Supabase NÃO serão apagados.'))return;
+  Object.keys(DB).forEach(k=>{if(Array.isArray(DB[k]))DB[k]=[]});
+  DB._carregado=false;
+  toast('Cache limpo. Recarregando dados do servidor...','warn');
+  loadFromSupabase().then(()=>{renderDashboard();renderRevendas();renderTasks();renderTimeline();});
 }
 
 // ─── REVENDAS ──────────────────────────────────────────────────────
@@ -2078,11 +2168,11 @@ function renderRevendas(){
     return;
   }
   tb.innerHTML=data.map(r=>`<tr>
-    <td><div class="tdp">${r.nome}</div><div style="font-size:11px;color:var(--txt3)">${r.email||''}</div></td>
-    <td style="font-size:11px">${perfilAtual?.pode_ver_cnpj ? (r.cnpj||'—') : (r.cnpj ? '••••••/••-••' : '—')}</td>
-    <td>${r.cidade||'—'}${r.uf?' · '+r.uf:''}</td>
-    <td>${r.cs||'—'}</td>
-    <td><span class="st ${stMap[r.status]||'st-on'}" style="color:${stColor[r.status]||'var(--acc)'}">${r.status||'Nova Revenda'}</span></td>
+    <td><div class="tdp">${safe(r.nome)}</div><div style="font-size:11px;color:var(--txt3)">${safe(r.email||'')}</div></td>
+    <td style="font-size:11px">${perfilAtual?.pode_ver_cnpj ? (safe(r.cnpj)||'—') : (r.cnpj ? '••••••/••-••' : '—')}</td>
+    <td>${safe(r.cidade||'—')}${r.uf?' · '+safe(r.uf):''}</td>
+    <td>${safe(r.cs||'—')}</td>
+    <td><span class="st ${stMap[r.status]||'st-on'}" style="color:${stColor[r.status]||'var(--acc)'}">${safe(r.status||'Nova Revenda')}</span></td>
     <td>${r.contratos?`<span style="font-size:12px;font-weight:600">${r.contratos}</span>`:'—'}</td>
     <td style="font-size:11px">${fmtDate(r.ingresso)}</td>
     <td><div style="display:flex;gap:4px">
@@ -2145,7 +2235,7 @@ function renderDashboard(){
     {label:'Tarefas Atrasadas',  val:tAtras,           cls:'rd',icon:'⚠️'},
   ];
   const kEl=document.getElementById('dash-kpis');
-  if(kEl)kEl.innerHTML=kpis.map(k=>`<div class="mc ${k.cls}"><div style="font-size:24px;margin-bottom:8px">${k.icon}</div><div class="mv">${k.val}</div><div class="ml">${k.label}</div></div>`).join('');
+  if(kEl)kEl.innerHTML=kpis.map(k=>`<div class="mc ${k.cls}"><div style="font-size:24px;margin-bottom:8px">${safe(k.icon)}</div><div class="mv">${k.val}</div><div class="ml">${safe(k.label)}</div></div>`).join('');
 
   // Recent revendas table
   const dRev=document.getElementById('dash-revendas');
@@ -2163,7 +2253,7 @@ function renderDashboard(){
       else                     stMap[e.id]='st-on'; // azul
     });
     const recent=[...rv].sort((a,b)=>new Date(b.criadoEm||0)-new Date(a.criadoEm||0)).slice(0,5);
-    dRev.innerHTML=recent.length?recent.map(r=>`<tr><td><div class="tdp">${r.nome}</div><div style="font-size:11px;color:var(--txt3)">${r.cidade||''} ${r.uf?'· '+r.uf:''}</div></td><td>${r.cs||'—'}</td><td><span class="st ${stMap[r.status]||'st-on'}">${r.status}</span></td><td>${r.tpc?`<span class="badge ${r.tpc<=15?'bg-ok':r.tpc<=30?'bg-warn':'bg-err'} bg-sm">${r.tpc}d</span>`:'—'}</td></tr>`).join(''):`<tr><td colspan="4"><div class="empty" style="padding:20px"><div>Nenhuma revenda cadastrada</div></div></td></tr>`;
+    dRev.innerHTML=recent.length?recent.map(r=>`<tr><td><div class="tdp">${safe(r.nome)}</div><div style="font-size:11px;color:var(--txt3)">${safe(r.cidade||'')} ${r.uf?'· '+safe(r.uf):''}</div></td><td>${safe(r.cs||'—')}</td><td><span class="st ${stMap[r.status]||'st-on'}">${safe(r.status)}</span></td><td>${r.tpc?`<span class="badge ${r.tpc<=15?'bg-ok':r.tpc<=30?'bg-warn':'bg-err'} bg-sm">${r.tpc}d</span>`:'—'}</td></tr>`).join(''):`<tr><td colspan="4"><div class="empty" style="padding:20px"><div>Nenhuma revenda cadastrada</div></div></td></tr>`;
   }
 
   // Pipeline funil por etapa
@@ -2182,8 +2272,8 @@ function renderDashboard(){
       const cnt = rv.filter(r=>r.status===e.id).length;
       const pct = Math.round(cnt/maxRev*100);
       return `<div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:13px;width:20px;text-align:center">${e.icon}</span>
-        <span style="font-size:11px;color:var(--txt2);width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.id}</span>
+        <span style="font-size:13px;width:20px;text-align:center">${safe(e.icon)}</span>
+        <span style="font-size:11px;color:var(--txt2);width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${safe(e.id)}</span>
         <div class="pbar" style="flex:1"><div class="pfill" style="width:${pct}%;background:${e.color}"></div></div>
         <span style="font-size:12px;font-weight:700;color:${e.color};width:24px;text-align:right">${cnt}</span>
       </div>`;
@@ -2512,8 +2602,8 @@ function renderKanban(){
                 ${isSel?'✓':''}
               </div>
             </div>
-            <div style="font-size:13px;font-weight:600;margin-bottom:3px;padding-right:24px">${r.nome}</div>
-            <div style="font-size:11px;color:var(--txt3)">· ${r.cs||'Sem CS'}</div>
+            <div style="font-size:13px;font-weight:600;margin-bottom:3px;padding-right:24px">${safe(r.nome)}</div>
+            <div style="font-size:11px;color:var(--txt3)">· ${safe(r.cs||'Sem CS')}</div>
             ${r.contratos ? `<div style="font-size:11px;color:var(--txt3)">${r.contratos} contratos${r.curva?' · Curva '+r.curva:''}</div>` : ''}
             ${prodCheck}
             <!-- Barra de progresso da jornada -->
@@ -2531,30 +2621,30 @@ function renderKanban(){
           ${f.search||f.cs||f.dateFrom||f.dateTo||f.contratos ? 'Nenhum resultado' : 'Nenhuma revenda'}
          </div>`;
 
-    return `<div class="kc" data-col="${col.id}"
+    return `<div class="kc" data-col="${safe(col.id)}"
         ondragover="kDragOver(event)"
-        ondragenter="kDragEnter(event,'${col.id}')"
+        ondragenter="kDragEnter(event,'${encodeURIComponent(col.id)}')"
         ondragleave="kDragLeave(event)"
-        ondrop="kDrop(event,'${col.id}')"
+        ondrop="kDrop(event,'${encodeURIComponent(col.id)}')"
         style="transition:background .15s;min-width:230px;width:230px;max-height:calc(100vh - 200px);display:flex;flex-direction:column">
       <div style="margin-bottom:10px">
         <div style="display:flex;align-items:center;justify-content:space-between">
           <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:14px">${col.icon}</span>
-            <span style="font-size:12px;font-weight:700;color:${col.color}">${col.id}</span>
+            <span style="font-size:14px">${safe(col.icon)}</span>
+            <span style="font-size:12px;font-weight:700;color:${col.color}">${safe(col.id)}</span>
             <span class="kcc">${totalCol}</span>
             ${cards.length !== totalCol ? `<span style="font-size:10px;color:var(--warn)">(${cards.length} filtradas)</span>` : ''}
           </div>
           <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--txt3);cursor:pointer">
             <input type="checkbox" style="width:13px;height:13px;accent-color:var(--acc)"
-              onchange="selectAllInCol('${col.id}',this.checked)"> todos
+              onchange="selectAllInCol(decodeURIComponent('${encodeURIComponent(col.id)}'),this.checked)"> todos
           </label>
         </div>
         <div class="pbar" style="margin-top:6px;height:3px">
           <div class="pfill" style="width:${totalCol>0?100:0}%;background:${col.color};opacity:0.4"></div>
         </div>
       </div>
-      <div class="k-cards" data-col="${col.id}"
+      <div class="k-cards" data-col="${safe(col.id)}"
         style="display:flex;flex-direction:column;gap:8px;flex:1;min-height:60px;overflow-y:auto;overflow-x:hidden;padding:0 2px 4px;scrollbar-width:thin;scrollbar-color:var(--bdr2) transparent">
         ${cardsHTML}
       </div>
@@ -2632,6 +2722,7 @@ function kDragLeave(e){
 
 async function kDrop(e, newStatus){
   e.preventDefault();
+  newStatus = decodeURIComponent(newStatus);
   const col = e.currentTarget;
   col.style.background = '';
   col.style.outline    = '';
@@ -3154,12 +3245,12 @@ function renderTasks(){
   if(ucEl)ucEl.textContent=urgent.length;
   if(tcEl)tcEl.textContent=todayT.length;
   if(uEl)uEl.innerHTML=urgent.length?urgent.map(task=>`<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--errl);border-radius:var(--r);border-left:3px solid var(--err);margin-bottom:6px">
-    <div style="flex:1"><div style="font-size:12px;font-weight:500">${task.titulo}</div><div style="font-size:11px;color:var(--txt3)">${task.revenda||'Sem revenda'} · Venceu ${fmtDate(task.vencimento)}</div></div>
+    <div style="flex:1"><div style="font-size:12px;font-weight:500">${safe(task.titulo)}</div><div style="font-size:11px;color:var(--txt3)">${safe(task.revenda||'Sem revenda')} · Venceu ${fmtDate(task.vencimento)}</div></div>
     <button class="btn btn-ok btn-sm" onclick="concludeTask('${task.id}')">✓</button>
     <button class="btn btn-s btn-sm" onclick="editTask('${task.id}')">✏️</button>
   </div>`).join(''):`<div class="empty" style="padding:16px">Nenhuma tarefa atrasada 🎉</div>`;
   if(tEl)tEl.innerHTML=todayT.length?todayT.map(task=>`<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--warnl);border-radius:var(--r);border-left:3px solid var(--warn);margin-bottom:6px">
-    <div style="flex:1"><div style="font-size:12px;font-weight:500">${task.titulo}</div><div style="font-size:11px;color:var(--txt3)">${task.revenda||'Sem revenda'}</div></div>
+    <div style="flex:1"><div style="font-size:12px;font-weight:500">${safe(task.titulo)}</div><div style="font-size:11px;color:var(--txt3)">${safe(task.revenda||'Sem revenda')}</div></div>
     <button class="btn btn-ok btn-sm" onclick="concludeTask('${task.id}')">✓</button>
   </div>`).join(''):`<div class="empty" style="padding:16px">Nenhuma tarefa vence hoje</div>`;
   const all=(DB.tarefas||[]).filter(t=>(!prioF||t.prioridade===prioF)&&(!stF||t.status===stF));
@@ -3167,12 +3258,12 @@ function renderTasks(){
   const stC={Pendente:'st-tr','Em andamento':'st-on',Concluída:'st-dn'};
   const atb=document.getElementById('all-tasks-body');
   if(atb)atb.innerHTML=all.length?all.map(task=>`<tr>
-    <td class="tdp">${task.titulo}</td>
-    <td>${task.revenda||'—'}</td>
-    <td>${task.responsavel||'—'}</td>
-    <td><span class="badge ${prioC[task.prioridade]||'bg-acc'} bg-sm">${task.prioridade||'—'}</span></td>
+    <td class="tdp">${safe(task.titulo)}</td>
+    <td>${safe(task.revenda||'—')}</td>
+    <td>${safe(task.responsavel||'—')}</td>
+    <td><span class="badge ${prioC[task.prioridade]||'bg-acc'} bg-sm">${safe(task.prioridade||'—')}</span></td>
     <td style="font-size:12px">${fmtDate(task.vencimento)}</td>
-    <td><span class="st ${stC[task.status]||'st-on'}">${task.status||'Pendente'}</span></td>
+    <td><span class="st ${stC[task.status]||'st-on'}">${safe(task.status||'Pendente')}</span></td>
     <td><div style="display:flex;gap:4px">
       <button class="btn btn-s btn-sm" onclick="editTask('${task.id}')">✏️</button>
       ${task.status!=='Concluída'?`<button class="btn btn-ok btn-sm" onclick="concludeTask('${task.id}')">✓</button>`:''}
@@ -3213,8 +3304,8 @@ function renderTimeline(){
       ${i<sorted.length-1?'<div class="tlc"></div>':''}
     </div>
     <div class="tlco">
-      <div class="tlh"><div class="tlt">${item.revenda?item.revenda+' — ':' '}${item.tipo}</div><div class="tltime">${new Date(item.data).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div></div>
-      <div class="tldesc">${item.desc}</div>
+      <div class="tlh"><div class="tlt">${item.revenda?safe(item.revenda)+' — ':' '}${safe(item.tipo)}</div><div class="tltime">${new Date(item.data).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div></div>
+      <div class="tldesc">${safe(item.desc)}</div>
     </div>
   </div>`).join(''):`<div class="empty"><div class="empty-ic">🕐</div><div>Nenhuma atividade registrada</div></div>`;
   if(rs){
@@ -3257,10 +3348,10 @@ function renderTreinamentos(){
   const tl=document.getElementById('train-list');
   if(tl)tl.innerHTML=DB.treinamentos.length?DB.treinamentos.map((t,i)=>`<div class="card" style="cursor:pointer">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <div><div style="font-weight:600;font-size:13px">${t.nome}</div><div style="font-size:11px;color:var(--txt3)">${t.modulos} módulo(s) · ${t.duracao||'—'}</div></div>
+      <div><div style="font-weight:600;font-size:13px">${safe(t.nome)}</div><div style="font-size:11px;color:var(--txt3)">${t.modulos} módulo(s) · ${safe(t.duracao||'—')}</div></div>
       <button class="btn btn-d btn-sm" onclick="deleteTreinamento('${t.id}')">🗑</button>
     </div>
-    ${t.desc?`<div style="font-size:12px;color:var(--txt2)">${t.desc}</div>`:''}
+    ${t.desc?`<div style="font-size:12px;color:var(--txt2)">${safe(t.desc)}</div>`:''}
   </div>`).join(''):`<div class="empty"><div class="empty-ic">🎓</div><div>Nenhuma trilha criada</div><div style="margin-top:10px"><button class="btn btn-p btn-sm" onclick="openMo('mo-train')">+ Criar Trilha</button></div></div>`;
   const nums=document.getElementById('tr-total');
   if(nums)nums.textContent=DB.treinamentos.length;
@@ -3848,10 +3939,10 @@ function renderUsers(){
   const perfClr={Administrador:'var(--pur)',CS_Manager:'var(--acc)',CS_Analyst:'var(--ok)'};
   tb.innerHTML=(DB.usuarios||[]).length?(DB.usuarios||[]).map((u,i)=>`<tr>
     <td><div style="display:flex;align-items:center;gap:8px">
-      <div class="av" style="background:${avColor(i)}">${u.initials||u.nome.slice(0,2).toUpperCase()}</div>
-      <div><div class="tdp">${u.nome}</div><div style="font-size:11px;color:var(--txt3)">${u.email}</div></div>
+      <div class="av" style="background:${avColor(i)}">${safe(u.initials||u.nome.slice(0,2).toUpperCase())}</div>
+      <div><div class="tdp">${safe(u.nome)}</div><div style="font-size:11px;color:var(--txt3)">${safe(u.email)}</div></div>
     </div></td>
-    <td><span class="tag" style="background:${u.perfil==='Administrador'?'var(--purl)':u.perfil==='CS Manager'?'var(--accl)':'var(--okl)'};color:${u.perfil==='Administrador'?'var(--pur)':u.perfil==='CS Manager'?'var(--acc)':'var(--ok)'}">${u.perfil}</span></td>
+    <td><span class="tag" style="background:${u.perfil==='Administrador'?'var(--purl)':u.perfil==='CS Manager'?'var(--accl)':'var(--okl)'};color:${u.perfil==='Administrador'?'var(--pur)':u.perfil==='CS Manager'?'var(--acc)':'var(--ok)'}">${safe(u.perfil)}</span></td>
     <td><span class="st ${u.ativo?'st-ok':'st-off'}">${u.ativo?'Ativo':'Inativo'}</span></td>
     <td><div style="display:flex;gap:4px">
       <button class="btn btn-s btn-sm" onclick="editUser('${u.id}')">✏️</button>
@@ -3946,8 +4037,8 @@ Seja direto, prático e técnico. Responda em português.`;
     const text = data.content?.map(b=>b.text||'').join('') || 'Sem resposta.';
 
     if(respEl){
-      // Render markdown-like response
-      const html = text
+      // Sanitiza antes de renderizar — previne XSS da resposta da API
+      const html = safe(text)
         .replace(/```([\s\S]*?)```/g, '<pre style="background:var(--inp);padding:10px;border-radius:var(--r);font-size:11px;overflow-x:auto;margin:8px 0"><code>$1</code></pre>')
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/^(\d+\. )/gm, '<span style="color:var(--acc);font-weight:600">$1</span>')
@@ -4045,8 +4136,8 @@ async function carregarMetas(){
                 padding:18px;border-left:4px solid ${_s.borda}">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px">
           <div>
-            <div style="font-size:13px;font-weight:700">${m.nome}</div>
-            <div style="font-size:11px;color:var(--txt3);margin-top:2px">Meta mensal · ${m.tipo||'quantidade'}</div>
+            <div style="font-size:13px;font-weight:700">${safe(m.nome)}</div>
+            <div style="font-size:11px;color:var(--txt3);margin-top:2px">Meta mensal · ${safe(m.tipo||'quantidade')}</div>
           </div>
           <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;
             background:${_s.bg};color:${_s.cor};border:1px solid ${_s.borda}">
@@ -4075,6 +4166,9 @@ async function carregarMetas(){
             <div style="font-size:10px;color:var(--txt3)">Faltam</div>
           </div>
         </div>
+        <button class="btn btn-p" style="width:100%;margin-top:12px;padding:10px;font-weight:700" onclick="adicionarPontoMeta('${m.id}', '${safe(m.nome)}')">
+          🚀 Adicionar +1 Ponto
+        </button>
       </div>`;
     }).join('');
 
@@ -4102,9 +4196,9 @@ async function abrirLeadsOrion(){
     <div style="display:flex;align-items:center;gap:12px;padding:12px;
       border:1px solid var(--bdr);border-radius:var(--r);margin-bottom:8px">
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600">${l.nome||'Sem nome'}</div>
-        <div style="font-size:11px;color:var(--txt3)">${l.email||''} ${l.telefone?'· '+l.telefone:''}</div>
-        <div style="font-size:11px;color:var(--txt3)">${l.cidade||''}${l.uf?' · '+l.uf:''} ${l.cs?'· CS: '+l.cs:''}</div>
+        <div style="font-size:13px;font-weight:600">${safe(l.nome||'Sem nome')}</div>
+        <div style="font-size:11px;color:var(--txt3)">${safe(l.email||'')} ${l.telefone?'· '+safe(l.telefone):''}</div>
+        <div style="font-size:11px;color:var(--txt3)">${safe(l.cidade||'')}${l.uf?' · '+safe(l.uf):''} ${l.cs?'· CS: '+safe(l.cs):''}</div>
         <div style="font-size:10px;color:var(--txt3);margin-top:2px">
           Recebido: ${new Date(l.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
         </div>
@@ -5570,6 +5664,212 @@ function initApp(){
     console.log('✅ Sistema iniciado:', DB.revendas.length, 'revendas');
   });
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// FUNÇÕES DE CELEBRAÇÃO: FOGUETE, FOGOS E PARABÉNS
+// ═══════════════════════════════════════════════════════════════════
+
+// Dispara a celebração completa com foguete, fogos e modal
+async function dispararCelebracao(nomeMetaAlcancada = null) {
+  // Foguete principal
+  dispararFoguete();
+  
+  // Fogos de artifício
+  setTimeout(() => {
+    criarFogosArtificio(15);
+  }, 500);
+  
+  // Confete/Champanhe
+  setTimeout(() => {
+    criarConfete(20);
+  }, 400);
+  
+  // Modal com parabéns
+  if (nomeMetaAlcancada) {
+    setTimeout(() => {
+      mostrarModalParabens(nomeMetaAlcancada);
+    }, 1000);
+  }
+}
+
+// Dispara foguete ascendente
+function dispararFoguete() {
+  const container = document.createElement('div');
+  container.className = 'rocket-container';
+  container.innerHTML = '<div class="rocket">🚀</div>';
+  document.body.appendChild(container);
+  
+  // Remove após animação
+  setTimeout(() => {
+    container.remove();
+  }, 2000);
+}
+
+// Cria fogos de artifício
+function criarFogosArtificio(quantidade = 15) {
+  const container = document.querySelector('.fireworks-container') || document.body;
+  const cores = ['🟡', '🟢', '🔴', '🔵', '⭐', '💛', '💚', '❤️'];
+  
+  for (let i = 0; i < quantidade; i++) {
+    const fogo = document.createElement('div');
+    fogo.className = 'firework';
+    fogo.textContent = cores[Math.floor(Math.random() * cores.length)];
+    
+    const randomX = Math.random() * window.innerWidth;
+    const randomY = Math.random() * window.innerHeight * 0.5;
+    fogo.style.left = randomX + 'px';
+    fogo.style.top = randomY + 'px';
+    
+    const tx = (Math.random() - 0.5) * 400;
+    const ty = (Math.random() - 0.5) * 400;
+    fogo.style.setProperty('--tx', tx + 'px');
+    fogo.style.setProperty('--ty', ty + 'px');
+    
+    document.body.appendChild(fogo);
+    
+    setTimeout(() => {
+      fogo.remove();
+    }, 1500);
+  }
+}
+
+// Cria confete/champanhe caindo
+function criarConfete(quantidade = 20) {
+  const emojis = ['🎉', '🎊', '🍾', '🥂', '✨', '⚡', '🌟', '💫'];
+  
+  for (let i = 0; i < quantidade; i++) {
+    const confete = document.createElement('div');
+    confete.className = 'confete-piece';
+    confete.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    
+    const randomX = Math.random() * window.innerWidth;
+    confete.style.left = randomX + 'px';
+    confete.style.top = '-30px';
+    confete.style.setProperty('--offset', (Math.random() - 0.5) * 200 + 'px');
+    
+    document.body.appendChild(confete);
+    
+    setTimeout(() => {
+      confete.remove();
+    }, 3000);
+  }
+}
+
+// Modal de parabéns com mensagem personalizada
+function mostrarModalParabens(nomeMeta) {
+  const overlay = document.createElement('div');
+  overlay.className = 'celebracao-overlay';
+  overlay.style.animation = 'fadeIn 0.4s ease-out forwards';
+  
+  const modal = document.createElement('div');
+  modal.className = 'modal-celebracao';
+  modal.innerHTML = `
+    <h2>🎉 PARABÉNS! 🎉</h2>
+    <p>Meta de <strong>${nomeMeta}</strong><br/>alcançada com sucesso!</p>
+    <button class="btn" onclick="fecharModalParabens()">Fantástico!</button>
+  `;
+  
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  
+  // Fecha ao clicar no overlay
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      fecharModalParabens();
+    }
+  });
+  
+  // Auto-fecha após 5 segundos
+  setTimeout(() => {
+    fecharModalParabens();
+  }, 5000);
+}
+
+function fecharModalParabens() {
+  const overlay = document.querySelector('.celebracao-overlay');
+  if (overlay) {
+    overlay.style.animation = 'fadeIn 0.4s ease-out reverse';
+    setTimeout(() => {
+      overlay.remove();
+    }, 400);
+  }
+}
+
+// Adiciona ponto na meta e dispara celebração se necessário
+async function adicionarPontoMeta(metaId, nomeMeta) {
+  try {
+    // DISPARA ANIMAÇÕES IMEDIATAMENTE
+    dispararFoguete();
+    setTimeout(() => {
+      criarFogosArtificio(12);
+      criarConfete(15);
+    }, 300);
+    
+    // Busca a meta atual do Supabase
+    const { data: meta, error: errGet } = await sb
+      .from('orion_metas')
+      .select('*')
+      .eq('id', metaId)
+      .single();
+    
+    if (errGet || !meta) {
+      console.error('Erro ao buscar meta:', errGet?.message);
+      toast('❌ Erro ao carregar meta', 'err');
+      return;
+    }
+    
+    // Calcula novo valor
+    const novoValor = (meta.valor_atual || 0) + 1;
+    const novoPercentual = meta.valor_meta > 0 ? Math.round((novoValor / meta.valor_meta) * 100) : 0;
+    const metaBatida = novoValor >= meta.valor_meta;
+    
+    // Atualiza no Supabase
+    const { error: errUpdate } = await sb
+      .from('orion_metas')
+      .update({
+        valor_atual: novoValor,
+        percentual: novoPercentual,
+        status: metaBatida ? 'atingida' : 'em_progresso',
+        atualizado_em: new Date().toISOString(),
+      })
+      .eq('id', metaId);
+    
+    if (errUpdate) {
+      console.error('Erro ao atualizar meta:', errUpdate.message);
+      toast('❌ Erro ao atualizar: ' + errUpdate.message, 'err');
+      return;
+    }
+    
+    // Mensagem + Modal (se bateu meta)
+    if (metaBatida) {
+      setTimeout(() => {
+        mostrarModalParabens(nomeMeta);
+      }, 800);
+      toast(`🏆 META ATINGIDA: ${nomeMeta}!`, 'ok');
+      
+      // Log de auditoria
+      await logAuditoria('META_ATINGIDA', 'orion_metas', metaId, {
+        nome: nomeMeta,
+        valor: novoValor,
+        meta: meta.valor_meta,
+      }).catch(e => console.warn('Erro auditoria:', e.message));
+    } else {
+      toast(`✅ +1 ponto! (${novoValor}/${meta.valor_meta})`, 'ok');
+    }
+    
+    // Recarrega as visualizações
+    setTimeout(() => {
+      if(typeof carregarMetas === 'function') carregarMetas();
+      if(typeof renderMetas === 'function') renderMetas();
+    }, 500);
+    
+  } catch (e) {
+    console.error('❌ Erro em adicionarPontoMeta:', e);
+    toast('❌ Erro: ' + e.message, 'err');
+  }
+}
+
+
 
 initApp();
 </script>
