@@ -1690,17 +1690,11 @@ function ativarModoTV(){
           const valorAnterior = velho?.valor_atual ?? _tvUltimosValores[novo.id] ?? novo.valor_atual;
 
           if(novo.valor_atual > valorAnterior){
-            // +1 ponto detectado — dispara efeitos imediatos
-            tocarSomPonto();
-            dispararFoguete();
-            setTimeout(()=>{ criarFogosArtificio(12); criarConfete(15); }, 300);
-
-            // Meta atingida?
+            // Meta atingida? — 30s. Ponto adicionado? — 10s.
             if(novo.status === 'atingida' && velho?.status !== 'atingida'){
-              setTimeout(()=>{
-                tocarSomCelebracao();
-                mostrarModalParabens(novo.nome || 'Meta');
-              }, 400);
+              comemoracao30s(novo.nome || 'Meta');
+            } else {
+              comemoracao10s();
             }
           }
           _tvUltimosValores[novo.id] = novo.valor_atual;
@@ -5507,13 +5501,10 @@ async function salvarMeta(){
   // Celebração conforme resultado
   if(pct >= 100){
     toast(`🏆 META ATINGIDA: ${nome}!`, 'ok');
-    tocarSomCelebracao();
-    dispararFoguete();
-    setTimeout(()=>{ criarFogosArtificio(15); criarConfete(20); }, 300);
-    setTimeout(()=>mostrarModalParabens(nome), 800);
+    comemoracao30s(nome);
   } else if(atual > 0){
     toast('✅ Meta salva com sucesso!');
-    tocarSomPonto();
+    comemoracao10s();
   } else {
     toast('✅ Meta salva com sucesso!');
   }
@@ -5834,17 +5825,12 @@ function initApp(){
           const novo = payload.new, velho = payload.old;
           if(novo && velho && typeof novo.valor_atual === 'number' &&
              novo.valor_atual > (velho.valor_atual || 0)){
-            tocarSomPonto();
-            dispararFoguete();
-            setTimeout(()=>{ criarFogosArtificio(10); criarConfete(12); }, 300);
-            // Meta atingida pela Orion
+            // Meta atingida pela Orion?
             if(novo.status === 'atingida' && velho.status !== 'atingida'){
-              setTimeout(()=>{
-                tocarSomCelebracao();
-                mostrarModalParabens(novo.nome || 'Meta');
-              }, 400);
+              comemoracao30s(novo.nome || 'Meta');
               toast(`🏆 META ATINGIDA PELA ORION: ${novo.nome}!`, 'ok');
             } else {
+              comemoracao10s();
               toast(`🎯 Orion: +1 ponto em "${novo.nome}" (${novo.valor_atual}/${novo.valor_meta})`, 'ok');
             }
           }
@@ -5970,6 +5956,75 @@ function tocarSomCelebracao() {
   } catch(e) {}
 }
 
+// Sino — ataque rápido + sustain longo com parciais inarmônicas (timbre metálico real)
+function tocarSino(volume = 0.5) {
+  try {
+    const ctx = _getAudioCtx();
+    const now = ctx.currentTime;
+    [[880, volume*0.55, 2.8],[1540, volume*0.22, 2.0],[2530, volume*0.10, 1.3],[3520, volume*0.05, 0.8]]
+      .forEach(([freq, amp, dur]) => {
+        const osc = ctx.createOscillator(), g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination);
+        osc.type = 'sine'; osc.frequency.value = freq;
+        g.gain.setValueAtTime(0, now);
+        g.gain.linearRampToValueAtTime(amp, now + 0.006);
+        g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+        osc.start(now); osc.stop(now + dur);
+      });
+  } catch(e) {}
+}
+
+// ─── ORQUESTRAÇÃO DAS CELEBRAÇÕES ─────────────────────────────────────────
+let _celebTimers = [];
+
+function _pararComemoracao() {
+  _celebTimers.forEach(id => clearTimeout(id));
+  _celebTimers = [];
+}
+
+function _ag(fn, delay) {  // agenda com rastreamento para poder cancelar
+  _celebTimers.push(setTimeout(fn, delay));
+}
+
+// 10 segundos — adição de +1 ponto em uma meta
+function comemoracao10s() {
+  _pararComemoracao();
+  // Imediato
+  tocarSomPonto(); tocarSino(); dispararFoguete();
+  _ag(() => { criarFogosArtificio(18); criarConfete(25); }, 200);
+  // Palmas a cada 2s
+  for(let t = 2000; t < 10000; t += 2000) _ag(() => tocarPalmas(6), t);
+  // Sino a cada 4s
+  for(let t = 4000; t < 10000; t += 4000) _ag(() => tocarSino(), t);
+  // Arpejo no meio do caminho
+  _ag(() => tocarSomPonto(), 5000);
+  // Foguete + fogos a cada 3s
+  for(let t = 3000; t < 10000; t += 3000) {
+    _ag(() => dispararFoguete(), t);
+    _ag(() => { criarFogosArtificio(12); criarConfete(15); }, t + 150);
+  }
+}
+
+// 30 segundos — meta 100% atingida
+function comemoracao30s(nomeMeta) {
+  _pararComemoracao();
+  // Imediato
+  tocarSomCelebracao(); tocarSino(0.7); dispararFoguete();
+  _ag(() => { criarFogosArtificio(28); criarConfete(38); }, 200);
+  _ag(() => mostrarModalParabens(nomeMeta, 22000), 600);
+  // Palmas contínuas a cada 2s
+  for(let t = 2000; t < 30000; t += 2000) _ag(() => tocarPalmas(8), t);
+  // Sino a cada 3.5s
+  for(let t = 3500; t < 30000; t += 3500) _ag(() => tocarSino(0.55), t);
+  // Fanfarra a cada 5s
+  for(let t = 5000; t < 30000; t += 5000) _ag(() => tocarSomCelebracao(), t);
+  // Foguete + fogos a cada 2.5s
+  for(let t = 2500; t < 30000; t += 2500) {
+    _ag(() => dispararFoguete(), t);
+    _ag(() => { criarFogosArtificio(16); criarConfete(20); }, t + 150);
+  }
+}
+
 async function dispararCelebracao(nomeMetaAlcancada = null) {
   // Foguete principal
   dispararFoguete();
@@ -6056,7 +6111,7 @@ function criarConfete(quantidade = 20) {
 }
 
 // Modal de parabéns com mensagem personalizada
-function mostrarModalParabens(nomeMeta) {
+function mostrarModalParabens(nomeMeta, duracao = 5000) {
   const overlay = document.createElement('div');
   overlay.className = 'celebracao-overlay';
   overlay.style.animation = 'fadeIn 0.4s ease-out forwards';
@@ -6079,10 +6134,10 @@ function mostrarModalParabens(nomeMeta) {
     }
   });
   
-  // Auto-fecha após 5 segundos
+  // Auto-fecha após duração configurável (5s padrão, 22s para meta batida)
   setTimeout(() => {
     fecharModalParabens();
-  }, 5000);
+  }, duracao);
 }
 
 function fecharModalParabens() {
@@ -6098,13 +6153,8 @@ function fecharModalParabens() {
 // Adiciona ponto na meta e dispara celebração se necessário
 async function adicionarPontoMeta(metaId, nomeMeta) {
   try {
-    // DISPARA ANIMAÇÕES + SOM IMEDIATAMENTE (antes do fetch)
-    tocarSomPonto();
-    dispararFoguete();
-    setTimeout(() => {
-      criarFogosArtificio(12);
-      criarConfete(15);
-    }, 300);
+    // Celebração imediata (antes do fetch para não ter delay)
+    comemoracao10s();
     
     // Busca a meta atual do Supabase
     const { data: meta, error: errGet } = await sb
@@ -6141,12 +6191,9 @@ async function adicionarPontoMeta(metaId, nomeMeta) {
       return;
     }
     
-    // Mensagem + Som + Modal (se bateu meta)
+    // Meta batida → upgrada para 30s de celebração
     if (metaBatida) {
-      tocarSomCelebracao();
-      setTimeout(() => {
-        mostrarModalParabens(nomeMeta);
-      }, 800);
+      comemoracao30s(nomeMeta);
       toast(`🏆 META ATINGIDA: ${nomeMeta}!`, 'ok');
       
       // Log de auditoria
