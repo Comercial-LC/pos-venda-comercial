@@ -13,7 +13,7 @@ create table if not exists public.perfis (
   nome         text not null,
   email        text not null,
   perfil       text not null default 'CS Analyst'
-                 check (perfil in ('Administrador','CS Manager','CS Analyst','Diretoria')),
+                 check (perfil in ('Administrador','CS Manager','CS Analyst','Diretoria','Dashboard TV')),
   ativo        boolean not null default true,
   avatar_iniciais text,
   criado_em    timestamptz default now(),
@@ -290,6 +290,36 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+-- Impede escalada de privilégios via self-update (usuário não pode promover o próprio perfil)
+create or replace function public.check_perfil_self_update()
+returns trigger language plpgsql security definer as $$
+begin
+  if new.id = auth.uid() then
+    -- Apenas Admin pode alterar campo perfil; usuário comum não pode alterar o próprio
+    if new.perfil <> old.perfil and public.meu_perfil() <> 'Administrador' then
+      raise exception 'Sem permissão para alterar o próprio perfil';
+    end if;
+    -- Campos de permissão granular: somente Admin pode alterar
+    if (new.pode_criar_revenda   <> old.pode_criar_revenda   or
+        new.pode_editar_revenda  <> old.pode_editar_revenda  or
+        new.pode_excluir_revenda <> old.pode_excluir_revenda or
+        new.pode_ver_cnpj        <> old.pode_ver_cnpj        or
+        new.pode_exportar        <> old.pode_exportar        or
+        new.pode_importar        <> old.pode_importar        or
+        new.pode_gerenciar_usuarios <> old.pode_gerenciar_usuarios or
+        new.pode_handover        <> old.pode_handover)
+       and public.meu_perfil() <> 'Administrador' then
+      raise exception 'Sem permissão para alterar permissões do próprio perfil';
+    end if;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists trg_perfis_self_update_check on public.perfis;
+create trigger trg_perfis_self_update_check
+  before update on public.perfis
+  for each row execute function public.check_perfil_self_update();
+
 -- ═══════════════════════════════════════════════════════════════
 -- VIEW segura: revendas sem CNPJ para usuários sem permissão
 -- ═══════════════════════════════════════════════════════════════
@@ -313,4 +343,26 @@ from public.revendas;
 -- Site URL: https://seu-site.netlify.app
 -- Redirect URLs: https://seu-site.netlify.app/**
 
-select 'Setup concluído com sucesso! 🎉' as resultado;
+-- ═══════════════════════════════════════════════════════════════
+-- ÍNDICES DE PERFORMANCE (complementam os do rls_e_tabelas_orion.sql)
+-- ═══════════════════════════════════════════════════════════════
+create index if not exists idx_revendas_nome      on public.revendas(nome);
+create index if not exists idx_revendas_ingresso  on public.revendas(ingresso);
+create index if not exists idx_revendas_id_origem on public.revendas(id_origem);
+create index if not exists idx_revendas_cs_id     on public.revendas(cs_id);
+create index if not exists idx_tarefas_vencimento on public.tarefas(vencimento);
+create index if not exists idx_tarefas_status     on public.tarefas(status);
+create index if not exists idx_tarefas_responsavel on public.tarefas(responsavel_id);
+create index if not exists idx_historico_usuario  on public.historico_cards(usuario_id);
+create index if not exists idx_historico_tipo     on public.historico_cards(tipo);
+create index if not exists idx_handovers_revenda  on public.handovers(revenda_id);
+create index if not exists idx_atividades_tipo    on public.atividades(tipo);
+create index if not exists idx_auditoria_acao     on public.auditoria(acao);
+create index if not exists idx_orion_leads_proc   on public.orion_leads_vendidos(processado);
+
+-- Para bancos já existentes: ALTER para adicionar 'Dashboard TV' ao constraint
+-- ALTER TABLE public.perfis DROP CONSTRAINT IF EXISTS perfis_perfil_check;
+-- ALTER TABLE public.perfis ADD CONSTRAINT perfis_perfil_check
+--   CHECK (perfil in ('Administrador','CS Manager','CS Analyst','Diretoria','Dashboard TV'));
+
+select 'Setup concluído com sucesso!' as resultado;
