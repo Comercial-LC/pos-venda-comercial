@@ -524,29 +524,33 @@ select option{background:var(--bg2)}
 
     <!-- RELATÓRIOS -->
     <div class="panel" id="p-relatorios">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-        <div><div style="font-size:19px;font-weight:700">Relatórios & Analytics</div></div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-s" onclick="exportRelatorioInativacao()">📋 Exportar Inativações</button>
-          <button class="btn btn-s" onclick="exportRelatorio()">📊 Exportar Revendas</button>
-        </div>
+      <div style="margin-bottom:18px">
+        <div style="font-size:19px;font-weight:700;margin-bottom:4px">Relatórios & Analytics</div>
+        <div style="font-size:12px;color:var(--txt3)">Visão geral das operações e geração de relatórios</div>
       </div>
       <div class="mg" id="rel-kpis"></div>
-      <div class="g2" style="margin-bottom:18px">
-        <div class="card">
-          <div class="ch"><div class="ct">Motivos de Inativação</div></div>
-          <div id="rel-motivos-loading" style="text-align:center;padding:28px;color:var(--txt3);font-size:13px">Carregando...</div>
-          <canvas id="chartMotivos" height="220" style="display:none"></canvas>
-        </div>
-        <div class="card">
-          <div class="ch"><div class="ct">Distribuição por Etapa</div></div>
-          <div id="etapa-bars" style="display:flex;flex-direction:column;gap:10px;padding:8px 0"></div>
-        </div>
+
+      <!-- Motivos de inativação -->
+      <div class="card" style="margin-bottom:18px">
+        <div class="ch"><div class="ct">Motivos de Inativação</div></div>
+        <div id="rel-motivos-loading" style="text-align:center;padding:28px;color:var(--txt3);font-size:13px">Carregando...</div>
+        <div id="rel-motivos-bars" style="display:none;flex-direction:column;gap:10px;padding:8px 4px"></div>
       </div>
-      <div class="card">
-        <div class="ch"><div class="ct">Performance por CS</div></div>
-        <div style="overflow-x:auto"><table><thead><tr><th>Responsável</th><th>Total</th><th>Em Jornada</th><th>Decola 1 Cliente</th><th>Inativos</th></tr></thead><tbody id="rel-cs-tbody"></tbody></table></div>
-      </div>
+
+      <!-- Distribuição por Etapa — colapsável -->
+      <details id="det-etapas" style="margin-bottom:18px">
+        <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;padding:14px 18px;background:var(--card);border:1px solid var(--border);border-radius:12px;font-size:14px;font-weight:600;user-select:none">
+          <span id="det-etapas-arrow" style="font-size:11px;transition:transform 0.2s">▶</span>
+          <span>Distribuição por Etapa</span>
+        </summary>
+        <div style="background:var(--card);border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;padding:14px 18px">
+          <div id="etapa-bars" style="display:flex;flex-direction:column;gap:10px"></div>
+        </div>
+      </details>
+
+      <!-- Geração de Relatórios -->
+      <div style="font-size:15px;font-weight:700;margin-bottom:12px">Gerar Relatórios</div>
+      <div id="rel-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px"></div>
     </div>
 
     <!-- IMPORTAÇÃO -->
@@ -3735,7 +3739,7 @@ async function renderRelatorios(){
     {label:'Inativos', val:inativos.length, cls:'yw'},
   ].map(k=>`<div class="mc ${k.cls}"><div class="mv">${k.val}</div><div class="ml">${k.label}</div></div>`).join('');
 
-  // Distribuição por etapa
+  // Distribuição por etapa (dentro do accordion)
   const etapaEl = document.getElementById('etapa-bars');
   if(etapaEl){
     const etapas = ['Nova Revenda','Implantação','Liberação Web','Academy','Decola Instalação','Decola Produtos','Decola 1 Cliente','Handover'];
@@ -3744,26 +3748,44 @@ async function renderRelatorios(){
     etapaEl.innerHTML = etapas.map((e, i) => {
       const n = rv.filter(r => r.status === e).length;
       const pct = Math.round(n / tot * 100);
-      return `<div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px">${e}</span><span style="font-size:12px;font-weight:600;color:${cores[i]}">${n} · ${pct}%</span></div><div class="pbar"><div class="pfill" style="width:${pct}%;background:${cores[i]}"></div></div></div>`;
+      return `<div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:13px">${e}</span><span style="font-size:13px;font-weight:600;color:${cores[i]}">${n} · ${pct}%</span></div><div class="pbar"><div class="pfill" style="width:${pct}%;background:${cores[i]}"></div></div></div>`;
     }).join('');
   }
-
-  // Performance por CS
-  const csTb = document.getElementById('rel-cs-tbody');
-  if(csTb){
-    const csSet = [...new Set(rv.map(r=>r.cs).filter(Boolean))];
-    csTb.innerHTML = csSet.length ? csSet.map(cs => {
-      const mine = rv.filter(r => r.cs === cs);
-      const mJorn = mine.filter(r => !_ehInativo(r)).length;
-      const mDec = mine.filter(r => r.status === 'Decola 1 Cliente').length;
-      const mInativ = mine.filter(_ehInativo).length;
-      return `<tr><td>${safe(cs)}</td><td>${mine.length}</td><td>${mJorn}</td><td>${mDec}</td><td>${mInativ}</td></tr>`;
-    }).join('') : `<tr><td colspan="5"><div class="empty" style="padding:16px">Nenhum dado disponível</div></td></tr>`;
+  // Seta do accordion
+  const det = document.getElementById('det-etapas');
+  if(det){
+    det.addEventListener('toggle', function(){
+      const arr = document.getElementById('det-etapas-arrow');
+      if(arr) arr.style.transform = det.open ? 'rotate(90deg)' : '';
+    }, {once: true});
   }
 
-  // Motivos de inativação — fetch assíncrono
+  // Cards de relatórios disponíveis
+  const relCards = document.getElementById('rel-cards');
+  if(relCards) relCards.innerHTML = [
+    {icon:'📊', titulo:'Revendas', desc:'Cadastro completo de todas as revendas', fn:'exportRelatorio()', cor:'#6366f1'},
+    {icon:'📋', titulo:'Inativações', desc:'Histórico e motivos de inativação', fn:'exportRelatorioInativacao()', cor:'#ef4444'},
+    {icon:'✅', titulo:'Tarefas', desc:'Todas as tarefas e seus status', fn:'exportRelatorioTarefas()', cor:'#10b981'},
+    {icon:'🤝', titulo:'Handover', desc:'Processos de handover em andamento', fn:'exportRelatorioHandover()', cor:'#f59e0b'},
+    {icon:'🎯', titulo:'Metas', desc:'Metas do mês atual e histórico', fn:'exportRelatorioMetas()', cor:'#8b5cf6'},
+    {icon:'🏗️', titulo:'Pipeline por CS', desc:'Distribuição de revendas por CS responsável', fn:'exportRelatorioPipelineCS()', cor:'#06b6d4'},
+  ].map(c=>`
+    <div class="card" style="cursor:pointer;transition:transform 0.15s,box-shadow 0.15s" onclick="${c.fn}"
+         onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(0,0,0,0.18)'"
+         onmouseleave="this.style.transform='';this.style.boxShadow=''">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="width:38px;height:38px;border-radius:10px;background:${c.cor}22;display:flex;align-items:center;justify-content:center;font-size:18px">${c.icon}</div>
+        <div style="font-size:14px;font-weight:700">${c.titulo}</div>
+      </div>
+      <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">${c.desc}</div>
+      <div style="font-size:12px;font-weight:600;color:${c.cor};display:flex;align-items:center;gap:4px">
+        ⬇ Exportar Excel
+      </div>
+    </div>`).join('');
+
+  // Motivos de inativação — barras horizontais CSS (muito mais legíveis)
   const loadEl = document.getElementById('rel-motivos-loading');
-  const canvas = document.getElementById('chartMotivos');
+  const barsEl = document.getElementById('rel-motivos-bars');
   try {
     const {data: hist} = await sb.from('historico_cards')
       .select('descricao,criado_em')
@@ -3776,42 +3798,24 @@ async function renderRelatorios(){
       if(motivo) motivoCount[motivo] = (motivoCount[motivo]||0) + 1;
     });
     const entries = Object.entries(motivoCount).sort((a,b)=>b[1]-a[1]);
-    if(canvas){
-      canvas.style.display = 'block';
-      const W = canvas.offsetWidth || 420;
-      canvas.width = W; canvas.height = 220;
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, W, 220);
+    if(barsEl){
+      barsEl.style.display = 'flex';
       if(entries.length === 0){
-        ctx.fillStyle = '#556688'; ctx.font = '13px system-ui'; ctx.textAlign = 'center';
-        ctx.fillText('Sem inativações registradas', W/2, 110);
+        barsEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--txt3);font-size:13px">Sem inativações registradas</div>';
       } else {
-        const padL=10, padR=10, padT=24, padB=68;
-        const n = entries.length;
-        const slotW = (W - padL - padR) / n;
-        const bw = Math.max(8, slotW - 12);
-        const maxV = Math.max(...entries.map(([,v])=>v), 1);
-        const barH = 220 - padT - padB;
-        const isDk = document.documentElement.getAttribute('data-theme') !== 'light';
         const colors = ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#ef4444','#06b6d4','#84cc16'];
-        entries.forEach(([label, val], i) => {
-          const cx = padL + i * slotW + slotW/2;
-          const bh = Math.max(4, (val / maxV) * barH);
-          const y = padT + barH - bh;
-          ctx.fillStyle = colors[i % colors.length];
-          ctx.beginPath(); ctx.roundRect(cx - bw/2, y, bw, bh, 4); ctx.fill();
-          ctx.fillStyle = isDk ? '#f0f4ff' : '#0f172a';
-          ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'center';
-          ctx.fillText(val, cx, y - 5);
-          ctx.save();
-          ctx.translate(cx, 220 - padB + 8);
-          ctx.rotate(-Math.PI / 4);
-          ctx.fillStyle = isDk ? '#aab4cc' : '#556688';
-          ctx.font = '10px system-ui'; ctx.textAlign = 'right';
-          const maxCh = 24;
-          ctx.fillText(label.length > maxCh ? label.substring(0, maxCh) + '…' : label, 0, 0);
-          ctx.restore();
-        });
+        const maxV = entries[0][1];
+        barsEl.innerHTML = entries.map(([label, val], i) => {
+          const pct = Math.round(val / maxV * 100);
+          const cor = colors[i % colors.length];
+          return `<div style="display:grid;grid-template-columns:200px 1fr 36px;align-items:center;gap:10px">
+            <div style="font-size:13px;color:var(--txt2);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${label}">${label}</div>
+            <div style="background:var(--bg2);border-radius:6px;height:22px;position:relative;overflow:hidden">
+              <div style="position:absolute;left:0;top:0;height:100%;width:${pct}%;background:${cor};border-radius:6px;transition:width 0.5s ease"></div>
+            </div>
+            <div style="font-size:13px;font-weight:700;color:${cor}">${val}</div>
+          </div>`;
+        }).join('');
       }
     }
   } catch(e) {
@@ -3851,6 +3855,69 @@ async function exportRelatorioInativacao(){
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumo), 'Por Motivo');
   XLSX.writeFile(wb, 'relatorio-inativacoes.xlsx');
   toast('Relatório de inativações exportado!');
+}
+
+function exportRelatorioTarefas(){
+  if(typeof XLSX==='undefined'){toast('Biblioteca XLSX não carregada','err');return}
+  const rows = (DB.tarefas||[]).map(t=>({
+    Título: t.titulo, Revenda: t.revenda, Responsável: t.responsavel,
+    Tipo: t.tipo, Prioridade: t.prioridade, Status: t.status,
+    Vencimento: fmtDate(t.vencimento), Criado: fmtDate(t.criadoEm), Descrição: t.desc
+  }));
+  if(!rows.length){toast('Nenhuma tarefa encontrada','warn');return}
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Tarefas');
+  XLSX.writeFile(wb, 'relatorio-tarefas.xlsx');
+  toast('Relatório de tarefas exportado!');
+}
+
+function exportRelatorioHandover(){
+  if(typeof XLSX==='undefined'){toast('Biblioteca XLSX não carregada','err');return}
+  const rows = (DB.handovers||[]).map(h=>({
+    Revenda: h.revenda, CS: h.cs, Status: h.status,
+    Início: fmtDate(h.inicio), Prazo: fmtDate(h.prazo),
+    Progresso: h.progresso+'%', Observações: h.obs
+  }));
+  if(!rows.length){toast('Nenhum handover encontrado','warn');return}
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Handover');
+  XLSX.writeFile(wb, 'relatorio-handover.xlsx');
+  toast('Relatório de handover exportado!');
+}
+
+async function exportRelatorioMetas(){
+  if(typeof XLSX==='undefined'){toast('Biblioteca XLSX não carregada','err');return}
+  const {data, error} = await sb.from('orion_metas').select('*').order('ano,mes');
+  if(error || !data?.length){toast('Nenhuma meta encontrada','warn');return}
+  const meses = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const rows = data.map(m=>({
+    Meta: m.nome, Mês: meses[m.mes]||m.mes, Ano: m.ano,
+    Valor: m.valor_atual, Meta: m.valor_meta,
+    '%': m.valor_meta ? Math.round(m.valor_atual/m.valor_meta*100)+'%' : '—',
+    Status: m.status||'—'
+  }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Metas');
+  XLSX.writeFile(wb, 'relatorio-metas.xlsx');
+  toast('Relatório de metas exportado!');
+}
+
+function exportRelatorioPipelineCS(){
+  if(typeof XLSX==='undefined'){toast('Biblioteca XLSX não carregada','err');return}
+  const rv = DB.revendas || [];
+  const csSet = [...new Set(rv.map(r=>r.cs).filter(Boolean))].sort();
+  const etapas = ['Nova Revenda','Implantação','Liberação Web','Academy','Decola Instalação','Decola Produtos','Decola 1 Cliente','Handover'];
+  const rows = csSet.map(cs => {
+    const mine = rv.filter(r => r.cs === cs);
+    const row = {CS: cs, Total: mine.length, 'Em Jornada': mine.filter(r=>!_ehInativo(r)).length, Inativos: mine.filter(_ehInativo).length};
+    etapas.forEach(e => { row[e] = mine.filter(r=>r.status===e).length; });
+    return row;
+  });
+  if(!rows.length){toast('Nenhum dado de pipeline encontrado','warn');return}
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Pipeline por CS');
+  XLSX.writeFile(wb, 'relatorio-pipeline-cs.xlsx');
+  toast('Relatório de pipeline exportado!');
 }
 
 // ─── IMPORTAÇÃO ────────────────────────────────────────────────────
