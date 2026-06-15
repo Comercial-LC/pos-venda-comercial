@@ -271,6 +271,7 @@ select option{background:var(--bg2)}
     <!-- DASHBOARD -->
     <div class="panel on" id="p-dashboard">
       <div class="mg" id="dash-kpis"></div>
+      <div class="mg" id="dash-tpc-kpis" style="margin-bottom:22px"></div>
 
       <!-- Metas Orion -->
       <div id="dash-metas-wrap" style="margin-bottom:18px;display:none">
@@ -283,25 +284,15 @@ select option{background:var(--bg2)}
         </div>
         <div id="dash-metas-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px"></div>
       </div>
-      <div class="g31" style="margin-bottom:18px">
+      <div class="g2" style="margin-bottom:18px">
         <div class="card">
-          <div class="ch"><div><div class="ct">Evolução do Onboarding</div><div class="cs">Revendas por mês</div></div></div>
-          <canvas id="chartOnboarding" height="160"></canvas>
+          <div class="ch"><div class="ct">Motivos de Inativação</div></div>
+          <div id="dash-motivos-loading" style="text-align:center;padding:20px;color:var(--txt3);font-size:13px">Carregando...</div>
+          <div id="dash-motivos" style="display:none;flex-direction:column;gap:10px;padding:8px 4px"></div>
         </div>
         <div class="card">
-          <div class="ch"><div class="ct">Status Pipeline</div></div>
-          <canvas id="chartPipeline" width="200" height="200"></canvas>
-          <div id="pipelineLegend" style="margin-top:12px;display:flex;flex-direction:column;gap:6px"></div>
-        </div>
-      </div>
-      <div class="g2">
-        <div class="card">
-          <div class="ch"><div class="ct">Revendas Recentes</div><button class="btn btn-s btn-sm" onclick="go('revendas')">Ver todas →</button></div>
-          <div style="overflow-x:auto"><table><thead><tr><th>Revenda</th><th>CS</th><th>Status</th><th>TPC</th></tr></thead><tbody id="dash-revendas"></tbody></table></div>
-        </div>
-        <div class="card">
-          <div class="ch"><div class="ct">⏱ TPC — Tempo para Primeiro Cliente</div></div>
-          <div id="dash-tpc" style="display:flex;flex-direction:column;gap:10px"></div>
+          <div class="ch"><div class="ct">Distribuição por Etapa</div></div>
+          <div id="dash-etapas" style="display:flex;flex-direction:column;gap:10px;padding:8px 0"></div>
         </div>
       </div>
     </div>
@@ -2495,52 +2486,80 @@ function renderDashboard(){
   const kEl=document.getElementById('dash-kpis');
   if(kEl)kEl.innerHTML=kpis.map(k=>`<div class="mc ${k.cls}"><div style="font-size:24px;margin-bottom:8px">${safe(k.icon)}</div><div class="mv">${k.val}</div><div class="ml">${safe(k.label)}</div></div>`).join('');
 
-  // Recent revendas table
-  const dRev=document.getElementById('dash-revendas');
-  if(dRev){
-    // stMap dinâmico — Inativo sempre vermelho
-    const nomesInatRev = ['inativo','inativa','perdido','cancelado','churn'];
-    const etps = getEtapas();
-    const stMap = {};
-    etps.forEach((e,i)=>{
-      const ehInativa = nomesInatRev.some(n=>e.id.toLowerCase().includes(n));
-      if(ehInativa)            stMap[e.id]='st-rd'; // vermelho
-      else if(i===0)           stMap[e.id]='st-tr'; // cinza
-      else if(i===etps.length-1) stMap[e.id]='st-dn'; // teal
-      else if(i===etps.length-2) stMap[e.id]='st-ok'; // verde
-      else                     stMap[e.id]='st-on'; // azul
-    });
-    const recent=[...rv].sort((a,b)=>new Date(b.criadoEm||0)-new Date(a.criadoEm||0)).slice(0,5);
-    dRev.innerHTML=recent.length?recent.map(r=>`<tr><td><div class="tdp">${safe(r.nome)}</div><div style="font-size:11px;color:var(--txt3)">${safe(r.cidade||'')} ${r.uf?'· '+safe(r.uf):''}</div></td><td>${safe(r.cs||'—')}</td><td><span class="st ${stMap[r.status]||'st-on'}">${safe(r.status)}</span></td><td>${r.tpc?`<span class="badge ${r.tpc<=15?'bg-ok':r.tpc<=30?'bg-warn':'bg-err'} bg-sm">${r.tpc}d</span>`:'—'}</td></tr>`).join(''):`<tr><td colspan="4"><div class="empty" style="padding:20px"><div>Nenhuma revenda cadastrada</div></div></td></tr>`;
+  // TPC KPI cards — mesma linha dos KPIs principais
+  const tpcKpisEl = document.getElementById('dash-tpc-kpis');
+  if(tpcKpisEl){
+    const ideal   = rv.filter(r=>r.tpc && +r.tpc<=15).length;
+    const alerta  = rv.filter(r=>r.tpc && +r.tpc>15 && +r.tpc<=30).length;
+    const critico = rv.filter(r=>r.tpc && +r.tpc>30).length;
+    tpcKpisEl.innerHTML = [
+      {icon:'⏱',  label:'TPC Médio',      val: tpcMed ? tpcMed+'d' : '—', cls:'tl'},
+      {icon:'✅',  label:'TPC ≤ 15 dias',  val: ideal,                     cls:'gn'},
+      {icon:'⚠️', label:'TPC 16–30 dias', val: alerta,                    cls:'yw'},
+      {icon:'🔴', label:'TPC > 30 dias',  val: critico,                   cls:'rd'},
+    ].map(k=>`<div class="mc ${k.cls}"><div style="font-size:22px;margin-bottom:6px">${k.icon}</div><div class="mv">${k.val}</div><div class="ml">${k.label}</div></div>`).join('');
   }
 
-  // Pipeline funil por etapa
-  const tpcEl=document.getElementById('dash-tpc');
-  if(tpcEl){
-    // Usa etapas configuradas — inclui Inativo, exclui do cálculo de barra
-    const nomesInativosTpc = ['inativo','inativa','perdido','cancelado','churn'];
-    const ETAPAS_DASH = getEtapas().map(e=>({
-      id:    e.id,
-      icon:  e.icon,
-      color: nomesInativosTpc.some(n=>e.id.toLowerCase().includes(n)) ? '#ef4444' : (e.cor||'var(--acc)'),
-      inativa: nomesInativosTpc.some(n=>e.id.toLowerCase().includes(n)),
+  // Distribuição por etapa
+  const etapasEl = document.getElementById('dash-etapas');
+  if(etapasEl){
+    const nomesInativosDash = ['inativo','inativa','perdido','cancelado','churn'];
+    const ETAPAS_D = getEtapas().map(e=>({
+      id: e.id, icon: e.icon,
+      color: nomesInativosDash.some(n=>e.id.toLowerCase().includes(n)) ? '#ef4444' : (e.cor||'var(--acc)'),
     }));
-    const maxRev = Math.max(...ETAPAS_DASH.filter(e=>!e.inativa).map(e=>rv.filter(r=>r.status===e.id).length), 1);
-    tpcEl.innerHTML = ETAPAS_DASH.map(e=>{
+    const maxCnt = Math.max(...ETAPAS_D.map(e=>rv.filter(r=>r.status===e.id).length), 1);
+    etapasEl.innerHTML = ETAPAS_D.map(e=>{
       const cnt = rv.filter(r=>r.status===e.id).length;
-      const pct = Math.round(cnt/maxRev*100);
+      const pct = Math.round(cnt/maxCnt*100);
       return `<div style="display:flex;align-items:center;gap:8px">
         <span style="font-size:13px;width:20px;text-align:center">${safe(e.icon)}</span>
-        <span style="font-size:11px;color:var(--txt2);width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${safe(e.id)}</span>
+        <span style="font-size:12px;color:var(--txt2);width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${safe(e.id)}</span>
         <div class="pbar" style="flex:1"><div class="pfill" style="width:${pct}%;background:${e.color}"></div></div>
-        <span style="font-size:12px;font-weight:700;color:${e.color};width:24px;text-align:right">${cnt}</span>
+        <span style="font-size:12px;font-weight:700;color:${e.color};min-width:28px;text-align:right">${cnt}</span>
       </div>`;
     }).join('');
-    return; // skip old TPC code below
-  } // end if(tpcEl)
+  }
 
-  drawOnbChart();
-  drawPipelineChart();
+  // Motivos de inativação — fetch assíncrono sem bloquear o render
+  (async () => {
+    const loadEl = document.getElementById('dash-motivos-loading');
+    const barsEl = document.getElementById('dash-motivos');
+    try {
+      const {data: hist} = await sb.from('historico_cards')
+        .select('descricao').like('descricao', '%Motivo:%');
+      if(loadEl) loadEl.style.display = 'none';
+      const motivoCount = {};
+      (hist||[]).forEach(h => {
+        const motivo = (h.descricao||'').split('Motivo:')[1]?.trim();
+        if(motivo) motivoCount[motivo] = (motivoCount[motivo]||0) + 1;
+      });
+      const entries = Object.entries(motivoCount).sort((a,b)=>b[1]-a[1]);
+      if(barsEl){
+        barsEl.style.display = 'flex';
+        if(!entries.length){
+          barsEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--txt3);font-size:13px">Sem inativações registradas</div>';
+        } else {
+          const colors = ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#ef4444','#06b6d4','#84cc16'];
+          const maxV = entries[0][1];
+          barsEl.innerHTML = entries.map(([label, val], i) => {
+            const pct = Math.round(val/maxV*100);
+            const cor = colors[i % colors.length];
+            return `<div style="display:grid;grid-template-columns:180px 1fr 30px;align-items:center;gap:10px">
+              <div style="font-size:12px;color:var(--txt2);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${label}">${label}</div>
+              <div style="background:var(--bg2);border-radius:6px;height:20px;position:relative;overflow:hidden">
+                <div style="position:absolute;left:0;top:0;height:100%;width:${pct}%;background:${cor};border-radius:6px"></div>
+              </div>
+              <div style="font-size:12px;font-weight:700;color:${cor}">${val}</div>
+            </div>`;
+          }).join('');
+        }
+      }
+    } catch(e) {
+      if(loadEl){ loadEl.style.display='block'; loadEl.textContent='Erro ao carregar motivos'; }
+    }
+  })();
+
   carregarMetas();
 }
 
