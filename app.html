@@ -271,7 +271,6 @@ select option{background:var(--bg2)}
     <!-- DASHBOARD -->
     <div class="panel on" id="p-dashboard">
       <div class="mg" id="dash-kpis"></div>
-      <div class="mg" id="dash-tpc-kpis" style="margin-bottom:22px"></div>
 
       <!-- Metas Orion -->
       <div id="dash-metas-wrap" style="margin-bottom:18px;display:none">
@@ -2485,20 +2484,6 @@ function renderDashboard(){
   ];
   const kEl=document.getElementById('dash-kpis');
   if(kEl)kEl.innerHTML=kpis.map(k=>`<div class="mc ${k.cls}"><div style="font-size:24px;margin-bottom:8px">${safe(k.icon)}</div><div class="mv">${k.val}</div><div class="ml">${safe(k.label)}</div></div>`).join('');
-
-  // TPC KPI cards — mesma linha dos KPIs principais
-  const tpcKpisEl = document.getElementById('dash-tpc-kpis');
-  if(tpcKpisEl){
-    const ideal   = rv.filter(r=>r.tpc && +r.tpc<=15).length;
-    const alerta  = rv.filter(r=>r.tpc && +r.tpc>15 && +r.tpc<=30).length;
-    const critico = rv.filter(r=>r.tpc && +r.tpc>30).length;
-    tpcKpisEl.innerHTML = [
-      {icon:'⏱',  label:'TPC Médio',      val: tpcMed ? tpcMed+'d' : '—', cls:'tl'},
-      {icon:'✅',  label:'TPC ≤ 15 dias',  val: ideal,                     cls:'gn'},
-      {icon:'⚠️', label:'TPC 16–30 dias', val: alerta,                    cls:'yw'},
-      {icon:'🔴', label:'TPC > 30 dias',  val: critico,                   cls:'rd'},
-    ].map(k=>`<div class="mc ${k.cls}"><div style="font-size:22px;margin-bottom:6px">${k.icon}</div><div class="mv">${k.val}</div><div class="ml">${k.label}</div></div>`).join('');
-  }
 
   // Distribuição por etapa
   const etapasEl = document.getElementById('dash-etapas');
