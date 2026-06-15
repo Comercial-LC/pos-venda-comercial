@@ -1679,34 +1679,41 @@ function ativarModoTV(){
       .subscribe();
   });
 
-  // Canal TV — apenas dispara o refresh do dashboard ao detectar mudanças.
-  // As celebrações ficam no orion_metas_ch com guard por perfilAtual.perfil.
-  sb.channel('tv_watch_orion_metas')
-    .on('postgres_changes', {event:'*', schema:'public', table:'orion_metas'},
-      ()=>{ tvScheduleRefresh(true); })
-    .subscribe((status)=>{ console.log('TV canal orion_metas:', status); });
-
-  // Pre-popula _metaValores/_metaStatuses para que a primeira alteração via
-  // realtime seja detectada corretamente no orion_metas_ch (cache vazio = sem celebração)
+  // Polling a cada 2s — detecta aumento de valor_atual e dispara celebração.
+  // Não depende de realtime nem de REPLICA IDENTITY: funciona sempre.
   {
-    const _m = new Date().getMonth()+1, _a = new Date().getFullYear();
-    sb.from('orion_metas').select('id,valor_atual,status').eq('mes',_m).eq('ano',_a)
-      .then(({data})=>{
-        (data||[]).forEach(m=>{
-          _metaValores[m.id]  = m.valor_atual;
-          _metaStatuses[m.id] = m.status;
-        });
-        console.log('TV: cache de metas inicializado —', (data||[]).length, 'metas');
+    let _polVal = {}, _polSt = {}, _pronto = false;
+
+    async function _tvPoll() {
+      const mes = new Date().getMonth()+1, ano = new Date().getFullYear();
+      const {data} = await sb.from('orion_metas')
+        .select('id,nome,valor_atual,status').eq('mes',mes).eq('ano',ano);
+      if(!data) return;
+      data.forEach(m => {
+        if(_pronto && _polVal[m.id] !== undefined && m.valor_atual > _polVal[m.id]){
+          if(m.status === 'atingida' && _polSt[m.id] !== 'atingida'){
+            comemoracao30s(m.nome);
+          } else {
+            comemoracao10s();
+          }
+        }
+        _polVal[m.id] = m.valor_atual;
+        _polSt[m.id]  = m.status;
       });
+      if(!_pronto){ _pronto = true; console.log('TV: cache pronto —', data.length, 'metas'); }
+    }
+
+    _tvPoll(); // carrega valores iniciais imediatamente
+    setInterval(_tvPoll, 2000);
   }
 
-  // Fallback: atualiza a cada 30s independente do realtime
+  // Atualiza o dashboard a cada 5s (mais responsivo que 30s)
   setInterval(async ()=>{
     await loadFromSupabase();
     renderTVDashboard();
-  }, 30000);
+  }, 5000);
 
-  console.log('📺 TV: canais realtime + polling 30s ativos');
+  console.log('TV: polling 2s (celebração) + 5s (dashboard) ativos');
 }
 
 async function renderTVDashboard(){
@@ -5811,27 +5818,7 @@ function initApp(){
     sb.channel('orion_metas_ch')
       .on('postgres_changes',
         {event:'*', schema:'public', table:'orion_metas'},
-        (payload)=>{
-          const novo = payload.new, velho = payload.old;
-          if(novo && typeof novo.valor_atual === 'number'){
-            // REPLICA IDENTITY DEFAULT não envia velho.valor_atual (só PK).
-            // Usamos _metaValores como cache para detectar aumento real.
-            const valorAnterior = velho?.valor_atual ?? _metaValores[novo.id] ?? novo.valor_atual;
-            const statusAnterior = velho?.status ?? _metaStatuses[novo.id];
-
-            // Celebrações SOMENTE no browser do usuário Dashboard TV
-            if(perfilAtual?.perfil === 'Dashboard TV' && novo.valor_atual > valorAnterior){
-              if(novo.status === 'atingida' && statusAnterior !== 'atingida'){
-                comemoracao30s(novo.nome || 'Meta');
-              } else {
-                comemoracao10s();
-              }
-            }
-            _metaValores[novo.id] = novo.valor_atual;
-            _metaStatuses[novo.id] = novo.status;
-          }
-          carregarMetas();
-        }
+        ()=>{ carregarMetas(); }
       ).subscribe();
 
     sb.channel('orion_leads_ch')
