@@ -1401,6 +1401,49 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
 let sessaoAtual = null;
 let perfilAtual = null;
 
+// Controle de tempo de sessão: 4h para usuários comuns, 8h para Dashboard TV
+function iniciarControleSession(perfil, userId){
+  const chave = `portal_sessao_${userId}`;
+  const agora = Date.now();
+  let loginAt = parseInt(localStorage.getItem(chave) || '0');
+  if(!loginAt || isNaN(loginAt)){
+    loginAt = agora;
+    localStorage.setItem(chave, String(loginAt));
+  }
+  const ehTV = perfil.perfil === 'Dashboard TV';
+  const limiteMs = (ehTV ? 8 : 4) * 3600000;
+  const restante = limiteMs - (agora - loginAt);
+  if(restante <= 0){
+    localStorage.removeItem(chave);
+    sb.auth.signOut().then(()=> window.location.replace('./index.html'));
+    return;
+  }
+  // Aviso 5 min antes para usuários comuns
+  if(!ehTV){
+    const avisoMs = restante - 300000;
+    if(avisoMs > 0) setTimeout(()=> toast('⚠️ Sua sessão expira em 5 minutos. Salve o que estiver fazendo.','warn'), avisoMs);
+  }
+  // Logout automático ao expirar
+  setTimeout(async ()=>{
+    localStorage.removeItem(chave);
+    await sb.auth.signOut();
+    if(ehTV){
+      document.body.innerHTML = `<div style="position:fixed;inset:0;background:#0A0A0F;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;z-index:99999">
+        <div style="font-size:64px">⏰</div>
+        <div style="color:#F5F5FF;font-size:28px;font-weight:700">Sessão de 8h encerrada</div>
+        <div style="color:#9999BB;font-size:16px">Redirecionando para o login em <span id="cv">10</span> segundos...</div>
+      </div>`;
+      let n=10;
+      const iv=setInterval(()=>{
+        const el=document.getElementById('cv'); if(el) el.textContent=--n;
+        if(n<=0){clearInterval(iv); window.location.replace('./index.html');}
+      },1000);
+    } else {
+      window.location.replace('./index.html');
+    }
+  }, restante);
+}
+
 // Guard: redireciona para login se não autenticado
 async function initAuth(){
   const {data:{session}} = await sb.auth.getSession();
@@ -1418,6 +1461,7 @@ async function initAuth(){
   document.getElementById('currentUserAv').textContent  = perfil.avatar_iniciais||perfil.nome.slice(0,2).toUpperCase();
   document.getElementById('currentUserName').textContent = perfil.nome;
   document.getElementById('currentUserRole').textContent = perfil.perfil;
+  iniciarControleSession(perfil, session.user.id);
   aplicarPermissoes(perfil);
   return true;
 }
@@ -1622,9 +1666,13 @@ function ativarModoTV(){
             </div>
           </div>
         </div>
-        <div style="text-align:right;display:flex;align-items:center;gap:10px">
-          <div style="width:10px;height:10px;background:var(--ok);border-radius:50%;animation:pulse 2s infinite" id="tv-live-dot"></div>
-          <div style="font-size:13px;color:var(--ok);font-weight:600">AO VIVO</div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:10px;height:10px;background:var(--ok);border-radius:50%;animation:pulse 2s infinite" id="tv-live-dot"></div>
+            <div style="font-size:13px;color:var(--ok);font-weight:600">AO VIVO</div>
+          </div>
+          <button id="btn-tv-fs" onclick="tvToggleFullscreen()" title="Tela cheia" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:8px;padding:7px 14px;cursor:pointer;color:var(--txt);font-size:13px;font-weight:500">⛶ Tela Cheia</button>
+          <button onclick="fazerLogout()" title="Sair do sistema" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.28);border-radius:8px;padding:7px 14px;cursor:pointer;color:#EF4444;font-size:13px;font-weight:500">⏻ Sair</button>
         </div>
       </div>
 
@@ -1633,6 +1681,19 @@ function ativarModoTV(){
     </div>`;
 
   renderTVDashboard();
+
+  // Tela cheia — toggle com atualização do ícone do botão
+  window.tvToggleFullscreen = function(){
+    if(!document.fullscreenElement){
+      document.documentElement.requestFullscreen().catch(()=>{});
+    } else {
+      document.exitFullscreen();
+    }
+  };
+  document.addEventListener('fullscreenchange', function(){
+    const btn = document.getElementById('btn-tv-fs');
+    if(btn) btn.textContent = document.fullscreenElement ? '⊡ Sair Tela Cheia' : '⛶ Tela Cheia';
+  });
 
   // Atualiza data/hora
   function atualizaRelogio(){
@@ -1944,6 +2005,7 @@ async function renderTVDashboard(){
 
 // Logout com log de auditoria
 async function fazerLogout(){
+  if(sessaoAtual) localStorage.removeItem(`portal_sessao_${sessaoAtual.user.id}`);
   if(perfilAtual){
     await sb.from('auditoria').insert({
       usuario_id:sessaoAtual.user.id,
