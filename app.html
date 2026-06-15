@@ -5457,17 +5457,16 @@ async function renderMetasHistorico(){
   }
 
   tbody.innerHTML = data.map(m => {
-    const pct = Math.min(Math.round((m.valor_atual/Math.max(m.valor_meta,1))*100),100);
-    const cfg = pct>=100?{cor:'var(--ok)',label:'✅ Atingida'}
-               :pct>=70 ?{cor:'var(--warn)',label:'⚠️ Atenção'}
-               :         {cor:'var(--err)', label:'🔴 Crítica'};
+    // Usa calcMetaStatus para ter o mesmo status do card (ritmo diário para mês
+    // atual, percentual total para meses anteriores)
+    const s = calcMetaStatus(m);
     return `<tr>
       <td><strong>${safe(m.nome)}</strong></td>
       <td>${MESES_NOMES[m.mes]} ${m.ano}</td>
       <td>${m.valor_meta}</td>
-      <td style="color:${cfg.cor};font-weight:600">${m.valor_atual}</td>
-      <td style="color:${cfg.cor};font-weight:700">${pct}%</td>
-      <td><span style="color:${cfg.cor};font-size:12px">${cfg.label}</span></td>
+      <td style="color:${s.cor};font-weight:600">${m.valor_atual}</td>
+      <td style="color:${s.cor};font-weight:700">${s.pct}%</td>
+      <td><span style="color:${s.cor};font-size:12px">${s.icon} ${s.label}</span></td>
       <td>
         <button onclick="editarMeta('${m.id}')" class="btn btn-s btn-sm">✏️</button>
         <button onclick="excluirMeta('${m.id}')" class="btn btn-d btn-sm">🗑️</button>
