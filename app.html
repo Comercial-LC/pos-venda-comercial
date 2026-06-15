@@ -527,17 +527,25 @@ select option{background:var(--bg2)}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
         <div><div style="font-size:19px;font-weight:700">Relatórios & Analytics</div></div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-s" onclick="exportRelatorio()">📊 Exportar Excel</button>
+          <button class="btn btn-s" onclick="exportRelatorioInativacao()">📋 Exportar Inativações</button>
+          <button class="btn btn-s" onclick="exportRelatorio()">📊 Exportar Revendas</button>
         </div>
       </div>
       <div class="mg" id="rel-kpis"></div>
       <div class="g2" style="margin-bottom:18px">
-        <div class="card"><div class="ch"><div class="ct">Onboardings por Mês</div></div><canvas id="chartRel" height="180"></canvas></div>
-        <div class="card"><div class="ch"><div class="ct">TPC — Distribuição</div></div><div id="tpc-bars" style="display:flex;flex-direction:column;gap:10px;padding:8px 0"></div></div>
+        <div class="card">
+          <div class="ch"><div class="ct">Motivos de Inativação</div></div>
+          <div id="rel-motivos-loading" style="text-align:center;padding:28px;color:var(--txt3);font-size:13px">Carregando...</div>
+          <canvas id="chartMotivos" height="220" style="display:none"></canvas>
+        </div>
+        <div class="card">
+          <div class="ch"><div class="ct">Distribuição por Etapa</div></div>
+          <div id="etapa-bars" style="display:flex;flex-direction:column;gap:10px;padding:8px 0"></div>
+        </div>
       </div>
       <div class="card">
         <div class="ch"><div class="ct">Performance por CS</div></div>
-        <div style="overflow-x:auto"><table><thead><tr><th>Responsável</th><th>Revendas</th><th>Onboarding</th><th>Concluídos</th><th>TPC Médio</th></tr></thead><tbody id="rel-cs-tbody"></tbody></table></div>
+        <div style="overflow-x:auto"><table><thead><tr><th>Responsável</th><th>Total</th><th>Em Jornada</th><th>Decola 1 Cliente</th><th>Inativos</th></tr></thead><tbody id="rel-cs-tbody"></tbody></table></div>
       </div>
     </div>
 
@@ -3710,75 +3718,105 @@ function deleteHandover(id){
 }
 
 // ─── RELATÓRIOS ────────────────────────────────────────────────────
-function renderRelatorios(){
-  const rv=DB.revendas||[];
-  const ativ=rv.filter(r=>r.status==='Ativo').length;
-  const onb=rv.filter(r=>r.status==='Onboarding').length;
-  const tpcs=rv.filter(r=>r.tpc).map(r=>+r.tpc);
-  const tpcMed=tpcs.length?Math.round(tpcs.reduce((a,b)=>a+b,0)/tpcs.length):0;
-  const kpiEl=document.getElementById('rel-kpis');
-  if(kpiEl)kpiEl.innerHTML=[
-    {label:'Total Revendas',val:rv.length,cls:'bl'},{label:'Revendas Ativas',val:ativ,cls:'gn'},
-    {label:'Em Onboarding',val:onb,cls:'yw'},{label:'TPC Médio',val:tpcMed?tpcMed+'d':'—',cls:'tl'},
+const _ehInativo = r => ['inativo','inativa','perdido','cancelado','churn'].some(n=>(r.status||'').toLowerCase().includes(n));
+
+async function renderRelatorios(){
+  const rv = DB.revendas || [];
+  const inativos = rv.filter(_ehInativo);
+  const emJornada = rv.filter(r => !_ehInativo(r));
+  const decola1 = rv.filter(r => r.status === 'Decola 1 Cliente');
+
+  // KPIs
+  const kpiEl = document.getElementById('rel-kpis');
+  if(kpiEl) kpiEl.innerHTML = [
+    {label:'Total Revendas', val:rv.length, cls:'bl'},
+    {label:'Em Jornada', val:emJornada.length, cls:'gn'},
+    {label:'Decola 1 Cliente', val:decola1.length, cls:'tl'},
+    {label:'Inativos', val:inativos.length, cls:'yw'},
   ].map(k=>`<div class="mc ${k.cls}"><div class="mv">${k.val}</div><div class="ml">${k.label}</div></div>`).join('');
 
-  // TPC distribution
-  const tpcEl=document.getElementById('tpc-bars');
-  if(tpcEl){
-    const ideal=rv.filter(r=>r.tpc&&+r.tpc<=15).length;
-    const alert=rv.filter(r=>r.tpc&&+r.tpc>15&&+r.tpc<=30).length;
-    const crit=rv.filter(r=>r.tpc&&+r.tpc>30).length;
-    const tot=rv.filter(r=>r.tpc).length||1;
-    tpcEl.innerHTML=[
-      {l:'≤15 dias',c:ideal,p:Math.round(ideal/tot*100),color:'var(--ok)'},
-      {l:'16–30 dias',c:alert,p:Math.round(alert/tot*100),color:'var(--warn)'},
-      {l:'>30 dias',c:crit,p:Math.round(crit/tot*100),color:'var(--err)'},
-    ].map(t=>`<div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px">${t.l}</span><span style="font-size:12px;font-weight:600;color:${t.color}">${t.p}% · ${t.c} rev.</span></div><div class="pbar"><div class="pfill" style="width:${t.p}%;background:${t.color}"></div></div></div>`).join('');
+  // Distribuição por etapa
+  const etapaEl = document.getElementById('etapa-bars');
+  if(etapaEl){
+    const etapas = ['Nova Revenda','Implantação','Liberação Web','Academy','Decola Instalação','Decola Produtos','Decola 1 Cliente','Handover'];
+    const cores = ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#3b82f6','#84cc16'];
+    const tot = rv.length || 1;
+    etapaEl.innerHTML = etapas.map((e, i) => {
+      const n = rv.filter(r => r.status === e).length;
+      const pct = Math.round(n / tot * 100);
+      return `<div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px">${e}</span><span style="font-size:12px;font-weight:600;color:${cores[i]}">${n} · ${pct}%</span></div><div class="pbar"><div class="pfill" style="width:${pct}%;background:${cores[i]}"></div></div></div>`;
+    }).join('');
   }
 
-  // CS performance
-  const csTb=document.getElementById('rel-cs-tbody');
+  // Performance por CS
+  const csTb = document.getElementById('rel-cs-tbody');
   if(csTb){
-    const csSet=[...new Set(rv.map(r=>r.cs).filter(Boolean))];
-    csTb.innerHTML=csSet.length?csSet.map(cs=>{
-      const mine=rv.filter(r=>r.cs===cs);
-      const onbCs=mine.filter(r=>r.status==='Onboarding').length;
-      const dnCs=mine.filter(r=>r.status==='Concluído'||r.status==='Ativo').length;
-      const tpcsCs=mine.filter(r=>r.tpc).map(r=>+r.tpc);
-      const tpcCs=tpcsCs.length?Math.round(tpcsCs.reduce((a,b)=>a+b,0)/tpcsCs.length):null;
-      return`<tr><td class="tdp">${cs}</td><td>${mine.length}</td><td>${onbCs}</td><td>${dnCs}</td><td>${tpcCs?`<span class="badge ${tpcCs<=15?'bg-ok':tpcCs<=30?'bg-warn':'bg-err'} bg-sm">${tpcCs}d</span>`:'—'}</td></tr>`;
-    }).join(''):`<tr><td colspan="5"><div class="empty" style="padding:16px">Nenhum dado disponível</div></td></tr>`;
+    const csSet = [...new Set(rv.map(r=>r.cs).filter(Boolean))];
+    csTb.innerHTML = csSet.length ? csSet.map(cs => {
+      const mine = rv.filter(r => r.cs === cs);
+      const mJorn = mine.filter(r => !_ehInativo(r)).length;
+      const mDec = mine.filter(r => r.status === 'Decola 1 Cliente').length;
+      const mInativ = mine.filter(_ehInativo).length;
+      return `<tr><td>${safe(cs)}</td><td>${mine.length}</td><td>${mJorn}</td><td>${mDec}</td><td>${mInativ}</td></tr>`;
+    }).join('') : `<tr><td colspan="5"><div class="empty" style="padding:16px">Nenhum dado disponível</div></td></tr>`;
   }
 
-  // Chart
-  const canvas=document.getElementById('chartRel');
-  if(canvas){
-    const months=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    const now=new Date();
-    const data=Array(6).fill(0);
-    DB.revendas.forEach(r=>{
-      if(!r.criadoEm)return;
-      const d=new Date(r.criadoEm);
-      const diff=(now.getFullYear()-d.getFullYear())*12+now.getMonth()-d.getMonth();
-      if(diff>=0&&diff<6)data[5-diff]++;
+  // Motivos de inativação — fetch assíncrono
+  const loadEl = document.getElementById('rel-motivos-loading');
+  const canvas = document.getElementById('chartMotivos');
+  try {
+    const {data: hist} = await sb.from('historico_cards')
+      .select('descricao,criado_em')
+      .like('descricao', '%Motivo:%')
+      .order('criado_em', {ascending: false});
+    if(loadEl) loadEl.style.display = 'none';
+    const motivoCount = {};
+    (hist||[]).forEach(h => {
+      const motivo = (h.descricao||'').split('Motivo:')[1]?.trim();
+      if(motivo) motivoCount[motivo] = (motivoCount[motivo]||0) + 1;
     });
-    const labels=Array.from({length:6},(_,i)=>months[(now.getMonth()-5+i+12)%12]);
-    const ctx=canvas.getContext('2d');
-    canvas.width=canvas.offsetWidth||400;
-    canvas.height=180;
-    const W=canvas.width,H=canvas.height,pad=30,bw=(W-pad*2)/6-10;
-    ctx.clearRect(0,0,W,H);
-    const max=Math.max(...data,1);
-    const isDk=document.documentElement.getAttribute('data-theme')!=='light';
-    data.forEach((v,i)=>{
-      const x=pad+i*((W-pad*2)/6)+(bw/2)-bw/2;
-      const bh=Math.max(4,(v/max)*(H-40));
-      const y=H-20-bh;
-      ctx.fillStyle='#10b981';ctx.beginPath();ctx.roundRect(x,y,bw,bh,4);ctx.fill();
-      ctx.fillStyle=isDk?'#556688':'#8899bb';ctx.font='11px system-ui';ctx.textAlign='center';
-      if(v>0){ctx.fillStyle=isDk?'#f0f4ff':'#0f172a';ctx.fillText(v,x+bw/2,y-4)}
-      ctx.fillStyle=isDk?'#556688':'#8899bb';ctx.fillText(labels[i],x+bw/2,H-4);
-    });
+    const entries = Object.entries(motivoCount).sort((a,b)=>b[1]-a[1]);
+    if(canvas){
+      canvas.style.display = 'block';
+      const W = canvas.offsetWidth || 420;
+      canvas.width = W; canvas.height = 220;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, W, 220);
+      if(entries.length === 0){
+        ctx.fillStyle = '#556688'; ctx.font = '13px system-ui'; ctx.textAlign = 'center';
+        ctx.fillText('Sem inativações registradas', W/2, 110);
+      } else {
+        const padL=10, padR=10, padT=24, padB=68;
+        const n = entries.length;
+        const slotW = (W - padL - padR) / n;
+        const bw = Math.max(8, slotW - 12);
+        const maxV = Math.max(...entries.map(([,v])=>v), 1);
+        const barH = 220 - padT - padB;
+        const isDk = document.documentElement.getAttribute('data-theme') !== 'light';
+        const colors = ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#ef4444','#06b6d4','#84cc16'];
+        entries.forEach(([label, val], i) => {
+          const cx = padL + i * slotW + slotW/2;
+          const bh = Math.max(4, (val / maxV) * barH);
+          const y = padT + barH - bh;
+          ctx.fillStyle = colors[i % colors.length];
+          ctx.beginPath(); ctx.roundRect(cx - bw/2, y, bw, bh, 4); ctx.fill();
+          ctx.fillStyle = isDk ? '#f0f4ff' : '#0f172a';
+          ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'center';
+          ctx.fillText(val, cx, y - 5);
+          ctx.save();
+          ctx.translate(cx, 220 - padB + 8);
+          ctx.rotate(-Math.PI / 4);
+          ctx.fillStyle = isDk ? '#aab4cc' : '#556688';
+          ctx.font = '10px system-ui'; ctx.textAlign = 'right';
+          const maxCh = 24;
+          ctx.fillText(label.length > maxCh ? label.substring(0, maxCh) + '…' : label, 0, 0);
+          ctx.restore();
+        });
+      }
+    }
+  } catch(e) {
+    if(loadEl){ loadEl.style.display='block'; loadEl.textContent = 'Erro ao carregar motivos'; }
+    console.error('renderRelatorios motivos:', e);
   }
 }
 
@@ -3787,6 +3825,32 @@ function exportRelatorio(){
   const ws=XLSX.utils.json_to_sheet((DB.revendas||[]).map(r=>({Nome:r.nome,CNPJ:r.cnpj,Cidade:r.cidade,UF:r.uf,Email:r.email,Telefone:r.tel,CS:r.cs,Status:r.status,TPC:r.tpc,Ingresso:fmtDate(r.ingresso),Segmento:r.segmento,Porte:r.porte})));
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Revendas');
   XLSX.writeFile(wb,'relatorio-revendas.xlsx');toast('Relatório exportado!');
+}
+
+async function exportRelatorioInativacao(){
+  if(typeof XLSX==='undefined'){toast('Biblioteca XLSX não carregada','err');return}
+  const {data: hist, error} = await sb.from('historico_cards')
+    .select('descricao,criado_em')
+    .like('descricao', '%Motivo:%')
+    .order('criado_em', {ascending: false});
+  if(error || !hist?.length){toast('Nenhum dado de inativação encontrado','warn');return}
+  const motivoCount = {};
+  const rows = hist.map(h => {
+    const partes = (h.descricao||'').split('Motivo:');
+    const motivo = partes[1]?.trim() || '—';
+    const etapaRaw = partes[0] || '';
+    const partesSeta = etapaRaw.split('→');
+    const etapaAnterior = partesSeta[0]?.trim() || '—';
+    motivoCount[motivo] = (motivoCount[motivo]||0) + 1;
+    return {Data: fmtDate(h.criado_em), 'Etapa Anterior': etapaAnterior, Motivo: motivo};
+  });
+  const resumo = Object.entries(motivoCount).sort((a,b)=>b[1]-a[1])
+    .map(([motivo, qtd]) => ({Motivo: motivo, Quantidade: qtd}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Histórico');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumo), 'Por Motivo');
+  XLSX.writeFile(wb, 'relatorio-inativacoes.xlsx');
+  toast('Relatório de inativações exportado!');
 }
 
 // ─── IMPORTAÇÃO ────────────────────────────────────────────────────
