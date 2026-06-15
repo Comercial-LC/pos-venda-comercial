@@ -1679,24 +1679,15 @@ function ativarModoTV(){
       .subscribe();
   });
 
-  // Canal TV — orion_metas: celebra ao detectar aumento de valor_atual
+  // Canal TV — orion_metas: apenas atualiza cache e dispara refresh do dashboard.
+  // As celebrações são tratadas pelo orion_metas_ch (sempre ativo), evitando
+  // double-fire: dois canais chamando _pararComemoracao() um cancelaria o outro.
   let _tvUltimosValores = {}; // guarda valor_atual de cada meta para comparar
   sb.channel('tv_watch_orion_metas')
     .on('postgres_changes', {event:'*', schema:'public', table:'orion_metas'},
       (payload)=>{
-        const novo = payload.new, velho = payload.old;
-
+        const novo = payload.new;
         if(novo && typeof novo.valor_atual === 'number'){
-          const valorAnterior = velho?.valor_atual ?? _tvUltimosValores[novo.id] ?? novo.valor_atual;
-
-          if(novo.valor_atual > valorAnterior){
-            // Meta atingida? — 30s. Ponto adicionado? — 10s.
-            if(novo.status === 'atingida' && velho?.status !== 'atingida'){
-              comemoracao30s(novo.nome || 'Meta');
-            } else {
-              comemoracao10s();
-            }
-          }
           _tvUltimosValores[novo.id] = novo.valor_atual;
         }
         tvScheduleRefresh(true); // metas: atualização imediata
@@ -1704,6 +1695,16 @@ function ativarModoTV(){
     .subscribe((status)=>{
       console.log('📺 TV canal orion_metas:', status);
     });
+
+  // Pre-popula o cache para que o gauge/Layout2 funcione desde o início
+  {
+    const _m = new Date().getMonth()+1, _a = new Date().getFullYear();
+    sb.from('orion_metas').select('id,valor_atual').eq('mes',_m).eq('ano',_a)
+      .then(({data})=>{
+        (data||[]).forEach(m=>{ _tvUltimosValores[m.id] = m.valor_atual; });
+        console.log('📺 TV: cache inicializado —', Object.keys(_tvUltimosValores).length, 'metas');
+      });
+  }
 
   // Fallback: atualiza a cada 30s independente do realtime
   setInterval(async ()=>{
@@ -5502,9 +5503,11 @@ async function salvarMeta(){
   if(pct >= 100){
     toast(`🏆 META ATINGIDA: ${nome}!`, 'ok');
     comemoracao30s(nome);
+    _marcarCelebracao();
   } else if(atual > 0){
     toast('✅ Meta salva com sucesso!');
     comemoracao10s();
+    _marcarCelebracao();
   } else {
     toast('✅ Meta salva com sucesso!');
   }
@@ -5821,18 +5824,25 @@ function initApp(){
       .on('postgres_changes',
         {event:'*', schema:'public', table:'orion_metas'},
         (payload)=>{
-          // Detecta aumento de valor_atual vindo da Orion (não foi o próprio usuário)
           const novo = payload.new, velho = payload.old;
-          if(novo && velho && typeof novo.valor_atual === 'number' &&
-             novo.valor_atual > (velho.valor_atual || 0)){
-            // Meta atingida pela Orion?
-            if(novo.status === 'atingida' && velho.status !== 'atingida'){
-              comemoracao30s(novo.nome || 'Meta');
-              toast(`🏆 META ATINGIDA PELA ORION: ${novo.nome}!`, 'ok');
-            } else {
-              comemoracao10s();
-              toast(`🎯 Orion: +1 ponto em "${novo.nome}" (${novo.valor_atual}/${novo.valor_meta})`, 'ok');
+          if(novo && typeof novo.valor_atual === 'number'){
+            // Supabase com REPLICA IDENTITY DEFAULT só envia o PK em velho.
+            // Usamos _metaValores como fallback para detectar aumento real.
+            const valorAnterior = velho?.valor_atual ?? _metaValores[novo.id] ?? novo.valor_atual;
+            const statusAnterior = velho?.status ?? _metaStatuses[novo.id];
+
+            if(!_celebracaoRecente() && novo.valor_atual > valorAnterior){
+              if(novo.status === 'atingida' && statusAnterior !== 'atingida'){
+                comemoracao30s(novo.nome || 'Meta');
+                toast(`🏆 META ATINGIDA: ${novo.nome}!`, 'ok');
+              } else {
+                comemoracao10s();
+                toast(`🎯 +1 ponto em "${novo.nome}" (${novo.valor_atual}/${novo.valor_meta})`, 'ok');
+              }
+              _marcarCelebracao();
             }
+            _metaValores[novo.id] = novo.valor_atual;
+            _metaStatuses[novo.id] = novo.status;
           }
           carregarMetas();
         }
@@ -5976,6 +5986,14 @@ function tocarSino(volume = 0.5) {
 
 // ─── ORQUESTRAÇÃO DAS CELEBRAÇÕES ─────────────────────────────────────────
 let _celebTimers = [];
+// Cache de valores anteriores para orion_metas_ch (REPLICA IDENTITY DEFAULT não
+// envia velho.valor_atual — só o PK — então dependemos deste dicionário)
+let _metaValores = {};
+let _metaStatuses = {};
+// Marca quando o próprio usuário disparou uma celebração para o realtime não dobrar
+let _celebracaoRecenteAt = 0;
+function _marcarCelebracao() { _celebracaoRecenteAt = Date.now(); }
+function _celebracaoRecente() { return Date.now() - _celebracaoRecenteAt < 6000; }
 
 function _pararComemoracao() {
   _celebTimers.forEach(id => clearTimeout(id));
@@ -6155,6 +6173,7 @@ async function adicionarPontoMeta(metaId, nomeMeta) {
   try {
     // Celebração imediata (antes do fetch para não ter delay)
     comemoracao10s();
+    _marcarCelebracao(); // impede o realtime de disparar uma segunda celebração
     
     // Busca a meta atual do Supabase
     const { data: meta, error: errGet } = await sb
@@ -6194,6 +6213,7 @@ async function adicionarPontoMeta(metaId, nomeMeta) {
     // Meta batida → upgrada para 30s de celebração
     if (metaBatida) {
       comemoracao30s(nomeMeta);
+      _marcarCelebracao(); // renova o guard para o realtime não dobrar
       toast(`🏆 META ATINGIDA: ${nomeMeta}!`, 'ok');
       
       // Log de auditoria
