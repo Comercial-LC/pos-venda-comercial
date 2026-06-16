@@ -320,7 +320,7 @@ select option{background:var(--bg2)}
         <div style="display:flex;gap:8px">
           <button class="btn btn-s" onclick="go('importacao')">📥 Importar Excel</button>
           <button class="btn btn-s" id="btn-leads-orion" onclick="openMo('mo-leads-orion')" style="display:none">🔗 Leads Orion <span id="badge-leads-orion" class="badge bg-ok bg-sm">0</span></button>
-          <button class="btn btn-p" onclick="openMo('mo-rev')">+ Nova Revenda</button>
+          <button class="btn btn-p" onclick="novaRevenda()">+ Nova Revenda</button>
         </div>
       </div>
       <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
@@ -329,7 +329,7 @@ select option{background:var(--bg2)}
           <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--txt3)">🔍</span>
         </div>
         <select id="rev-status" onchange="renderRevendas()" style="width:180px"><option value="">Todos status</option><option>Nova Revenda</option><option>Implantação</option><option>Liberação Web</option><option>Academy</option><option>Decola Instalação</option><option>Decola Produtos</option><option>Primeiro Cliente</option><option>Handover</option></select>
-        <select id="rev-uf" onchange="renderRevendas()" style="width:100px"><option value="">Todos UF</option><option>SP</option><option>RJ</option><option>MG</option><option>PR</option><option>SC</option><option>RS</option><option>CE</option><option>BA</option><option>GO</option><option>DF</option></select>
+        <select id="rev-uf" onchange="renderRevendas()" style="width:100px"><option value="">Todos UF</option><option>AC</option><option>AL</option><option>AM</option><option>AP</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MG</option><option>MS</option><option>MT</option><option>PA</option><option>PB</option><option>PE</option><option>PI</option><option>PR</option><option>RJ</option><option>RN</option><option>RO</option><option>RR</option><option>RS</option><option>SC</option><option>SE</option><option>SP</option><option>TO</option></select>
         <select id="rev-cs" onchange="renderRevendas()" style="width:160px"><option value="">Todos CS</option></select>
       </div>
       <div class="fp" id="rev-filters">
@@ -355,7 +355,7 @@ select option{background:var(--bg2)}
     <div class="panel" id="p-pipeline">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
         <div><div style="font-size:19px;font-weight:700">Pipeline de Onboarding</div><div style="font-size:12px;color:var(--txt3)">Visão Kanban de todas as revendas</div></div>
-        <button class="btn btn-p" onclick="openMo('mo-rev')">+ Adicionar Revenda</button>
+        <button class="btn btn-p" onclick="novaRevenda()">+ Adicionar Revenda</button>
       </div>
 
       <!-- Filtros do Kanban -->
@@ -1171,7 +1171,7 @@ select option{background:var(--bg2)}
     <div class="mob">
       <input type="hidden" id="rev-edit-id">
       <div class="fr"><div class="fg"><label>Nome da Revenda *</label><input id="r-nome" placeholder="Ex: TechSol Soluções LTDA"></div><div class="fg"><label>CNPJ</label><input id="r-cnpj" placeholder="00.000.000/0001-00"></div></div>
-      <div class="fr"><div class="fg"><label>Cidade *</label><input id="r-cidade" placeholder="São Paulo"></div><div class="fg"><label>UF *</label><select id="r-uf"><option value="">Selecione</option><option>SP</option><option>RJ</option><option>MG</option><option>PR</option><option>SC</option><option>RS</option><option>CE</option><option>BA</option><option>GO</option><option>DF</option><option>ES</option><option>PE</option><option>RN</option><option>PB</option><option>AM</option><option>PA</option><option>MT</option><option>MS</option><option>TO</option><option>MA</option></select></div></div>
+      <div class="fr"><div class="fg"><label>Cidade *</label><input id="r-cidade" placeholder="São Paulo"></div><div class="fg"><label>UF *</label><select id="r-uf"><option value="">Selecione</option><option>AC</option><option>AL</option><option>AM</option><option>AP</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MG</option><option>MS</option><option>MT</option><option>PA</option><option>PB</option><option>PE</option><option>PI</option><option>PR</option><option>RJ</option><option>RN</option><option>RO</option><option>RR</option><option>RS</option><option>SC</option><option>SE</option><option>SP</option><option>TO</option></select></div></div>
       <div class="fr"><div class="fg"><label>E-mail</label><input id="r-email" type="email" placeholder="contato@empresa.com"></div><div class="fg"><label>Telefone</label><input id="r-tel" placeholder="(11) 99999-9999"></div></div>
       <div class="fr"><div class="fg"><label>Responsável da Revenda</label><input id="r-cs" placeholder="Nome do responsável na empresa cliente"></div><div class="fg"><label>Status *</label><select id="r-status"><option>Nova Revenda</option></select></div></div>
       <div class="fr"><div class="fg"><label>Cargo</label><input id="r-cargo" placeholder="Ex: Diretor, Gerente, Sócio..."></div><div class="fg"></div></div>
@@ -2374,6 +2374,23 @@ async function saveRevenda(){
   logAuditoria(editId?'UPDATE':'CREATE','revendas',savedId,{nome,status:payload.status});
   await loadFromSupabase();
   renderRevendas(); renderDashboard();
+}
+
+function novaRevenda(){
+  document.getElementById('mo-rev-title').textContent = 'Nova Revenda';
+  document.getElementById('rev-edit-id').value = '';
+  ['r-nome','r-cnpj','r-cidade','r-email','r-tel','r-cs','r-cargo','r-vend','r-obs'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el){ el.value=''; el.readOnly=false; el.placeholder=el.placeholder||''; }
+  });
+  document.getElementById('r-cnpj').placeholder = '00.000.000/0001-00';
+  document.getElementById('r-uf').value = '';
+  document.getElementById('r-seg').value = '';
+  document.getElementById('r-porte').value = '';
+  const statusEl = document.getElementById('r-status');
+  if(statusEl) statusEl.value = statusEl.options[0]?.value || 'Nova Revenda';
+  document.getElementById('r-ingresso').value = new Date().toISOString().slice(0,10);
+  openMo('mo-rev');
 }
 
 function editRevenda(id){
