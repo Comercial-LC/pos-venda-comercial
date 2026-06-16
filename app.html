@@ -3838,12 +3838,14 @@ async function renderRelatorios(){
         barsEl.innerHTML = entries.map(([label, val], i) => {
           const pct = Math.round(val / maxV * 100);
           const cor = colors[i % colors.length];
-          return `<div style="display:grid;grid-template-columns:200px 1fr 36px;align-items:center;gap:10px">
-            <div style="font-size:13px;color:var(--txt2);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${label}">${label}</div>
-            <div style="background:var(--bg2);border-radius:6px;height:22px;position:relative;overflow:hidden">
-              <div style="position:absolute;left:0;top:0;height:100%;width:${pct}%;background:${cor};border-radius:6px;transition:width 0.5s ease"></div>
+          return `<div style="display:flex;flex-direction:column;gap:4px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+              <span style="font-size:13px;color:var(--txt2);line-height:1.3">${safe(label)}</span>
+              <span style="font-size:13px;font-weight:700;color:${cor};white-space:nowrap;flex-shrink:0">${val}</span>
             </div>
-            <div style="font-size:13px;font-weight:700;color:${cor}">${val}</div>
+            <div style="background:var(--bg2);border-radius:6px;height:18px;position:relative;overflow:hidden">
+              <div style="position:absolute;left:0;top:0;height:100%;width:${pct}%;background:${cor};border-radius:6px;transition:width 0.6s ease"></div>
+            </div>
           </div>`;
         }).join('');
       }
@@ -4982,6 +4984,12 @@ async function switchCfgTab(tab, btn){
     await carregarCfgDoSupabase();
     renderEtapasCfg();
   }
+  // Ao abrir Motivos: recarrega listas
+  if(tab === 'motivos'){
+    await carregarCfgDoSupabase();
+    renderMotivosCfg();
+    renderEtapasMotivosCfg();
+  }
 }
 
 // ── Renderiza configurações ────────────────────────────────
@@ -4989,6 +4997,8 @@ function renderConfiguracoes(){
   renderEtapasCfg();
   renderCamposCfg();
   renderProdutosCfg();
+  renderMotivosCfg();
+  renderEtapasMotivosCfg();
   carregarCoresAtuais();
   carregarCfgGeral();
 }
