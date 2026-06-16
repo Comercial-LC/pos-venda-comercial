@@ -4457,11 +4457,22 @@ function copyAIResponse(){
 function renderAiHistory(){
   const el=document.getElementById('ai-history');
   if(!el)return;
-  el.innerHTML=aiHistory.length?[...aiHistory].reverse().map(h=>`
-    <div style="padding:10px;border:1px solid var(--bdr);border-radius:var(--r);cursor:pointer" onclick="fillPrompt(${JSON.stringify(h.prompt).replace(/'/g,'&#39;')})">
-      <div style="font-size:12px;font-weight:500;margin-bottom:3px;color:var(--txt)">${h.prompt.slice(0,80)}${h.prompt.length>80?'...':''}</div>
+  const reversed=[...aiHistory].reverse();
+  if(!reversed.length){
+    el.innerHTML=`<div style="font-size:12px;color:var(--txt3)">Nenhum pedido enviado ainda.</div>`;
+    return;
+  }
+  el.innerHTML=reversed.map((h,i)=>`
+    <div style="padding:10px;border:1px solid var(--bdr);border-radius:var(--r);cursor:pointer" data-ai-idx="${i}">
+      <div style="font-size:12px;font-weight:500;margin-bottom:3px;color:var(--txt)">${safe(h.prompt.slice(0,80))}${h.prompt.length>80?'...':''}</div>
       <div style="font-size:11px;color:var(--txt3)">${new Date(h.data).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
-    </div>`).join(''):`<div style="font-size:12px;color:var(--txt3)">Nenhum pedido enviado ainda.</div>`;
+    </div>`).join('');
+  el.querySelectorAll('[data-ai-idx]').forEach(div=>{
+    div.addEventListener('click',()=>{
+      const idx=parseInt(div.dataset.aiIdx,10);
+      if(reversed[idx]) fillPrompt(reversed[idx].prompt);
+    });
+  });
 }
 
 // ─── METAS ORION ───────────────────────────────────────────────────
@@ -5765,7 +5776,7 @@ async function renderAuditoria(){
     <td><div style="font-size:12px;font-weight:500">${a.usuario_nome||'—'}</div><div style="font-size:10px;color:var(--txt3)">${a.usuario_email||''}</div></td>
     <td><span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:${acaoColor[a.acao]||'var(--txt3)'}22;color:${acaoColor[a.acao]||'var(--txt3)'}">${a.acao}</span></td>
     <td style="font-size:11px;color:var(--txt2)">${a.tabela||'—'}</td>
-    <td style="font-size:11px;color:var(--txt2);max-width:180px;overflow:hidden;text-overflow:ellipsis">${a.detalhe?JSON.stringify(a.detalhe).slice(0,60):'—'}</td>
+    <td style="font-size:11px;color:var(--txt2);max-width:180px;overflow:hidden;text-overflow:ellipsis">${a.detalhe?safe(JSON.stringify(a.detalhe).slice(0,60)):'—'}</td>
     <td style="font-size:11px;white-space:nowrap">${new Date(a.criado_em).toLocaleString('pt-BR')}</td>
   </tr>`).join('');
 }

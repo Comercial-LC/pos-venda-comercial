@@ -1,0 +1,35 @@
+# Segredos e variáveis de ambiente — NUNCA commitar
+.env
+.env.local
+.env.production
+.env.*.local
+*.env
+
+# Supabase
+supabase/.branches
+supabase/.temp
+
+# Dependências Node (se houver)
+node_modules/
+.npm/
+
+# Build outputs
+dist/
+build/
+.next/
+
+# Editores
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Arquivos temporários de patch (manter apenas o SQL de segurança)
+*.patch
+*.zip

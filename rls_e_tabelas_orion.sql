@@ -57,8 +57,9 @@ alter table public.orion_eventos_raw    enable row level security;
 create policy "orion_leads_select" on public.orion_leads_vendidos
   for select using (public.estou_ativo());
 
+-- Insert via app bloqueado (with check false); webhook usa service_role que bypassa RLS
 create policy "orion_leads_insert" on public.orion_leads_vendidos
-  for insert with check (true);  -- Edge Function usa service role
+  for insert with check (false);
 
 create policy "orion_leads_update" on public.orion_leads_vendidos
   for update using (public.meu_perfil() in ('Administrador','CS Manager'));
@@ -70,8 +71,9 @@ create policy "orion_leads_delete" on public.orion_leads_vendidos
 create policy "orion_metas_select" on public.orion_metas
   for select using (public.estou_ativo());
 
+-- Apenas Administrador insere via app; webhook usa service_role
 create policy "orion_metas_insert" on public.orion_metas
-  for insert with check (true);
+  for insert with check (public.meu_perfil() = 'Administrador');
 
 create policy "orion_metas_update" on public.orion_metas
   for update using (public.meu_perfil() = 'Administrador');
@@ -190,8 +192,12 @@ drop policy if exists "auditoria_insert" on public.auditoria;
 create policy "auditoria_select" on public.auditoria
   for select using (public.meu_perfil() = 'Administrador');
 
+-- Apenas o próprio usuário insere seus logs (ou sistema sem usuario_id)
 create policy "auditoria_insert" on public.auditoria
-  for insert with check (true);  -- qualquer origem pode logar
+  for insert with check (
+    usuario_id = auth.uid()
+    or usuario_id is null
+  );
 
 create policy "auditoria_no_delete" on public.auditoria
   for delete using (false);  -- NINGUÉM pode excluir logs — LGPD
