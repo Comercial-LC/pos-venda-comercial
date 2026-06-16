@@ -6263,12 +6263,12 @@ function comemoracao10s() {
   _playAudio('Palmas.mp3', { delay: 800 });
 }
 
-// Meta 100% atingida: vídeo de fogos + Palmas 2 em loop + modal
+// Meta 100% atingida: vídeo de fogos + Palmas 2 + modal (10s)
 function comemoracao30s(nomeMeta) {
   _pararComemoracao();
-  mostrarVideoCelebracao(30000);
-  _playAudio('Palmas 2.mp3', { loop: true });
-  _ag(() => mostrarModalParabens(nomeMeta, 22000), 600);
+  mostrarVideoCelebracao(10000);
+  _playAudio('Palmas 2.mp3');
+  _ag(() => mostrarModalParabens(nomeMeta, 8000), 600);
 }
 
 async function dispararCelebracao(nomeMetaAlcancada = null) {
