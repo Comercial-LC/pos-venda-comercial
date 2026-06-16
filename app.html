@@ -16,6 +16,15 @@ body{font-family:var(--font);background:var(--bg);color:var(--txt);min-height:10
 .sidebar{width:240px;min-width:240px;background:var(--bg2);border-right:1px solid var(--bdr);display:flex;flex-direction:column;height:100vh;position:sticky;top:0;overflow-y:auto;transition:var(--tr);z-index:100}
 .sidebar.col{width:60px;min-width:60px}
 .sidebar.col .nav-label,.sidebar.col .nav-section,.sidebar.col .logo-text-wrap,.sidebar.col .user-info{display:none}
+.sb-toggle{margin-left:auto;width:26px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--txt3);font-size:18px;border-radius:6px;transition:var(--tr);flex-shrink:0;user-select:none}
+.sb-toggle:hover{background:var(--card);color:var(--txt)}
+.sidebar.col .sb-toggle{transform:rotate(180deg)}
+.nav-sub{overflow:hidden;max-height:0;transition:max-height .25s ease}
+.nav-sub.open{max-height:180px}
+.nav-sub-it{padding-left:40px !important;font-size:12px !important}
+.nav-group .nav-arrow{margin-left:auto;font-size:10px;transition:transform .2s;flex-shrink:0}
+.nav-group.open .nav-arrow{transform:rotate(90deg)}
+.sidebar.col .nav-sub,.sidebar.col .nav-arrow{display:none !important}
 .s-logo{padding:18px 16px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:10px}
 .logo-ic{width:32px;height:32px;background:linear-gradient(135deg,#F5C518,#6B2FA0);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#fff;flex-shrink:0}
 .logo-t{font-weight:700;font-size:13px;line-height:1.2}.logo-s{font-size:10px;color:var(--txt3)}
@@ -220,6 +229,7 @@ select option{background:var(--bg2)}
       <div class="logo-t">Portal Sucesso</div>
       <div class="logo-s">da Revenda · LC</div>
     </div>
+    <div class="sb-toggle" onclick="document.getElementById('sb').classList.toggle('col')" title="Recolher menu">‹</div>
   </div>
   <nav class="s-nav">
     <div class="nav-sec">Principal</div>
@@ -229,16 +239,20 @@ select option{background:var(--bg2)}
     <div class="nav-sec">Gestão</div>
     <div class="nav-it" onclick="go('tarefas')"><span class="nav-ic">✅</span><span class="nav-label">Tarefas</span></div>
     <div class="nav-it" onclick="go('metas')"><span class="nav-ic">🎯</span><span class="nav-label">Metas</span></div>
-    <div class="nav-it" onclick="go('timeline')"><span class="nav-ic">🕐</span><span class="nav-label">Timeline</span></div>
-    <div class="nav-it" onclick="go('treinamentos')"><span class="nav-ic">🎓</span><span class="nav-label">Treinamentos</span></div>
-    <div class="nav-it" onclick="go('handover')"><span class="nav-ic">🤝</span><span class="nav-label">Handover</span></div>
     <div class="nav-sec">Dados</div>
     <div class="nav-it" onclick="go('relatorios')"><span class="nav-ic">📈</span><span class="nav-label">Relatórios</span></div>
     <div class="nav-it" onclick="go('importacao')"><span class="nav-ic">📥</span><span class="nav-label">Importação Excel</span></div>
     <div class="nav-sec">Config.</div>
-    <div class="nav-it" onclick="go('usuarios')"><span class="nav-ic">👥</span><span class="nav-label">Usuários</span></div>
-    <div class="nav-it" onclick="go('integracao')"><span class="nav-ic">🔗</span><span class="nav-label">Integrações</span></div>
-    <div class="nav-it" onclick="go('configuracoes')" style="border-top:1px solid var(--bdr);margin-top:6px;padding-top:10px"><span class="nav-ic">⚙️</span><span class="nav-label" style="font-weight:600">Configurações</span></div>
+    <div class="nav-it nav-group" id="nav-cfg-group" onclick="toggleNavGrp()">
+      <span class="nav-ic">⚙️</span>
+      <span class="nav-label" style="font-weight:600">Configurações</span>
+      <span class="nav-arrow nav-label">▶</span>
+    </div>
+    <div class="nav-sub" id="nav-cfg-sub">
+      <div class="nav-it nav-sub-it" onclick="go('configuracoes')"><span class="nav-ic">🔧</span><span class="nav-label">Geral</span></div>
+      <div class="nav-it nav-sub-it" onclick="go('usuarios')"><span class="nav-ic">👥</span><span class="nav-label">Usuários</span></div>
+      <div class="nav-it nav-sub-it" onclick="go('integracao')"><span class="nav-ic">🔗</span><span class="nav-label">Integrações</span></div>
+    </div>
   </nav>
   <div class="s-foot">
     <div class="u-card" style="cursor:default">
@@ -2217,6 +2231,14 @@ applyTheme();
 
 // ─── Nav ───────────────────────────────────────────────────────────
 const TITLES={dashboard:'Dashboard Executivo',revendas:'Cadastro de Revendas',pipeline:'Pipeline de Onboarding',tarefas:'Gestão de Tarefas',timeline:'Timeline de Atividades',treinamentos:'Central de Treinamentos',handover:'Gestão de Handover',relatorios:'Relatórios & Analytics',importacao:'Importação de Dados',usuarios:'Controle de Usuários',integracao:'Integrações',configuracoes:'⚙️ Configurações'};
+function toggleNavGrp(){
+  const grp=document.getElementById('nav-cfg-group');
+  const sub=document.getElementById('nav-cfg-sub');
+  if(!grp||!sub)return;
+  const open=sub.classList.contains('open');
+  sub.classList.toggle('open',!open);
+  grp.classList.toggle('open',!open);
+}
 function go(name){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.nav-it').forEach(n=>n.classList.remove('on'));
@@ -2224,6 +2246,10 @@ function go(name){
   if(p)p.classList.add('on');
   document.querySelectorAll('.nav-it').forEach(n=>{if((n.getAttribute('onclick')||'').includes("'"+name+"'"))n.classList.add('on')});
   document.getElementById('tb-title').textContent=TITLES[name]||name;
+  if(['configuracoes','usuarios','integracao'].includes(name)){
+    document.getElementById('nav-cfg-group')?.classList.add('open');
+    document.getElementById('nav-cfg-sub')?.classList.add('open');
+  }
   renderPanel(name);
 }
 function renderPanel(name){
