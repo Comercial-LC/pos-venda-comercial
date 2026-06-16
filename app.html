@@ -6192,6 +6192,7 @@ function tocarSino(volume = 0.5) {
 
 // ─── ORQUESTRAÇÃO DAS CELEBRAÇÕES ─────────────────────────────────────────
 let _celebTimers = [];
+let _celebAudios = [];
 let _metaValores = {};
 let _metaStatuses = {};
 let _celebracaoRecenteAt = 0;
@@ -6201,13 +6202,27 @@ function _celebracaoRecente() { return Date.now() - _celebracaoRecenteAt < 6000;
 function _pararComemoracao() {
   _celebTimers.forEach(id => clearTimeout(id));
   _celebTimers = [];
-  // Para e remove vídeo em andamento
+  _celebAudios.forEach(a => { try { a.pause(); a.currentTime = 0; } catch(e) {} });
+  _celebAudios = [];
   const vid = document.getElementById('vid-celebracao');
   if (vid) vid.remove();
 }
 
 function _ag(fn, delay) {
   _celebTimers.push(setTimeout(fn, delay));
+}
+
+// Toca um arquivo de áudio real; delay opcional em ms
+function _playAudio(src, { loop = false, volume = 1.0, delay = 0 } = {}) {
+  const play = () => {
+    const a = new Audio(src);
+    a.volume = volume;
+    a.loop = loop;
+    a.play().catch(() => {});
+    _celebAudios.push(a);
+    return a;
+  };
+  if (delay > 0) { _ag(play, delay); } else { return play(); }
 }
 
 // Exibe o vídeo de fogos em fullscreen overlay pelo tempo indicado
@@ -6225,49 +6240,42 @@ function mostrarVideoCelebracao(duracao) {
   const v = document.createElement('video');
   v.src = 'video de fogos.mp4';
   v.autoplay = true;
-  v.muted = true;       // áudio vem do Web Audio API
+  v.muted = true;
   v.loop = true;
   v.playsInline = true;
   v.style.cssText = 'width:100%;height:100%;object-fit:cover';
   wrap.appendChild(v);
   document.body.appendChild(wrap);
 
-  // Fade in logo após inserir no DOM
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.style.opacity = '1'; }));
 
-  // Fade out e remove antes de acabar para transição suave
   _ag(() => {
     wrap.style.opacity = '0';
     setTimeout(() => wrap.remove(), 500);
   }, duracao - 500);
 }
 
-// 10 segundos — adição de +1 ponto em uma meta
+// +1 índice numa meta: Fogos + Sino + Palmas (sem vídeo)
 function comemoracao10s() {
   _pararComemoracao();
-  mostrarVideoCelebracao(10000);
-  tocarSomPonto(); tocarSino();
-  for(let t = 2000; t < 10000; t += 2000) _ag(() => tocarPalmas(6), t);
-  for(let t = 4000; t < 10000; t += 4000) _ag(() => tocarSino(), t);
-  _ag(() => tocarSomPonto(), 5000);
+  _playAudio('Fogos.mp3');
+  _playAudio('Sino.mp3',  { delay: 300 });
+  _playAudio('Palmas.mp3', { delay: 800 });
 }
 
-// 30 segundos — meta 100% atingida
+// Meta 100% atingida: vídeo de fogos + Palmas 2 em loop + modal
 function comemoracao30s(nomeMeta) {
   _pararComemoracao();
   mostrarVideoCelebracao(30000);
-  tocarSomCelebracao(); tocarSino(0.7);
+  _playAudio('Palmas 2.mp3', { loop: true });
   _ag(() => mostrarModalParabens(nomeMeta, 22000), 600);
-  for(let t = 2000; t < 30000; t += 2000) _ag(() => tocarPalmas(8), t);
-  for(let t = 3500; t < 30000; t += 3500) _ag(() => tocarSino(0.55), t);
-  for(let t = 5000; t < 30000; t += 5000) _ag(() => tocarSomCelebracao(), t);
 }
 
 async function dispararCelebracao(nomeMetaAlcancada = null) {
-  mostrarVideoCelebracao(nomeMetaAlcancada ? 30000 : 10000);
-  tocarSomCelebracao();
   if (nomeMetaAlcancada) {
-    setTimeout(() => mostrarModalParabens(nomeMetaAlcancada), 800);
+    comemoracao30s(nomeMetaAlcancada);
+  } else {
+    comemoracao10s();
   }
 }
 
