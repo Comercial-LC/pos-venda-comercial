@@ -2517,13 +2517,16 @@ function renderDashboard(){
     nomesInativos.some(n=>(r.status||'').toLowerCase().includes(n))
   ).length;
 
+  const ultimaEhInativa = ['inativo','inativa','perdido','cancelado','churn']
+    .some(n => ultimaEtapa.toLowerCase().includes(n));
   const kpis=[
     {label:'Total de Revendas',  val:rv.length,       cls:'bl',icon:'🏢'},
     {label:'Em Jornada',         val:emJornada,        cls:'gn',icon:'🚀'},
     {label: etapaDecola,         val:decolaProd,       cls:'yw',icon:'📦'},
     {label: penultimaEtapa,      val:primeiroCliente,  cls:'tl',icon:'👤'},
     {label: ultimaEtapa,         val:handoverEtapa,    cls:'pu',icon:'🤝'},
-    {label:'Inativas',           val:inativos,         cls:'rd',icon:'🚫'},
+    // Só adiciona "Inativas" se a última etapa não é já uma etapa inativa
+    ...(!ultimaEhInativa ? [{label:'Inativas', val:inativos, cls:'rd', icon:'🚫'}] : []),
     {label:'Tarefas Atrasadas',  val:tAtras,           cls:'rd',icon:'⚠️'},
   ];
   const kEl=document.getElementById('dash-kpis');
@@ -2870,7 +2873,7 @@ function renderKanban(){
     icon:  e.icon,
     color: e.cor || '#3b82f6',
   }));
-  const PRODUTOS = ['Portal da Revenda','LC Pay','Smart TEF','Imendes','Balcão','Gourmet','Dashboard','Shipay','Força de Vendas'];
+  const PRODUTOS = getProdutos();
 
   const board = document.getElementById('kanban-board');
   if(!board) return;
@@ -3132,7 +3135,8 @@ function kCardClick(e, id){
 
 // ─── Variável do card aberto ────────────────────────────────────────
 let currentCardId = null;
-const PRODUTOS_LIST = ['Portal da Revenda','LC Pay','Smart TEF','Imendes','Balcão','Gourmet','Dashboard','Shipay','Força de Vendas'];
+// PRODUTOS_LIST é dinâmico — sempre reflete o que está em Configurações → Produtos Decola
+function getProdutosList(){ return getProdutos(); }
 const ETAPAS_LIST   = ['Nova Revenda','Implantação','Liberação Web','Academy','Decola Instalação','Decola Produtos','Primeiro Cliente','Handover'];
 const ETAPA_COLORS  = {
   'Nova Revenda':'var(--txt2)','Implantação':'var(--acc)','Liberação Web':'var(--pur)',
@@ -3422,7 +3426,7 @@ function renderCardProdutos(id){
   const prods = rev.produtos||[];
   el.innerHTML = '';
 
-  PRODUTOS_LIST.forEach(p=>{
+  getProdutosList().forEach(p=>{
     const done = prods.includes(p);
     const btn  = document.createElement('button');
     btn.style.cssText = [
@@ -3441,7 +3445,7 @@ function renderCardProdutos(id){
   // Contador
   const cnt = document.createElement('div');
   cnt.style.cssText = 'width:100%;margin-top:8px;font-size:12px;color:var(--txt3)';
-  cnt.textContent = prods.length+'/'+PRODUTOS_LIST.length+' produtos ativados';
+  cnt.textContent = prods.length+'/'+getProdutosList().length+' produtos ativados';
   el.appendChild(cnt);
 }
 
