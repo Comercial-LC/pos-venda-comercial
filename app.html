@@ -395,7 +395,8 @@ select option{background:var(--bg2)}
         <button class="btn btn-sm" style="background:#2d1500;color:#f97316;border:1px solid #f97316;font-size:11px" onclick="batchMove('Decola Produtos')">📦 Decola Prod.</button>
         <button class="btn btn-sm" style="background:var(--okl);color:var(--ok);border:1px solid var(--ok);font-size:11px" onclick="batchMove('Primeiro Cliente')">👤 1º Cliente</button>
         <button class="btn btn-sm" style="background:var(--tell);color:var(--tel);border:1px solid var(--tel);font-size:11px" onclick="batchMove('Handover')">🤝 Handover</button>
-        <button class="btn btn-s btn-sm" style="margin-left:auto;font-size:11px" onclick="clearKbSelection()">✕ Cancelar seleção</button>
+        <button class="btn btn-sm" style="margin-left:auto;background:#14532d;color:#4ade80;border:1px solid #4ade80;font-size:11px" onclick="exportKbSelecao()">📥 Exportar Excel</button>
+        <button class="btn btn-s btn-sm" style="font-size:11px" onclick="clearKbSelection()">✕ Cancelar seleção</button>
       </div>
 
       <div class="kb-scroll-top" id="kb-scroll-top">
@@ -2825,6 +2826,40 @@ async function batchMove(newStatus){
   } else {
     await executar('');
   }
+}
+
+function exportKbSelecao(){
+  if(!kbSelected.size){ toast('Selecione ao menos uma revenda','warn'); return; }
+  if(typeof XLSX === 'undefined'){ toast('Biblioteca XLSX não carregada','err'); return; }
+
+  const selecionadas = (DB.revendas||[]).filter(r => kbSelected.has(r.id));
+
+  const linhas = selecionadas.map(r => ({
+    'Nome':           r.nome        || '',
+    'CNPJ':           r.cnpj        || '',
+    'Cidade':         r.cidade      || '',
+    'UF':             r.uf          || '',
+    'E-mail':         r.email       || '',
+    'Telefone':       r.tel         || '',
+    'Responsável CS': r.cs          || '',
+    'Status':         r.status      || '',
+    'TPC (%)':        r.tpc         ?? '',
+    'Contratos':      r.contratos   ?? '',
+    'Segmento':       r.segmento    || '',
+    'Porte':          r.porte       || '',
+    'Ingresso':       fmtDate(r.ingresso),
+    'Observações':    r.obs         || '',
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  // Ajusta largura das colunas automaticamente
+  const wscols = Object.keys(linhas[0]||{}).map(k => ({ wch: Math.max(k.length, 14) }));
+  ws['!cols'] = wscols;
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Seleção Pipeline');
+  XLSX.writeFile(wb, `pipeline-selecao-${selecionadas.length}-revendas.xlsx`);
+  toast(`✅ ${selecionadas.length} revenda(s) exportada(s)!`);
 }
 
 function renderKanban(){
