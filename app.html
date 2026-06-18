@@ -2497,8 +2497,12 @@ function renderDashboard(){
   const tpcMed=tpcs.length?Math.round(tpcs.reduce((a,b)=>a+b,0)/tpcs.length):0;
   // Usa etapas configuradas — suporta nomes personalizados
   const etapas = getEtapas();
-  const ultimaEtapa    = etapas[etapas.length-1]?.id || 'Handover';
-  const penultimaEtapa = etapas[etapas.length-2]?.id || 'Primeiro Cliente';
+  const _etUltima    = etapas[etapas.length-1] || {};
+  const _etPenult    = etapas[etapas.length-2] || {};
+  const _etDecola    = etapas[etapas.length-3] || {};
+  const ultimaEtapa    = _etUltima.id    || 'Handover';
+  const penultimaEtapa = _etPenult.id    || 'Primeiro Cliente';
+  const etapaDecola    = _etDecola.id    || 'Decola Produtos';
 
   const emJornada = rv.filter(r=>{
     const s = (r.status||'').toLowerCase();
@@ -2507,27 +2511,23 @@ function renderDashboard(){
   }).length;
   const primeiroCliente = rv.filter(r=>r.status===penultimaEtapa).length;
   const handoverEtapa   = rv.filter(r=>r.status===ultimaEtapa).length;
-  // Conta todas etapas intermediárias (Decola Produtos = 6ª etapa padrão)
-  const etapaDecola = etapas[etapas.length-3]?.id || 'Decola Produtos';
-  const decolaProd  = rv.filter(r=>r.status===etapaDecola).length;
+  const decolaProd      = rv.filter(r=>r.status===etapaDecola).length;
 
-  // Conta revendas inativas (qualquer etapa com nome inativo)
   const nomesInativos = ['inativo','inativa','perdido','cancelado','churn'];
   const inativos = rv.filter(r=>
     nomesInativos.some(n=>(r.status||'').toLowerCase().includes(n))
   ).length;
 
-  const ultimaEhInativa = ['inativo','inativa','perdido','cancelado','churn']
-    .some(n => ultimaEtapa.toLowerCase().includes(n));
+  const ultimaEhInativa = nomesInativos.some(n => ultimaEtapa.toLowerCase().includes(n));
   const kpis=[
-    {label:'Total de Revendas',  val:rv.length,       cls:'bl',icon:'🏢'},
-    {label:'Em Jornada',         val:emJornada,        cls:'gn',icon:'🚀'},
-    {label: etapaDecola,         val:decolaProd,       cls:'yw',icon:'📦'},
-    {label: penultimaEtapa,      val:primeiroCliente,  cls:'tl',icon:'👤'},
-    {label: ultimaEtapa,         val:handoverEtapa,    cls:'pu',icon:'🤝'},
-    // Só adiciona "Inativas" se a última etapa não é já uma etapa inativa
+    {label:'Total de Revendas',  val:rv.length,       cls:'bl', icon:'🏢'},
+    {label:'Em Jornada',         val:emJornada,        cls:'gn', icon:'🚀'},
+    {label: etapaDecola,         val:decolaProd,       cls:'yw', icon: _etDecola.icon || '📦'},
+    {label: penultimaEtapa,      val:primeiroCliente,  cls:'tl', icon: _etPenult.icon || '👤'},
+    {label: ultimaEtapa,         val:handoverEtapa,    cls: ultimaEhInativa ? 'rd' : 'pu',
+                                                       icon: _etUltima.icon || (ultimaEhInativa ? '🚫' : '🤝')},
     ...(!ultimaEhInativa ? [{label:'Inativas', val:inativos, cls:'rd', icon:'🚫'}] : []),
-    {label:'Tarefas Atrasadas',  val:tAtras,           cls:'rd',icon:'⚠️'},
+    {label:'Tarefas Atrasadas',  val:tAtras,           cls:'rd', icon:'⚠️'},
   ];
   const kEl=document.getElementById('dash-kpis');
   if(kEl)kEl.innerHTML=kpis.map(k=>`<div class="mc ${k.cls}"><div style="font-size:24px;margin-bottom:8px">${safe(k.icon)}</div><div class="mv">${k.val}</div><div class="ml">${safe(k.label)}</div></div>`).join('');
