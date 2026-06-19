@@ -6070,28 +6070,34 @@ function initApp(){
   initAuth().then(async ok=>{
     if(!ok) return;
 
-    // ── PASSO 0: Config local (localStorage, sem rede) e backup ──
-    // getCfg() já lê localStorage como fallback — sem await necessário
+    // ── PASSO 0: Dados do cache local (sem rede, instantâneo) ────
+    // getCfg() usa localStorage como fallback — disponível sem rede
     aplicarConfigsSalvas();
     try {
       const backup = sessionStorage.getItem('sb_revendas_backup');
       if(backup){
-        DB.revendas  = JSON.parse(backup);
+        DB.revendas   = JSON.parse(backup);
         DB._carregado = true;
         renderDashboard();
       }
     } catch(e){}
 
-    // ── PASSO 1: Config + dados frescos em paralelo ───────────
-    await Promise.all([
-      carregarCfgDoSupabase().then(()=>{ aplicarConfigsSalvas(); }).catch(()=>{}),
-      loadFromSupabase().catch(e=>{ console.error('Erro loadFromSupabase:', e); })
-    ]);
+    // ── PASSO 1: Dispara loadFromSupabase já — não espera a config ──
+    // carregarCfgDoSupabase é rápido (1 query); loadFromSupabase é pesado
+    // Ambos correm em paralelo mas a config termina primeiro normalmente
+    const loadPromise = loadFromSupabase()
+      .then(()=>{ renderDashboard(); })   // re-renderiza assim que dados chegam
+      .catch(e=>{ console.error('Erro loadFromSupabase:', e); });
 
-    // ── PASSO 2: Migra status antigos se necessário ───────────
+    await carregarCfgDoSupabase();
+    aplicarConfigsSalvas();
+    if(DB._carregado) renderDashboard();  // re-renderiza com config atualizada
+
+    // ── PASSO 2: Aguarda dados frescos ───────────────────────────
+    await loadPromise;
+
+    // ── PASSO 3: Migra e renderiza estado final ───────────────────
     if(DB.revendas.length > 0) await migrateRevendasStatus();
-
-    // ── PASSO 3: Renderiza com dados completos ────────────────
     renderDashboard();
     updateCurrentUser();
     renderImport();
