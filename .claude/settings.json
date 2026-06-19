@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit -m 'fix: motivos visiveis em relatorios e em configuracoes *)",
+      "Bash(git commit -m 'fix: form nova revenda limpa campos e UF com todos os 27 estados *)",
+      "Bash(git commit -m 'fix: KPI inativo duplicado e produtos dos cards dinamicos *)",
+      "Bash(git commit -m 'fix: icone dos KPIs usa icone real da etapa configurada *)"
+    ]
+  }
+}
