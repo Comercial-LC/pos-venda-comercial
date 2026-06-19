@@ -6067,41 +6067,31 @@ function migrateRevendasStatus(){
 
 // ─── Init ──────────────────────────────────────────────────────────
 function initApp(){
-  // Fluxo correto e sequencial:
-  // 1. Autentica
-  // 2. Restaura backup imediato (usuário vê dados enquanto carrega)
-  // 3. Carrega dados frescos do Supabase
-  // 4. Renderiza
   initAuth().then(async ok=>{
     if(!ok) return;
 
-    // ── PASSO 0: Carrega configurações do Supabase e aplica ──
-    await carregarCfgDoSupabase();
+    // ── PASSO 0: Config local (localStorage, sem rede) e backup ──
+    // getCfg() já lê localStorage como fallback — sem await necessário
     aplicarConfigsSalvas();
-
-    // ── PASSO 1: Restaura backup imediatamente ────────────────
-    // Usuário vê os dados na tela enquanto o banco carrega
     try {
       const backup = sessionStorage.getItem('sb_revendas_backup');
       if(backup){
         DB.revendas  = JSON.parse(backup);
         DB._carregado = true;
         renderDashboard();
-        console.log('📦 Backup:', DB.revendas.length, 'revendas (exibido enquanto carrega banco)');
       }
     } catch(e){}
 
-    // ── PASSO 2: Carrega dados frescos do Supabase ────────────
-    try {
-      await loadFromSupabase();
-    } catch(e){
-      console.error('Erro loadFromSupabase:', e);
-    }
+    // ── PASSO 1: Config + dados frescos em paralelo ───────────
+    await Promise.all([
+      carregarCfgDoSupabase().then(()=>{ aplicarConfigsSalvas(); }).catch(()=>{}),
+      loadFromSupabase().catch(e=>{ console.error('Erro loadFromSupabase:', e); })
+    ]);
 
-    // ── PASSO 3: Migra status antigos se necessário ───────────
+    // ── PASSO 2: Migra status antigos se necessário ───────────
     if(DB.revendas.length > 0) await migrateRevendasStatus();
 
-    // ── PASSO 4: Renderiza com dados completos ────────────────
+    // ── PASSO 3: Renderiza com dados completos ────────────────
     renderDashboard();
     updateCurrentUser();
     renderImport();
