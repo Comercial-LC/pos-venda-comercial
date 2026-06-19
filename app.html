@@ -6070,9 +6070,11 @@ function initApp(){
   initAuth().then(async ok=>{
     if(!ok) return;
 
-    // ── PASSO 0: Dados do cache local (sem rede, instantâneo) ────
-    // getCfg() usa localStorage como fallback — disponível sem rede
+    // ── PASSO 0: Configuração local (localStorage, zero rede) ────────
+    await carregarCfgDoSupabase().catch(()=>{});
     aplicarConfigsSalvas();
+
+    // ── PASSO 1: Mostra backup enquanto dados frescos carregam ────────
     try {
       const backup = sessionStorage.getItem('sb_revendas_backup');
       if(backup){
@@ -6082,23 +6084,17 @@ function initApp(){
       }
     } catch(e){}
 
-    // ── PASSO 1: Dispara loadFromSupabase já — não espera a config ──
-    // carregarCfgDoSupabase é rápido (1 query); loadFromSupabase é pesado
-    // Ambos correm em paralelo mas a config termina primeiro normalmente
-    const loadPromise = loadFromSupabase()
-      .then(()=>{ renderDashboard(); })   // re-renderiza assim que dados chegam
-      .catch(e=>{ console.error('Erro loadFromSupabase:', e); });
+    // ── PASSO 2: Dados frescos do Supabase ───────────────────────────
+    try {
+      await loadFromSupabase();
+    } catch(e){
+      console.error('Erro loadFromSupabase:', e);
+      DB._carregado = true; // evita loop de retry infinito
+    }
 
-    await carregarCfgDoSupabase();
-    aplicarConfigsSalvas();
-    if(DB._carregado) renderDashboard();  // re-renderiza com config atualizada
-
-    // ── PASSO 2: Aguarda dados frescos ───────────────────────────
-    await loadPromise;
-
-    // ── PASSO 3: Migra e renderiza estado final ───────────────────
+    // ── PASSO 3: Renderiza tudo com dados reais ───────────────────────
     if(DB.revendas.length > 0) await migrateRevendasStatus();
-    renderDashboard();
+    go('dashboard');          // garante painel ativo + re-renderiza
     updateCurrentUser();
     renderImport();
 
