@@ -2131,6 +2131,7 @@ async function loadFromSupabase(){
       const backup = sessionStorage.getItem('sb_revendas_backup');
       if(backup) DB.revendas = JSON.parse(backup);
     }
+    DB._carregado = true; // evita loop de retry infinito no renderDashboard
   }
 }
 
@@ -6093,10 +6094,16 @@ function initApp(){
     }
 
     // ── PASSO 3: Renderiza tudo com dados reais ───────────────────────
+    DB._carregado = true;     // garante que renderDashboard não fica em retry loop
     if(DB.revendas.length > 0) await migrateRevendasStatus();
-    go('dashboard');          // garante painel ativo + re-renderiza
-    updateCurrentUser();
-    renderImport();
+
+    // setTimeout(0) empurra para macrotask — browser pinta antes de executar
+    // (sem isso, o render fica numa microtask e o browser pode não pintar)
+    setTimeout(()=>{
+      go('dashboard');
+      updateCurrentUser();
+      renderImport();
+    }, 0);
 
     // ── PASSO 5: Inicia canais Orion (metas + leads) ──────────
     // NÃO inicia realtime de revendas — causava sumiço de dados
