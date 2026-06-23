@@ -2207,8 +2207,13 @@ function normalizeHandover(h){
 
 // persist() agora salva no Supabase
 async function persist(tabela, id, dados){
-  // Compatibilidade: persist('revendas') sem args → recarrega
-  if(!id){ await loadFromSupabase(); return; }
+  // Compatibilidade: persist('revendas') sem args → recarrega e re-renderiza
+  if(!id){
+    await loadFromSupabase();
+    const panel = document.querySelector('.panel.on')?.id?.replace('p-','');
+    if(panel) renderPanel(panel);
+    return;
+  }
 }
 
 // Realtime: atualiza cache quando Supabase muda
@@ -6046,12 +6051,14 @@ async function executarLimpeza(){
 
 // ─── Migração de status das revendas importadas ─────────────────────
 function migrateRevendasStatus(){
+  const etapasAtuais = new Set(getEtapas().map(e => e.id));
   const oldStatuses = ['Onboarding','Trial','Ativo','Inativo','Concluído'];
   let changed = 0;
   DB.revendas.forEach(r=>{
-    // Só migra se o status ainda for um dos antigos OU estiver vazio
+    // Não migra se já é uma etapa atual válida (ex: 'Inativo' é etapa válida)
+    if(etapasAtuais.has(r.status)) return;
     const isOld = !r.status || oldStatuses.includes(r.status);
-    if(!isOld) return; // já tem etapa nova, não mexe
+    if(!isOld) return;
     const contratos = parseInt(r.contratos||'0', 10) || 0;
     if(contratos > 0){
       r.status = 'Handover';
