@@ -3284,12 +3284,12 @@ async function renderCardHistorico(id){
       <div style="font-size:18px;flex-shrink:0">${icon}</div>
       <div style="flex:1;min-width:0">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-          <div style="font-size:12px;font-weight:500;color:var(--txt)">${h.tipo}</div>
+          <div style="font-size:12px;font-weight:500;color:var(--txt)">${safe(h.tipo)}</div>
           <div style="font-size:10px;color:var(--txt3);white-space:nowrap">${dt}</div>
         </div>
-        <div style="font-size:12px;color:var(--txt2);margin-top:3px;line-height:1.5">${h.desc}</div>
+        <div style="font-size:12px;color:var(--txt2);margin-top:3px;line-height:1.5">${safe(h.desc)}</div>
         <div style="font-size:10px;color:var(--txt3);margin-top:3px">
-          ${h.usuario_nome ? '👤 '+h.usuario_nome : ''}
+          ${h.usuario_nome ? '👤 '+safe(h.usuario_nome) : ''}
           ${isManual?'· <span style="color:var(--pur)">✏️ Anotação manual</span>':''}
         </div>
       </div>
@@ -3365,7 +3365,7 @@ function renderCardInfo(id){
   campos.forEach(function(c){
     html += '<div style="padding:12px;background:var(--bg2);border-radius:var(--r);border:1px solid var(--bdr)">';
     html += '<div style="font-size:10px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">' + c[0] + '</div>';
-    html += '<div style="font-size:13px;font-weight:500">' + (c[1]||'—') + '</div>';
+    html += '<div style="font-size:13px;font-weight:500">' + safe(c[1]||'—') + '</div>';
     html += '</div>';
   });
   html += '</div>';
@@ -3755,8 +3755,8 @@ function renderHandover(){
     const stLbl=h.status==='Concluído'?'Concluído':atras?'Atrasado':'Em andamento';
     const stCls=h.status==='Concluído'?'st-dn':atras?'st-off':'st-on';
     return`<tr>
-      <td class="tdp">${h.revenda}</td>
-      <td>${h.cs||'—'}</td>
+      <td class="tdp">${safe(h.revenda)}</td>
+      <td>${safe(h.cs||'—')}</td>
       <td style="font-size:11px">${fmtDate(h.inicio)}</td>
       <td style="font-size:11px">${fmtDate(h.prazo)}</td>
       <td><div style="display:flex;align-items:center;gap:6px"><div class="pbar" style="width:120px"><div class="pfill" style="width:${h.progresso}%;background:var(--acc)"></div></div><span style="font-size:11px">${h.progresso}%</span></div></td>
@@ -3776,7 +3776,7 @@ function showHandoverDetail(id){
   const items=[{k:'contrato',l:'Contrato de parceria assinado'},{k:'docs',l:'Documentação técnica entregue'},{k:'credenciais',l:'Credenciais de acesso configuradas'},{k:'treinamento',l:'Treinamento final certificado'},{k:'nps',l:'NPS de implantação coletado'}];
   const done=items.filter(i=>h.checklist[i.k]).length;
   const pct=Math.round(done/items.length*100);
-  area.innerHTML=`<div class="ch"><div><div class="ct">Checklist — ${h.revenda}</div><div class="cs">CS: ${h.cs||'—'} · Prazo: ${fmtDate(h.prazo)}</div></div><span class="badge bg-acc">${pct}% concluído</span></div>
+  area.innerHTML=`<div class="ch"><div><div class="ct">Checklist — ${safe(h.revenda)}</div><div class="cs">CS: ${safe(h.cs||'—')} · Prazo: ${fmtDate(h.prazo)}</div></div><span class="badge bg-acc">${pct}% concluído</span></div>
     <div class="pbar" style="margin-bottom:14px"><div class="pfill" style="width:${pct}%;background:var(--acc)"></div></div>
     <div style="display:flex;flex-direction:column;gap:8px">
       ${items.map(item=>`<label class="cb"><input type="checkbox" ${h.checklist[item.k]?'checked':''} onchange="toggleHandoverCheck('${id}','${item.k}',this.checked)"> ${item.l}</label>`).join('')}
@@ -5877,9 +5877,9 @@ async function renderAuditoria(){
   }
   const acaoColor={LOGIN:'var(--ok)',LOGOUT:'var(--txt2)',CREATE:'var(--acc)',UPDATE:'var(--warn)',DELETE:'var(--err)',EXPORT:'var(--pur)',VIEW_CNPJ:'#f97316'};
   tb.innerHTML=data.map(a=>`<tr>
-    <td><div style="font-size:12px;font-weight:500">${a.usuario_nome||'—'}</div><div style="font-size:10px;color:var(--txt3)">${a.usuario_email||''}</div></td>
-    <td><span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:${acaoColor[a.acao]||'var(--txt3)'}22;color:${acaoColor[a.acao]||'var(--txt3)'}">${a.acao}</span></td>
-    <td style="font-size:11px;color:var(--txt2)">${a.tabela||'—'}</td>
+    <td><div style="font-size:12px;font-weight:500">${safe(a.usuario_nome||'—')}</div><div style="font-size:10px;color:var(--txt3)">${safe(a.usuario_email||'')}</div></td>
+    <td><span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:${acaoColor[a.acao]||'var(--txt3)'}22;color:${acaoColor[a.acao]||'var(--txt3)'}">${safe(a.acao)}</span></td>
+    <td style="font-size:11px;color:var(--txt2)">${safe(a.tabela||'—')}</td>
     <td style="font-size:11px;color:var(--txt2);max-width:180px;overflow:hidden;text-overflow:ellipsis">${a.detalhe?safe(JSON.stringify(a.detalhe).slice(0,60)):'—'}</td>
     <td style="font-size:11px;white-space:nowrap">${new Date(a.criado_em).toLocaleString('pt-BR')}</td>
   </tr>`).join('');
