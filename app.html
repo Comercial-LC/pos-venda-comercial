@@ -1418,21 +1418,35 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
 let sessaoAtual = null;
 let perfilAtual = null;
 
-// Controle de tempo de sessão: 4h para usuários comuns, 8h para Dashboard TV
-function iniciarControleSession(perfil, userId){
+// Controle de tempo de sessão: 4h para usuários comuns, TV recarrega automaticamente
+function iniciarControleSession(perfil, userId, session){
   const chave = `portal_sessao_${userId}`;
   const agora = Date.now();
-  let loginAt = parseInt(localStorage.getItem(chave) || '0');
-  if(!loginAt || isNaN(loginAt)){
-    loginAt = agora;
-    localStorage.setItem(chave, String(loginAt));
-  }
   const ehTV = perfil.perfil === 'Dashboard TV';
   const limiteMs = (ehTV ? 8 : 4) * 3600000;
+
+  // Âncora: last_sign_in_at do Supabase evita loginAt obsoleto do localStorage
+  // (ex: browser fechado sem logout → localStorage com valor antigo de dias atrás)
+  const sbLoginAt = session?.user?.last_sign_in_at
+    ? new Date(session.user.last_sign_in_at).getTime()
+    : 0;
+
+  let loginAt = parseInt(localStorage.getItem(chave) || '0');
+  // Se localStorage está vazio, inválido ou mais antigo que o último login Supabase → reseta
+  if(!loginAt || isNaN(loginAt) || (sbLoginAt && loginAt < sbLoginAt)){
+    loginAt = sbLoginAt || agora;
+    localStorage.setItem(chave, String(loginAt));
+  }
+
   const restante = limiteMs - (agora - loginAt);
   if(restante <= 0){
     localStorage.removeItem(chave);
-    sb.auth.signOut().then(()=> window.location.replace('./index.html'));
+    if(ehTV){
+      // TV nunca faz logout: recarrega para renovar o timer (sessão Supabase permanece ativa)
+      window.location.reload();
+    } else {
+      sb.auth.signOut().then(()=> window.location.replace('./index.html'));
+    }
     return;
   }
   // Aviso 5 min antes para usuários comuns
@@ -1440,22 +1454,14 @@ function iniciarControleSession(perfil, userId){
     const avisoMs = restante - 300000;
     if(avisoMs > 0) setTimeout(()=> toast('⚠️ Sua sessão expira em 5 minutos. Salve o que estiver fazendo.','warn'), avisoMs);
   }
-  // Logout automático ao expirar
+  // Expiração da sessão
   setTimeout(async ()=>{
     localStorage.removeItem(chave);
-    await sb.auth.signOut();
     if(ehTV){
-      document.body.innerHTML = `<div style="position:fixed;inset:0;background:#0A0A0F;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;z-index:99999">
-        <div style="font-size:64px">⏰</div>
-        <div style="color:#F5F5FF;font-size:28px;font-weight:700">Sessão de 8h encerrada</div>
-        <div style="color:#9999BB;font-size:16px">Redirecionando para o login em <span id="cv">10</span> segundos...</div>
-      </div>`;
-      let n=10;
-      const iv=setInterval(()=>{
-        const el=document.getElementById('cv'); if(el) el.textContent=--n;
-        if(n<=0){clearInterval(iv); window.location.replace('./index.html');}
-      },1000);
+      // TV recarrega automaticamente (não faz signOut — Supabase mantém a sessão)
+      window.location.reload();
     } else {
+      await sb.auth.signOut();
       window.location.replace('./index.html');
     }
   }, restante);
@@ -1478,7 +1484,7 @@ async function initAuth(){
   document.getElementById('currentUserAv').textContent  = perfil.avatar_iniciais||perfil.nome.slice(0,2).toUpperCase();
   document.getElementById('currentUserName').textContent = perfil.nome;
   document.getElementById('currentUserRole').textContent = perfil.perfil;
-  iniciarControleSession(perfil, session.user.id);
+  iniciarControleSession(perfil, session.user.id, session);
   aplicarPermissoes(perfil);
   return true;
 }
