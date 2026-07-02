@@ -1440,11 +1440,14 @@ function iniciarControleSession(perfil, userId, session){
 
   const restante = limiteMs - (agora - loginAt);
   if(restante <= 0){
-    localStorage.removeItem(chave);
     if(ehTV){
-      // TV nunca faz logout: recarrega para renovar o timer (sessão Supabase permanece ativa)
+      // Grava loginAt = agora ANTES do reload para evitar loop infinito.
+      // Se apenas removêssemos a chave, após reload sbLoginAt (8h atrás) seria usado
+      // como âncora → restante = 0 → reload de novo → loop eterno.
+      localStorage.setItem(chave, String(agora));
       window.location.reload();
     } else {
+      localStorage.removeItem(chave);
       sb.auth.signOut().then(()=> window.location.replace('./index.html'));
     }
     return;
@@ -1456,11 +1459,12 @@ function iniciarControleSession(perfil, userId, session){
   }
   // Expiração da sessão
   setTimeout(async ()=>{
-    localStorage.removeItem(chave);
     if(ehTV){
-      // TV recarrega automaticamente (não faz signOut — Supabase mantém a sessão)
+      // Idem: salva timestamp atual antes de recarregar para evitar loop
+      localStorage.setItem(chave, String(Date.now()));
       window.location.reload();
     } else {
+      localStorage.removeItem(chave);
       await sb.auth.signOut();
       window.location.replace('./index.html');
     }
