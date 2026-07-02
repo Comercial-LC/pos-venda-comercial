@@ -1887,7 +1887,7 @@ async function renderTVDashboard(){
   const nomesInatTv = ['inativo','inativa','perdido','cancelado','churn'];
   const todosKpis = [];
 
-  if(tvCfg.kpiTotal)   todosKpis.push({icon:'🏢', label:'Total de Revendas', val:rv.length,  cor:'var(--acc)'});
+  if(tvCfg.kpiTotal)   todosKpis.push({icon:'🏢', label:'Total de Revendas', val:rv.length-tvInativos, cor:'var(--acc)'});
   if(tvCfg.kpiJornada) todosKpis.push({icon:'🚀', label:'Em Jornada',        val:emJornada,  cor:'var(--ok)'});
 
   // Etapas selecionadas individualmente
@@ -2536,7 +2536,7 @@ function renderDashboard(){
 
   const ultimaEhInativa = nomesInativos.some(n => ultimaEtapa.toLowerCase().includes(n));
   const kpis=[
-    {label:'Total de Revendas',  val:rv.length,       cls:'bl', icon:'🏢'},
+    {label:'Total de Revendas',  val:rv.length-inativos, cls:'bl', icon:'🏢'},
     {label:'Em Jornada',         val:emJornada,        cls:'gn', icon:'🚀'},
     {label: etapaDecola,         val:decolaProd,       cls:'yw', icon: _etDecola.icon || '📦'},
     {label: penultimaEtapa,      val:primeiroCliente,  cls:'tl', icon: _etPenult.icon || '👤'},
@@ -2906,6 +2906,8 @@ function renderKanban(){
   board.innerHTML = COLS.map(col => {
     const cards = DB.revendas.filter(r => r.status === col.id && matchesKbFilter(r, f));
     const totalCol = DB.revendas.filter(r => r.status === col.id).length;
+    const _nomesInat = ['inativo','inativa','perdido','cancelado','churn'];
+    const ehColInativa = _nomesInat.some(n => col.id.toLowerCase().includes(n));
 
     const cardsHTML = cards.length
       ? cards.map(r => {
@@ -2926,9 +2928,7 @@ function renderKanban(){
               <div style="font-size:10px;color:var(--txt3);margin-top:5px">${(r.produtos||[]).length}/${PRODUTOS.length} produtos</div>`
             : '';
           // Barra de progresso por etapa
-          // Detecta etapa inativa pelo nome (contém Inativo/Perdido/Cancelado/Churn)
-          const nomeInativo = ['inativo','inativa','perdido','cancelado','churn'];
-          const ehInativa   = nomeInativo.some(n => col.id.toLowerCase().includes(n));
+          const ehInativa = ehColInativa;
           let pct, barColor;
           if(ehInativa){
             // Inativo: barra vermelha 0%
@@ -2980,38 +2980,52 @@ function renderKanban(){
           ${f.search||f.cs||f.dateFrom||f.dateTo||f.contratos ? 'Nenhum resultado' : 'Nenhuma revenda'}
          </div>`;
 
-    return `<div class="kc" data-col="${safe(col.id)}"
+    return `<div class="kc" data-col="${safe(col.id)}" data-collapsed="${ehColInativa}"
         ondragover="kDragOver(event)"
         ondragenter="kDragEnter(event,'${encodeURIComponent(col.id)}')"
         ondragleave="kDragLeave(event)"
         ondrop="kDrop(event,'${encodeURIComponent(col.id)}')"
-        style="transition:background .15s;min-width:230px;width:230px;max-height:calc(100vh - 200px);display:flex;flex-direction:column">
-      <div style="margin-bottom:10px">
+        style="transition:background .15s;min-width:230px;width:230px;${ehColInativa?'':'max-height:calc(100vh - 200px);'}display:flex;flex-direction:column">
+      <div style="margin-bottom:${ehColInativa?'0':'10px'};${ehColInativa?'cursor:pointer;border-radius:var(--r);padding:4px;margin:-4px;':''}"
+        ${ehColInativa?`onclick="toggleKanbanCol(this.parentElement)"`  :''}>
         <div style="display:flex;align-items:center;justify-content:space-between">
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:14px">${safe(col.icon)}</span>
             <span style="font-size:12px;font-weight:700;color:${col.color}">${safe(col.id)}</span>
             <span class="kcc">${totalCol}</span>
             ${cards.length !== totalCol ? `<span style="font-size:10px;color:var(--warn)">(${cards.length} filtradas)</span>` : ''}
+            ${ehColInativa ? `<span class="kc-hint" style="font-size:10px;color:var(--txt3)">▶ clique para ver</span>` : ''}
           </div>
-          <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--txt3);cursor:pointer">
+          ${!ehColInativa ? `<label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--txt3);cursor:pointer">
             <input type="checkbox" style="width:13px;height:13px;accent-color:var(--acc)"
               onchange="selectAllInCol(decodeURIComponent('${encodeURIComponent(col.id)}'),this.checked)"> todos
-          </label>
+          </label>` : ''}
         </div>
         <div class="pbar" style="margin-top:6px;height:3px">
           <div class="pfill" style="width:${totalCol>0?100:0}%;background:${col.color};opacity:0.4"></div>
         </div>
       </div>
       <div class="k-cards" data-col="${safe(col.id)}"
-        style="display:flex;flex-direction:column;gap:8px;flex:1;min-height:60px;overflow-y:auto;overflow-x:hidden;padding:0 2px 4px;scrollbar-width:thin;scrollbar-color:var(--bdr2) transparent">
+        style="display:${ehColInativa?'none':'flex'};flex-direction:column;gap:8px;flex:1;min-height:60px;overflow-y:auto;overflow-x:hidden;padding:0 2px 4px;scrollbar-width:thin;scrollbar-color:var(--bdr2) transparent">
         ${cardsHTML}
       </div>
-      <button class="btn btn-s btn-sm"
+      ${!ehColInativa ? `<button class="btn btn-s btn-sm"
         style="width:calc(100% - 4px);margin:4px 2px 2px;justify-content:center;font-size:11px;flex-shrink:0"
-        onclick="openMo('mo-rev')">+ Adicionar</button>
+        onclick="openMo('mo-rev')">+ Adicionar</button>` : ''}
     </div>`;
   }).join('');
+}
+
+function toggleKanbanCol(kc){
+  if(!kc) return;
+  const isCollapsed = kc.dataset.collapsed === 'true';
+  const cards = kc.querySelector('.k-cards');
+  const hint  = kc.querySelector('.kc-hint');
+  if(cards) cards.style.display = isCollapsed ? 'flex' : 'none';
+  if(hint)  hint.textContent    = isCollapsed ? '▼ ocultar' : '▶ clique para ver';
+  kc.dataset.collapsed = String(!isCollapsed);
+  if(!isCollapsed) kc.style.maxHeight = '';
+  else             kc.style.maxHeight = 'calc(100vh - 200px)';
 }
 
 function selectAllInCol(col, checked){
