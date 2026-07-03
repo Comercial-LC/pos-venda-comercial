@@ -2937,7 +2937,7 @@ function renderKanban(){
             barColor = '#ef4444';
           } else {
             // Etapas ativas: progresso linear 0% → 100%
-            const colsAtivas  = COLS.filter(c => !nomeInativo.some(n=>c.id.toLowerCase().includes(n)));
+            const colsAtivas  = COLS.filter(c => !_nomesInat.some(n=>c.id.toLowerCase().includes(n)));
             const etapaIdx    = colsAtivas.findIndex(c=>c.id===col.id);
             const totalAtivas = colsAtivas.length;
             pct      = totalAtivas > 1 ? Math.round((etapaIdx/(totalAtivas-1))*100) : 100;
