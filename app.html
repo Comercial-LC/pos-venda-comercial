@@ -92,6 +92,7 @@ tr:hover td{background:var(--card2)}
 .kc{min-width:250px;width:250px;background:var(--bg2);border-radius:var(--rl);padding:14px;display:flex;flex-direction:column;gap:8px}
 .kch{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
 .kct{font-size:13px;font-weight:600}.kcc{background:var(--bdr);color:var(--txt2);padding:2px 8px;border-radius:20px;font-size:11px}
+.kc[data-collapsed="true"] .k-cards{display:none!important}
 .k-cards::-webkit-scrollbar{width:4px}
 .k-cards::-webkit-scrollbar-track{background:transparent}
 .k-cards::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:4px}
@@ -2986,7 +2987,7 @@ function renderKanban(){
         ondragleave="kDragLeave(event)"
         ondrop="kDrop(event,'${encodeURIComponent(col.id)}')"
         style="transition:background .15s;min-width:230px;width:230px;${ehColInativa?'':'max-height:calc(100vh - 200px);'}display:flex;flex-direction:column">
-      <div style="margin-bottom:${ehColInativa?'0':'10px'};${ehColInativa?'cursor:pointer;border-radius:var(--r);padding:4px;margin:-4px;':''}"
+      <div style="margin-bottom:${ehColInativa?'2px':'10px'};${ehColInativa?'cursor:pointer;':''}user-select:none"
         ${ehColInativa?`onclick="toggleKanbanCol(this.parentElement)"`  :''}>
         <div style="display:flex;align-items:center;justify-content:space-between">
           <div style="display:flex;align-items:center;gap:6px">
