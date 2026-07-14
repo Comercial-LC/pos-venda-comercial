@@ -240,6 +240,7 @@ select option{background:var(--bg2)}
     <div class="nav-sec">Gestão</div>
     <div class="nav-it" onclick="go('tarefas')"><span class="nav-ic">✅</span><span class="nav-label">Tarefas</span></div>
     <div class="nav-it" onclick="go('metas')"><span class="nav-ic">🎯</span><span class="nav-label">Metas</span></div>
+    <div class="nav-it" onclick="go('whatsapp')"><span class="nav-ic">💬</span><span class="nav-label">WhatsApp</span></div>
     <div class="nav-sec">Dados</div>
     <div class="nav-it" onclick="go('relatorios')"><span class="nav-ic">📈</span><span class="nav-label">Relatórios</span></div>
     <div class="nav-it" onclick="go('importacao')"><span class="nav-ic">📥</span><span class="nav-label">Importação Excel</span></div>
@@ -474,6 +475,28 @@ select option{background:var(--bg2)}
             </thead>
             <tbody id="metas-historico-tbody"></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- WHATSAPP -->
+    <div class="panel" id="p-whatsapp">
+      <div style="font-size:19px;font-weight:700;margin-bottom:4px">💬 WhatsApp</div>
+      <div style="font-size:12px;color:var(--txt3);margin-bottom:16px">Conversas das revendas via WhatsApp</div>
+      <div style="display:grid;grid-template-columns:300px 1fr;border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;height:calc(100vh - 165px)">
+        <!-- Lista de conversas -->
+        <div style="border-right:1px solid var(--bdr);display:flex;flex-direction:column;background:var(--bg)">
+          <div style="padding:10px 12px;border-bottom:1px solid var(--bdr)">
+            <input type="text" id="wa-search" placeholder="🔍 Buscar revenda..." oninput="filtrarWaList()" style="width:100%;padding:8px 10px;font-size:13px;border-radius:var(--r);border:1px solid var(--bdr);background:var(--bg2);color:var(--txt);box-sizing:border-box">
+          </div>
+          <div id="wa-conv-items" style="flex:1;overflow-y:auto"></div>
+        </div>
+        <!-- Thread de mensagens -->
+        <div style="display:flex;flex-direction:column;background:var(--bg2)">
+          <div id="wa-thread-header" style="padding:12px 18px;border-bottom:1px solid var(--bdr);background:var(--bg);min-height:56px;display:flex;align-items:center;gap:12px">
+            <div style="color:var(--txt3);font-size:13px">Selecione uma conversa à esquerda</div>
+          </div>
+          <div id="wa-thread-msgs" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px"></div>
         </div>
       </div>
     </div>
@@ -1135,6 +1158,7 @@ select option{background:var(--bg2)}
         <button class="card-tab on" onclick="switchCardTab('historico',this)" style="padding:12px 16px;font-size:13px;font-weight:500;border:none;background:none;color:var(--acc);border-bottom:2px solid var(--acc);cursor:pointer">📋 Histórico</button>
         <button class="card-tab" onclick="switchCardTab('info',this)" style="padding:12px 16px;font-size:13px;font-weight:500;border:none;background:none;color:var(--txt2);border-bottom:2px solid transparent;cursor:pointer">ℹ️ Informações</button>
         <button class="card-tab" onclick="switchCardTab('produtos',this)" style="padding:12px 16px;font-size:13px;font-weight:500;border:none;background:none;color:var(--txt2);border-bottom:2px solid transparent;cursor:pointer">📦 Produtos</button>
+        <button class="card-tab" onclick="switchCardTab('whatsapp',this);renderCardWhatsapp(currentCardId)" style="padding:12px 16px;font-size:13px;font-weight:500;border:none;background:none;color:var(--txt2);border-bottom:2px solid transparent;cursor:pointer">💬 WhatsApp</button>
       </div>
 
       <!-- Aba Histórico -->
@@ -1168,6 +1192,13 @@ select option{background:var(--bg2)}
       <div id="card-tab-produtos" style="display:none;padding:18px 22px">
         <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">Marque os produtos já ativados nesta revenda</div>
         <div id="card-produtos-list" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+
+      <!-- Aba WhatsApp -->
+      <div id="card-tab-whatsapp" style="display:none;padding:0">
+        <div id="card-wa-msgs" style="display:flex;flex-direction:column;gap:8px;padding:16px;max-height:380px;overflow-y:auto">
+          <div style="text-align:center;padding:20px;color:var(--txt3);font-size:13px">Carregando mensagens...</div>
+        </div>
       </div>
     </div>
   </div>
@@ -2255,7 +2286,7 @@ function toggleTheme(){isDark=!isDark;localStorage.setItem('lc_theme',isDark?'da
 applyTheme();
 
 // ─── Nav ───────────────────────────────────────────────────────────
-const TITLES={dashboard:'Dashboard Executivo',revendas:'Cadastro de Revendas',pipeline:'Pipeline de Onboarding',tarefas:'Gestão de Tarefas',timeline:'Timeline de Atividades',treinamentos:'Central de Treinamentos',handover:'Gestão de Handover',relatorios:'Relatórios & Analytics',importacao:'Importação de Dados',usuarios:'Controle de Usuários',integracao:'Integrações',configuracoes:'⚙️ Configurações'};
+const TITLES={dashboard:'Dashboard Executivo',revendas:'Cadastro de Revendas',pipeline:'Pipeline de Onboarding',tarefas:'Gestão de Tarefas',whatsapp:'💬 WhatsApp',timeline:'Timeline de Atividades',treinamentos:'Central de Treinamentos',handover:'Gestão de Handover',relatorios:'Relatórios & Analytics',importacao:'Importação de Dados',usuarios:'Controle de Usuários',integracao:'Integrações',configuracoes:'⚙️ Configurações'};
 function toggleNavGrp(){
   const grp=document.getElementById('nav-cfg-group');
   const sub=document.getElementById('nav-cfg-sub');
@@ -2278,7 +2309,7 @@ function go(name){
   renderPanel(name);
 }
 function renderPanel(name){
-  const fn={dashboard:renderDashboard,revendas:renderRevendas,pipeline:renderKanban,tarefas:renderTasks,timeline:renderTimeline,treinamentos:renderTreinamentos,handover:renderHandover,relatorios:renderRelatorios,usuarios:renderUsers,importacao:renderImport,configuracoes:renderConfiguracoes,integracao:renderIntegracao};
+  const fn={dashboard:renderDashboard,revendas:renderRevendas,pipeline:renderKanban,tarefas:renderTasks,whatsapp:renderWhatsapp,timeline:renderTimeline,treinamentos:renderTreinamentos,handover:renderHandover,relatorios:renderRelatorios,usuarios:renderUsers,importacao:renderImport,configuracoes:renderConfiguracoes,integracao:renderIntegracao};
   if(fn[name]){
     fn[name]();
     if(name==='pipeline') setTimeout(initKanbanScroll, 150);
@@ -3228,7 +3259,7 @@ function openCardEdit(){
 }
 
 function switchCardTab(tab, btn){
-  ['historico','info','produtos'].forEach(t=>{
+  ['historico','info','produtos','whatsapp'].forEach(t=>{
     const el=document.getElementById('card-tab-'+t);
     if(el) el.style.display = t===tab ? 'block' : 'none';
   });
@@ -6197,6 +6228,22 @@ function initApp(){
         }
       ).subscribe();
 
+    // Realtime: atualiza painel WhatsApp ao receber nova mensagem
+    sb.channel('wa_msgs_live')
+      .on('postgres_changes',
+        {event:'INSERT', schema:'public', table:'historico_cards'},
+        async (payload)=>{
+          const tipo=payload.new?.tipo||'';
+          if(!tipo.includes('WhatsApp')) return;
+          const rId=payload.new.revenda_id;
+          // Re-carrega conversas se o painel estiver aberto
+          if(document.getElementById('p-whatsapp')?.classList.contains('on')){
+            await renderWhatsapp();
+            if(_waRevendaSel===rId) abrirWaThread(rId);
+          }
+        }
+      ).subscribe();
+
     // Realtime: atualiza painel de Integrações ao mudar status do WhatsApp
     sb.channel('wa_status_sync')
       .on('postgres_changes',
@@ -6212,6 +6259,137 @@ function initApp(){
 
     console.log('✅ Sistema iniciado:', DB.revendas.length, 'revendas');
   });
+}
+
+// ─── Utilitário ─────────────────────────────────────────────────────
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ─── WhatsApp ────────────────────────────────────────────────────────
+let _waRevendaSel = null;
+
+async function renderWhatsapp(){
+  const listEl = document.getElementById('wa-conv-items');
+  if(!listEl) return;
+  listEl.innerHTML = '<div style="padding:16px;color:var(--txt3);font-size:13px">Carregando...</div>';
+
+  const { data: msgs } = await sb.from('historico_cards')
+    .select('revenda_id, tipo, descricao, criado_em, usuario_nome, revendas(id, nome, tel)')
+    .in('tipo', ['💬 WhatsApp', '📤 WhatsApp enviado'])
+    .order('criado_em', { ascending: false })
+    .limit(500);
+
+  if(!msgs || !msgs.length){
+    listEl.innerHTML = '<div style="padding:16px;color:var(--txt3);font-size:13px">Nenhuma conversa registrada ainda.</div>';
+    document.getElementById('wa-thread-header').innerHTML = '<div style="color:var(--txt3);font-size:13px">Selecione uma conversa à esquerda</div>';
+    return;
+  }
+
+  // Agrupa por revenda (order: mais recente primeiro)
+  const convMap = new Map();
+  for(const m of msgs){
+    const rId = m.revenda_id;
+    if(!convMap.has(rId)) convMap.set(rId, { rev: m.revendas, msgs: [], last: m });
+    convMap.get(rId).msgs.push(m);
+  }
+  window._waConvMap = convMap;
+  _renderWaList([...convMap.values()]);
+
+  if(!_waRevendaSel){ const first=[...convMap.keys()][0]; if(first) abrirWaThread(first); }
+}
+
+function _renderWaList(convs){
+  const listEl = document.getElementById('wa-conv-items');
+  if(!listEl) return;
+  if(!convs.length){ listEl.innerHTML = '<div style="padding:16px;color:var(--txt3);font-size:13px">Nenhum resultado.</div>'; return; }
+  listEl.innerHTML = convs.map(c => {
+    const last = c.last;
+    const sent = last.tipo === '📤 WhatsApp enviado';
+    const preview = esc((last.descricao||'').slice(0, 52) + ((last.descricao||'').length > 52 ? '…' : ''));
+    const data = new Date(last.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+    const sel = _waRevendaSel === c.rev?.id ? 'background:var(--accl);' : '';
+    return `<div class="wa-conv-item" onclick="abrirWaThread(${c.rev?.id})" style="padding:12px 14px;cursor:pointer;border-bottom:1px solid var(--bdr);display:flex;gap:10px;align-items:flex-start;${sel}">
+      <div style="width:40px;height:40px;border-radius:50%;background:rgba(37,211,102,.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">💬</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:4px">
+          <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.rev?.nome||'?')}</div>
+          <div style="font-size:11px;color:var(--txt3);flex-shrink:0">${data}</div>
+        </div>
+        <div style="font-size:12px;color:var(--txt3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sent?'Você: ':''}${preview}</div>
+        <div style="font-size:11px;color:var(--txt3);margin-top:2px">${c.msgs.length} msg${c.msgs.length>1?'s':''}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filtrarWaList(){
+  const q=(document.getElementById('wa-search')?.value||'').toLowerCase();
+  const convs=[...(window._waConvMap||new Map()).values()];
+  _renderWaList(q ? convs.filter(c=>(c.rev?.nome||'').toLowerCase().includes(q)) : convs);
+}
+
+function abrirWaThread(revendaId){
+  _waRevendaSel = revendaId;
+  const conv = window._waConvMap?.get(revendaId);
+  if(!conv) return;
+
+  // Atualiza seleção visual
+  const q=(document.getElementById('wa-search')?.value||'').toLowerCase();
+  const convs=[...(window._waConvMap||new Map()).values()];
+  _renderWaList(q ? convs.filter(c=>(c.rev?.nome||'').toLowerCase().includes(q)) : convs);
+
+  const header = document.getElementById('wa-thread-header');
+  const msgsEl = document.getElementById('wa-thread-msgs');
+  if(!header || !msgsEl) return;
+
+  header.innerHTML = `
+    <div style="width:40px;height:40px;border-radius:50%;background:rgba(37,211,102,.15);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">💬</div>
+    <div style="flex:1">
+      <div style="font-weight:600">${esc(conv.rev?.nome||'?')}</div>
+      <div style="font-size:11px;color:var(--txt3)">${esc(conv.rev?.tel||'')} · ${conv.msgs.length} mensagem${conv.msgs.length>1?'s':''}</div>
+    </div>
+    <button class="btn btn-s btn-sm" onclick="openCardModal(${revendaId})">Ver card completo</button>`;
+
+  const sorted=[...conv.msgs].sort((a,b)=>new Date(a.criado_em)-new Date(b.criado_em));
+  msgsEl.innerHTML = sorted.map(m=>{
+    const sent=m.tipo==='📤 WhatsApp enviado';
+    const hora=new Date(m.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    return `<div style="display:flex;justify-content:${sent?'flex-end':'flex-start'}">
+      <div style="max-width:72%;background:${sent?'rgba(37,211,102,.15)':'var(--bg)'};border-radius:${sent?'12px 12px 2px 12px':'12px 12px 12px 2px'};padding:8px 12px;border:1px solid var(--bdr)">
+        ${!sent?`<div style="font-size:10px;font-weight:600;color:var(--acc);margin-bottom:3px">${esc(m.usuario_nome||'WhatsApp Bot')}</div>`:''}
+        <div style="font-size:13px;line-height:1.5">${esc(m.descricao||'')}</div>
+        <div style="font-size:10px;color:var(--txt3);margin-top:3px;text-align:right">${hora}${sent?' ✓✓':''}</div>
+      </div>
+    </div>`;
+  }).join('');
+  msgsEl.scrollTop = msgsEl.scrollHeight;
+}
+
+async function renderCardWhatsapp(id){
+  const el=document.getElementById('card-wa-msgs');
+  if(!el||!id) return;
+  el.innerHTML='<div style="text-align:center;padding:20px;color:var(--txt3)">⏳ Carregando...</div>';
+  const { data: msgs }=await sb.from('historico_cards')
+    .select('*')
+    .eq('revenda_id', id)
+    .in('tipo',['💬 WhatsApp','📤 WhatsApp enviado'])
+    .order('criado_em',{ascending:true})
+    .limit(200);
+  if(!msgs||!msgs.length){
+    el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt3);font-size:13px">Nenhuma mensagem WhatsApp neste card.</div>';
+    return;
+  }
+  el.innerHTML=msgs.map(m=>{
+    const sent=m.tipo==='📤 WhatsApp enviado';
+    const hora=new Date(m.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    return `<div style="display:flex;justify-content:${sent?'flex-end':'flex-start'}">
+      <div style="max-width:75%;background:${sent?'rgba(37,211,102,.15)':'var(--bg2)'};border-radius:${sent?'12px 12px 2px 12px':'12px 12px 12px 2px'};padding:8px 12px;border:1px solid var(--bdr)">
+        ${!sent?`<div style="font-size:10px;font-weight:600;color:var(--acc);margin-bottom:3px">${esc(m.usuario_nome||'WhatsApp Bot')}</div>`:''}
+        <div style="font-size:13px;line-height:1.5">${esc(m.descricao||'')}</div>
+        <div style="font-size:10px;color:var(--txt3);margin-top:3px;text-align:right">${hora}${sent?' ✓✓':''}</div>
+      </div>
+    </div>`;
+  }).join('');
+  el.scrollTop=el.scrollHeight;
 }
 
 // ─── Integrações ────────────────────────────────────────────────────
