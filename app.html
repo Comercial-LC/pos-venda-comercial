@@ -710,12 +710,19 @@ select option{background:var(--bg2)}
     <div class="panel" id="p-integracao">
       <div style="font-size:19px;font-weight:700;margin-bottom:6px">Integrações</div>
       <div style="font-size:12px;color:var(--txt3);margin-bottom:22px">Conecte o Portal com ferramentas externas</div>
-      <div class="alert al-info" style="margin-bottom:20px"><span>ℹ️</span><span>Orion CRM e WhatsApp Business estão em roadmap e serão disponibilizadas em breve.</span></div>
+      <div class="alert al-info" style="margin-bottom:20px"><span>ℹ️</span><span>Orion CRM está em roadmap e será disponibilizado em breve. O serviço WhatsApp já está ativo — veja o status de conexão abaixo.</span></div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">
         <div class="card"><div style="display:flex;align-items:center;gap:12px;margin-bottom:10px"><div style="width:44px;height:44px;background:var(--accl);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:20px">🔮</div><div><div style="font-weight:600">Orion CRM</div><div style="font-size:11px;color:var(--txt3)">Em desenvolvimento</div></div></div><div style="font-size:12px;color:var(--txt2)">Sincronização de dados de vendas e contatos.</div></div>
-        <div class="card"><div style="display:flex;align-items:center;gap:12px;margin-bottom:10px"><div style="width:44px;height:44px;background:var(--okl);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:20px">💬</div><div><div style="font-weight:600">WhatsApp Business</div><div style="font-size:11px;color:var(--txt3)">Em desenvolvimento</div></div></div><div style="font-size:12px;color:var(--txt2)">Notificações automáticas de tarefas e handovers.</div></div>
+        <div class="card"><div style="display:flex;align-items:center;gap:12px;margin-bottom:10px"><div style="width:44px;height:44px;background:var(--okl);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:20px">💬</div><div><div style="font-weight:600">WhatsApp Business</div><div style="font-size:11px" id="wa-card-badge">⚪ Iniciando...</div></div></div><div style="font-size:12px;color:var(--txt2)">Mensagens registradas automaticamente na timeline de cada revenda.</div></div>
         <div class="card"><div style="display:flex;align-items:center;gap:12px;margin-bottom:10px"><div style="width:44px;height:44px;background:var(--warnl);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:20px">📧</div><div><div style="font-weight:600">E-mail / SMTP</div><div style="font-size:11px;color:var(--ok)">✅ Disponível</div></div></div><div style="font-size:12px;color:var(--txt2)">Envio de relatórios e alertas automáticos.</div></div>
         <div class="card"><div style="display:flex;align-items:center;gap:12px;margin-bottom:10px"><div style="width:44px;height:44px;background:var(--purl);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:20px">🔗</div><div><div style="font-weight:600">API REST / Webhook</div><div style="font-size:11px;color:var(--ok)">✅ Disponível</div></div></div><div style="font-size:12px;color:var(--txt2)">Integre qualquer sistema via webhook ou JWT.</div></div>
+      </div>
+      <!-- WhatsApp — Status da Conexão -->
+      <div style="margin-top:28px">
+        <div style="font-size:15px;font-weight:600;margin-bottom:14px">💬 WhatsApp — Status da Conexão</div>
+        <div class="card" id="wa-conn-card" style="padding:18px;min-height:80px;display:flex;align-items:center">
+          <div style="color:var(--txt3);font-size:13px">Carregando...</div>
+        </div>
       </div>
     </div>
 
@@ -2271,7 +2278,7 @@ function go(name){
   renderPanel(name);
 }
 function renderPanel(name){
-  const fn={dashboard:renderDashboard,revendas:renderRevendas,pipeline:renderKanban,tarefas:renderTasks,timeline:renderTimeline,treinamentos:renderTreinamentos,handover:renderHandover,relatorios:renderRelatorios,usuarios:renderUsers,importacao:renderImport,configuracoes:renderConfiguracoes};
+  const fn={dashboard:renderDashboard,revendas:renderRevendas,pipeline:renderKanban,tarefas:renderTasks,timeline:renderTimeline,treinamentos:renderTreinamentos,handover:renderHandover,relatorios:renderRelatorios,usuarios:renderUsers,importacao:renderImport,configuracoes:renderConfiguracoes,integracao:renderIntegracao};
   if(fn[name]){
     fn[name]();
     if(name==='pipeline') setTimeout(initKanbanScroll, 150);
@@ -6190,6 +6197,13 @@ function initApp(){
         }
       ).subscribe();
 
+    // Realtime: atualiza painel de Integrações ao mudar status do WhatsApp
+    sb.channel('wa_status_sync')
+      .on('postgres_changes',
+        {event:'*', schema:'public', table:'whatsapp_status'},
+        ()=>{ if(document.getElementById('p-integracao')?.classList.contains('on')) renderWaStatus(); }
+      ).subscribe();
+
     // ── PASSO 6: Resize handler ───────────────────────────────
     window.addEventListener('resize',()=>{
       const panel = document.querySelector('.panel.on');
@@ -6199,6 +6213,31 @@ function initApp(){
     console.log('✅ Sistema iniciado:', DB.revendas.length, 'revendas');
   });
 }
+
+// ─── Integrações ────────────────────────────────────────────────────
+async function renderWaStatus(){
+  const badge = document.getElementById('wa-card-badge');
+  const card  = document.getElementById('wa-conn-card');
+  if(!card) return;
+  card.innerHTML = '<div style="color:var(--txt3);font-size:13px">Carregando...</div>';
+  const { data } = await sb.from('whatsapp_status').select('*').eq('id',1).maybeSingle();
+  if(!data){
+    if(badge){ badge.textContent='⚪ Não iniciado'; badge.style.color='var(--txt3)'; }
+    card.innerHTML = '<div style="display:flex;align-items:center;gap:14px"><div style="width:44px;height:44px;background:var(--txt3)22;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px">💬</div><div><div style="font-weight:600;color:var(--txt2)">Serviço não iniciado</div><div style="font-size:12px;color:var(--txt3);margin-top:3px">Execute: <code>cd services/whatsapp</code> → <code>npm start</code></div></div></div>';
+    return;
+  }
+  if(data.status==='conectado'){
+    if(badge){ badge.textContent='✅ Conectado'; badge.style.color='#25d366'; }
+    card.innerHTML = '<div style="display:flex;align-items:center;gap:14px"><div style="width:48px;height:48px;background:#25d36618;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px">💬</div><div><div style="font-weight:600;color:#25d366">✅ WhatsApp conectado</div>'+(data.numero?'<div style="font-size:12px;color:var(--txt3);margin-top:3px">Número: +'+data.numero+'</div>':'')+'<div style="font-size:11px;color:var(--txt3);margin-top:3px">Desde: '+new Date(data.updated_at).toLocaleString('pt-BR')+'</div></div></div>';
+  } else if(data.status==='aguardando_qr' && data.qr_code){
+    if(badge){ badge.textContent='📱 Aguardando scan'; badge.style.color='var(--acc)'; }
+    card.innerHTML = '<div style="text-align:center;padding:8px 0;width:100%"><div style="font-weight:600;margin-bottom:12px">📱 Abra o WhatsApp → Dispositivos conectados → Conectar dispositivo</div><img src="'+data.qr_code+'" style="width:210px;height:210px;border-radius:10px;border:2px solid var(--bdr)"><div style="font-size:11px;color:var(--txt3);margin-top:10px">O QR code expira em ~30s e é atualizado automaticamente.</div></div>';
+  } else {
+    if(badge){ badge.textContent='⚪ Desconectado'; badge.style.color='var(--txt3)'; }
+    card.innerHTML = '<div style="display:flex;align-items:center;gap:14px"><div style="width:48px;height:48px;background:var(--txt3)22;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px">💬</div><div><div style="font-weight:600;color:var(--txt2)">⚪ Desconectado</div><div style="font-size:12px;color:var(--txt3);margin-top:3px">Inicie o serviço: <code>cd services/whatsapp && npm start</code></div></div></div>';
+  }
+}
+function renderIntegracao(){ renderWaStatus(); }
 
 // ═══════════════════════════════════════════════════════════════════
 // FUNÇÕES DE CELEBRAÇÃO: FOGUETE, FOGOS E PARABÉNS
