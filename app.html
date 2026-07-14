@@ -2291,7 +2291,13 @@ function openMo(id){
   if(!el){ console.error('openMo: elemento não encontrado:', id); return; }
   el.classList.add('op');
 }
-function closeMo(id){document.getElementById(id).classList.remove('op')}
+function closeMo(id){
+  document.getElementById(id).classList.remove('op');
+  if(id === 'mo-card' && window._cardHistChannel){
+    sb.removeChannel(window._cardHistChannel);
+    window._cardHistChannel = null;
+  }
+}
 document.querySelectorAll('.mo-ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('op')}));
 
 function populateSelects(){
@@ -3200,6 +3206,13 @@ function openCardModal(id){
 
   // Carrega histórico após abrir modal (evita race condition)
   setTimeout(()=>renderCardHistorico(id), 100);
+
+  // Realtime: atualiza timeline automaticamente quando chega msg de WhatsApp
+  if(window._cardHistChannel) sb.removeChannel(window._cardHistChannel);
+  window._cardHistChannel = sb.channel('card-hist-' + id)
+    .on('postgres_changes', {event:'INSERT', schema:'public', table:'historico_cards', filter:`revenda_id=eq.${id}`},
+      () => renderCardHistorico(id))
+    .subscribe();
 }
 
 function openCardEdit(){
@@ -3283,7 +3296,8 @@ async function renderCardHistorico(id){
     'Mudança de etapa':'🔄','📝 Anotação':'📝','📞 Contato realizado':'📞',
     'Contato realizado':'📞','✅ Tarefa concluída':'✅','⚠️ Alerta':'⚠️',
     '📄 Documento':'📄','🤝 Reunião':'🤝','Cadastro':'🏢','Handover iniciado':'🤝',
-    'Ativação':'🟢','Treinamento concluído':'🎓'
+    'Ativação':'🟢','Treinamento concluído':'🎓',
+    '💬 WhatsApp':'💬','📤 WhatsApp enviado':'📤'
   };
   if(!hist.length){
     list.innerHTML=`<div class="empty" style="padding:24px">
