@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const { createClient }      = require('@supabase/supabase-js');
-const qrcode                = require('qrcode-terminal');
+const QRCode                = require('qrcode');
 
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
   console.error('[WhatsApp] SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY são obrigatórios no .env');
@@ -42,18 +42,39 @@ async function registrar(revendaId, tipo, descricao) {
   if (error) throw error;
 }
 
+async function atualizarStatus(status, extra = {}) {
+  const { error } = await sb.from('whatsapp_status').upsert(
+    { id: 1, status, updated_at: new Date().toISOString(), ...extra },
+    { onConflict: 'id' }
+  );
+  if (error) console.error('[WhatsApp] Erro ao atualizar status:', error.message);
+}
+
 const client = new Client({
   authStrategy: new LocalAuth({ dataPath: './.wwebjs_auth' }),
   puppeteer: { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] },
 });
 
-client.on('qr', qr => {
-  console.log('[WhatsApp] Escaneie o QR code abaixo:');
-  qrcode.generate(qr, { small: true });
+client.on('qr', async qr => {
+  console.log('[WhatsApp] QR gerado — acesse Integrações no portal para escanear.');
+  try {
+    const qrDataUrl = await QRCode.toDataURL(qr, { width: 256, margin: 2 });
+    await atualizarStatus('aguardando_qr', { qr_code: qrDataUrl, numero: null });
+  } catch (err) {
+    console.error('[WhatsApp] Erro ao salvar QR:', err.message);
+  }
 });
 
-client.on('ready',       () => console.log('[WhatsApp] Conectado e pronto.'));
-client.on('disconnected', r => console.warn('[WhatsApp] Desconectado:', r));
+client.on('ready', async () => {
+  const numero = client.info?.wid?.user || '';
+  console.log(`[WhatsApp] Conectado. Número: ${numero || '(não disponível)'}`);
+  await atualizarStatus('conectado', { qr_code: null, numero });
+});
+
+client.on('disconnected', async reason => {
+  console.warn('[WhatsApp] Desconectado:', reason);
+  await atualizarStatus('desconectado', { qr_code: null, numero: null });
+});
 
 client.on('message', async msg => {
   const phone = msg.from.replace('@c.us', '');
@@ -80,4 +101,5 @@ client.on('message_create', async msg => {
   }
 });
 
+atualizarStatus('iniciando').catch(() => {});
 client.initialize();
