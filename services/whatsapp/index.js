@@ -136,6 +136,8 @@ client.on('disconnected', async reason => {
 // ── Eventos de mensagem ───────────────────────────────────────────────
 
 client.on('message', async msg => {
+  // Ignora status/stories do WhatsApp
+  if (msg.isStatus || msg.from === 'status@broadcast') return;
   const phone = msg.from.replace('@c.us', '');
   try {
     const rev = await buscarRevenda(phone);
@@ -149,6 +151,8 @@ client.on('message', async msg => {
 
 client.on('message_create', async msg => {
   if (!msg.fromMe) return;
+  // Ignora status/stories do WhatsApp
+  if (msg.isStatus || msg.to === 'status@broadcast') return;
   const phone = msg.to.replace('@c.us', '');
   try {
     const rev = await buscarRevenda(phone);
