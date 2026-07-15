@@ -6789,11 +6789,16 @@ async function enviarMsgWhatsapp(){
   const body  = (input?.value||'').trim();
   if(!body || !_waRevendaSel) return;
 
-  // Normaliza telefone: garante código de país 55 (Brasil) se não tiver
+  // Monta identificador de destino preservando @lid (novo formato WhatsApp)
   const rawPhone = window._waThreadPhone||'';
   if(!rawPhone){ toast('Número não encontrado para esta conversa','warn'); return; }
-  const dig   = rawPhone.replace(/\D/g,'');
-  const phone = (dig.length >= 12 && dig.startsWith('55')) ? dig : '55' + dig;
+  let phone;
+  if(rawPhone.includes('@')){
+    phone = rawPhone; // @lid ou @c.us — usa como está, sem alterar
+  } else {
+    const dig = rawPhone.replace(/\D/g,'');
+    phone = (dig.length >= 12 && dig.startsWith('55')) ? dig : '55' + dig;
+  }
 
   input.value   = '';
   input.disabled = true;
