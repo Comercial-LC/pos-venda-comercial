@@ -1124,34 +1124,43 @@ select option{background:var(--bg2)}
 
 <!-- Detalhe / Histórico do Card -->
 <div class="mo-ov" id="mo-card">
-  <div class="mo" style="width:680px;max-height:92vh">
-    <div class="moh">
+  <div class="mo" style="width:min(1100px,96vw);max-height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
+
+    <!-- Cabeçalho -->
+    <div class="moh" style="flex-shrink:0;padding:12px 18px">
       <div>
         <div class="mot" id="mo-card-nome">—</div>
         <div style="font-size:12px;color:var(--txt3);margin-top:2px" id="mo-card-sub">—</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-s btn-sm" onclick="toggleCardProdutos()">📦 Produtos</button>
         <button class="btn btn-s btn-sm" id="mo-card-edit-btn" onclick="openCardEdit()">✏️ Editar</button>
         <button class="btn btn-s btn-sm" onclick="closeMo('mo-card')">✕</button>
       </div>
     </div>
-    <div class="mob" style="padding:0">
-      <!-- Abas -->
-      <div style="display:flex;border-bottom:1px solid var(--bdr);padding:0 22px">
-        <button class="card-tab on" onclick="switchCardTab('historico',this)" style="padding:12px 16px;font-size:13px;font-weight:500;border:none;background:none;color:var(--acc);border-bottom:2px solid var(--acc);cursor:pointer">📋 Histórico</button>
-        <button class="card-tab" onclick="switchCardTab('info',this)" style="padding:12px 16px;font-size:13px;font-weight:500;border:none;background:none;color:var(--txt2);border-bottom:2px solid transparent;cursor:pointer">ℹ️ Informações</button>
-        <button class="card-tab" onclick="switchCardTab('produtos',this)" style="padding:12px 16px;font-size:13px;font-weight:500;border:none;background:none;color:var(--txt2);border-bottom:2px solid transparent;cursor:pointer">📦 Produtos</button>
-        <button class="card-tab" onclick="switchCardTab('whatsapp',this);renderCardWhatsapp(currentCardId)" style="padding:12px 16px;font-size:13px;font-weight:500;border:none;background:none;color:var(--txt2);border-bottom:2px solid transparent;cursor:pointer">💬 WhatsApp</button>
+
+    <!-- Corpo 2 colunas -->
+    <div style="display:grid;grid-template-columns:38% 1fr;flex:1;min-height:0;overflow:hidden;position:relative">
+
+      <!-- Coluna Esquerda: Perfil + Informações -->
+      <div style="border-right:1px solid var(--bdr);overflow-y:auto">
+        <div id="card-info-content"></div>
       </div>
 
-      <!-- Aba Histórico -->
-      <div id="card-tab-historico" style="padding:18px 22px">
-        <!-- Campo de nova anotação -->
-        <div style="background:var(--bg2);border-radius:var(--r);padding:14px;margin-bottom:16px;border:1px solid var(--bdr)">
-          <div style="font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:8px">✏️ Adicionar anotação</div>
-          <textarea id="card-nota-txt" rows="3" placeholder="Escreva uma observação, contato realizado, decisão tomada..." style="margin-bottom:8px"></textarea>
+      <!-- Coluna Direita: Timeline -->
+      <div style="display:flex;flex-direction:column;overflow:hidden">
+
+        <!-- Header da timeline -->
+        <div style="padding:10px 16px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+          <div style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.6px" id="card-hist-title">HISTÓRICO DE CONTATOS</div>
+          <button class="btn btn-s btn-sm" onclick="toggleCardNota()" style="font-size:11px;padding:4px 10px">✏️ Adicionar nota</button>
+        </div>
+
+        <!-- Formulário de anotação (oculto por padrão) -->
+        <div id="card-nota-area" style="display:none;padding:12px 16px;border-bottom:1px solid var(--bdr);background:var(--bg2)">
+          <textarea id="card-nota-txt" rows="2" placeholder="Escreva uma observação, contato realizado, decisão..." style="margin-bottom:8px;font-size:12px;width:100%;box-sizing:border-box"></textarea>
           <div style="display:flex;gap:8px;align-items:center">
-            <select id="card-nota-tipo" style="width:180px;padding:7px 10px;font-size:12px">
+            <select id="card-nota-tipo" style="flex:1;padding:7px 10px;font-size:12px;border-radius:var(--r);border:1px solid var(--bdr);background:var(--bg2);color:var(--txt)">
               <option>📝 Anotação</option>
               <option>📞 Contato realizado</option>
               <option>✅ Tarefa concluída</option>
@@ -1159,31 +1168,36 @@ select option{background:var(--bg2)}
               <option>📄 Documento</option>
               <option>🤝 Reunião</option>
             </select>
-            <button class="btn btn-p btn-sm" onclick="salvarNotaCard()">Salvar anotação</button>
+            <button class="btn btn-p btn-sm" onclick="salvarNotaCard()" style="font-size:12px">Salvar</button>
+            <button class="btn btn-s btn-sm" onclick="toggleCardNota()" style="font-size:12px">✕</button>
           </div>
         </div>
+
         <!-- Lista do histórico -->
-        <div id="card-historico-list" style="display:flex;flex-direction:column;gap:10px;max-height:340px;overflow-y:auto"></div>
+        <div id="card-historico-list" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:0"></div>
+
+        <!-- Rodapé com totais -->
+        <div id="card-hist-footer" style="padding:8px 16px;border-top:1px solid var(--bdr);background:var(--bg2);flex-shrink:0"></div>
+
       </div>
 
-      <!-- Aba Informações -->
-      <div id="card-tab-info" style="display:none;padding:18px 22px">
-        <div id="card-info-content"></div>
-      </div>
-
-      <!-- Aba Produtos (Decola) -->
-      <div id="card-tab-produtos" style="display:none;padding:18px 22px">
+      <!-- Overlay de Produtos (cobre as 2 colunas) -->
+      <div id="card-tab-produtos" style="display:none;position:absolute;inset:0;background:var(--bg);z-index:10;overflow-y:auto;padding:20px 24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div style="font-size:14px;font-weight:600">📦 Produtos Decola</div>
+          <button class="btn btn-s btn-sm" onclick="toggleCardProdutos()">✕ Fechar</button>
+        </div>
         <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">Marque os produtos já ativados nesta revenda</div>
         <div id="card-produtos-list" style="display:flex;flex-wrap:wrap;gap:8px"></div>
       </div>
 
-      <!-- Aba WhatsApp -->
-      <div id="card-tab-whatsapp" style="display:none;padding:0">
-        <div id="card-wa-msgs" style="display:flex;flex-direction:column;gap:8px;padding:16px;max-height:380px;overflow-y:auto">
-          <div style="text-align:center;padding:20px;color:var(--txt3);font-size:13px">Carregando mensagens...</div>
-        </div>
-      </div>
     </div>
+
+    <!-- Elementos legados ocultos (compatibilidade) -->
+    <div id="card-tab-historico" style="display:none"></div>
+    <div id="card-tab-info"      style="display:none"></div>
+    <div id="card-tab-whatsapp"  style="display:none"><div id="card-wa-msgs"></div></div>
+
   </div>
 </div>
 
@@ -3215,24 +3229,24 @@ function openCardModal(id){
      &nbsp;·&nbsp; ${r.contratos||'0'} contratos`;
   document.getElementById('mo-card-edit-btn').dataset.id = id;
 
+  // Fecha overlay de produtos se estava aberto
+  const prodEl = document.getElementById('card-tab-produtos');
+  if(prodEl) prodEl.style.display = 'none';
+
   openMo('mo-card');
 
-  // Mostra loading no histórico enquanto carrega
-  const list = document.getElementById('card-historico-list');
-  if(list) list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--txt3)">⏳ Carregando histórico...</div>';
-
-  switchCardTab('historico', document.querySelector('.card-tab'));
   renderCardInfo(id);
   renderCardProdutos(id);
 
-  // Carrega histórico após abrir modal (evita race condition)
+  const list = document.getElementById('card-historico-list');
+  if(list) list.innerHTML = '<div style="text-align:center;padding:24px;color:var(--txt3)">⏳ Carregando histórico...</div>';
+
   setTimeout(()=>renderCardHistorico(id), 100);
 
-  // Realtime: atualiza timeline automaticamente quando chega msg de WhatsApp
   if(window._cardHistChannel) sb.removeChannel(window._cardHistChannel);
-  window._cardHistChannel = sb.channel('card-hist-' + id)
-    .on('postgres_changes', {event:'INSERT', schema:'public', table:'historico_cards', filter:`revenda_id=eq.${id}`},
-      () => renderCardHistorico(id))
+  window._cardHistChannel = sb.channel('card-hist-'+id)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'historico_cards',filter:`revenda_id=eq.${id}`},
+      ()=>renderCardHistorico(id))
     .subscribe();
 }
 
@@ -3242,20 +3256,21 @@ function openCardEdit(){
 }
 
 function switchCardTab(tab, btn){
-  ['historico','info','produtos','whatsapp'].forEach(t=>{
-    const el=document.getElementById('card-tab-'+t);
-    if(el) el.style.display = t===tab ? 'block' : 'none';
-  });
-  document.querySelectorAll('.card-tab').forEach(b=>{
-    b.style.color = 'var(--txt2)';
-    b.style.borderBottomColor = 'transparent';
-    b.classList.remove('on');
-  });
-  if(btn){
-    btn.style.color = 'var(--acc)';
-    btn.style.borderBottomColor = 'var(--acc)';
-    btn.classList.add('on');
-  }
+  // Layout substituído por design 2 colunas — use toggleCardProdutos() para produtos
+}
+
+function toggleCardNota(){
+  const el = document.getElementById('card-nota-area');
+  if(!el) return;
+  const visible = el.style.display !== 'none';
+  el.style.display = visible ? 'none' : 'block';
+  if(!visible) setTimeout(()=>document.getElementById('card-nota-txt')?.focus(), 50);
+}
+
+function toggleCardProdutos(){
+  const el = document.getElementById('card-tab-produtos');
+  if(!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
 async function getCardHistorico(id){
@@ -3310,44 +3325,73 @@ async function getCardHistorico(id){
 }
 
 async function renderCardHistorico(id){
-  const list = document.getElementById('card-historico-list');
+  const list   = document.getElementById('card-historico-list');
+  const footer = document.getElementById('card-hist-footer');
+  const title  = document.getElementById('card-hist-title');
   if(!list) return;
-  const hist = await getCardHistorico(id);
-  const iconMap = {
-    'Mudança de etapa':'🔄','📝 Anotação':'📝','📞 Contato realizado':'📞',
-    'Contato realizado':'📞','✅ Tarefa concluída':'✅','⚠️ Alerta':'⚠️',
-    '📄 Documento':'📄','🤝 Reunião':'🤝','Cadastro':'🏢','Handover iniciado':'🤝',
-    'Ativação':'🟢','Treinamento concluído':'🎓',
-    '💬 WhatsApp':'💬','📤 WhatsApp enviado':'📤'
-  };
+
+  const histRaw = await getCardHistorico(id); // newest-first
+  const hist    = [...histRaw].reverse();      // oldest-first p/ numeração
+
+  if(title) title.textContent = `HISTÓRICO DE CONTATOS${hist.length ? ' ('+hist.length+')' : ''}`;
+
   if(!hist.length){
-    list.innerHTML=`<div class="empty" style="padding:24px">
+    list.innerHTML = `<div class="empty" style="padding:32px">
       <div class="empty-ic" style="font-size:28px">📋</div>
       <div>Nenhum histórico ainda</div>
-      <div style="font-size:11px;color:var(--txt3);margin-top:8px">
-        Mova este card entre etapas para começar o registro
-      </div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:6px">Mova este card entre etapas para começar o registro</div>
     </div>`;
+    if(footer) footer.innerHTML = '';
     return;
   }
-  list.innerHTML = hist.map(h=>{
-    const icon = iconMap[h.tipo] || '📋';
-    const dt = new Date(h.data).toLocaleString('pt-BR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
-    const isManual = h._src==='card';
-    return `<div style="display:flex;gap:10px;padding:10px;background:var(--bg2);border-radius:var(--r);border-left:3px solid ${isManual?'var(--pur)':'var(--bdr)'}">
-      <div style="font-size:18px;flex-shrink:0">${icon}</div>
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-          <div style="font-size:12px;font-weight:500;color:var(--txt)">${safe(h.tipo)}</div>
-          <div style="font-size:10px;color:var(--txt3);white-space:nowrap">${dt}</div>
-        </div>
-        <div style="font-size:12px;color:var(--txt2);margin-top:3px;line-height:1.5">${safe(h.desc)}</div>
-        <div style="font-size:10px;color:var(--txt3);margin-top:3px">
-          ${h.usuario_nome ? '👤 '+safe(h.usuario_nome) : ''}
-          ${isManual?'· <span style="color:var(--pur)">✏️ Anotação manual</span>':''}
+
+  const waCount  = hist.filter(h=>(h.tipo||'').toLowerCase().includes('whatsapp')).length;
+  const telCount = hist.filter(h=>{const t=(h.tipo||'').toLowerCase();return t.includes('liga')||t.includes('contato realiz');}).length;
+  const dtFirst  = new Date(hist[0].data).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+  const dtLast   = new Date(hist[hist.length-1].data).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+
+  if(footer) footer.innerHTML = `
+    <div style="display:flex;gap:16px;align-items:center;font-size:11px">
+      ${waCount?`<span style="display:flex;align-items:center;gap:4px"><span>💬</span><b>${waCount}</b><span style="color:var(--txt3)">WhatsApp</span></span>`:''}
+      ${telCount?`<span style="display:flex;align-items:center;gap:4px"><span>📞</span><b>${telCount}</b><span style="color:var(--txt3)">lig.</span></span>`:''}
+      <span style="display:flex;align-items:center;gap:4px"><span>📋</span><b>${hist.length}</b><span style="color:var(--txt3)">total</span></span>
+      <span style="margin-left:auto;color:var(--txt3)">📅 ${dtFirst}${hist.length>1?' → '+dtLast:''}</span>
+    </div>`;
+
+  list.innerHTML = hist.map((h, idx)=>{
+    const num    = idx + 1;
+    const ic     = _waTipoIcon(h.tipo);
+    const isOut  = h.tipo === '📤 WhatsApp enviado';
+    const isWaIn = h.tipo === '💬 WhatsApp';
+    const isCall = (h.tipo||'').toLowerCase().includes('liga') || h.tipo === '📞 Contato realizado';
+    const isManual = h._src === 'card' && !isOut && !isWaIn;
+    const isLast = idx === hist.length - 1;
+    const dt = new Date(h.data).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+    const badge = isOut  ? `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,.1);color:#22c55e;font-weight:600;border:1px solid rgba(34,197,94,.2)">✓✓ Enviada</span>`
+      : isWaIn ? `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,.08);color:#16a34a;font-weight:600;border:1px solid rgba(34,197,94,.2)">Recebida</span>`
+      : isCall ? `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(59,130,246,.1);color:#3b82f6;font-weight:600;border:1px solid rgba(59,130,246,.2)">Realizada</span>`
+      : '';
+
+    return `<div style="display:flex;gap:10px">
+      <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;padding-top:2px">
+        <div style="width:30px;height:30px;border-radius:50%;background:${ic.bg};border:2px solid ${ic.cor}50;display:flex;align-items:center;justify-content:center;font-size:13px">${ic.icon}</div>
+        ${!isLast?`<div style="width:2px;flex:1;background:var(--bdr);margin:4px 0;min-height:14px"></div>`:''}
+      </div>
+      <div style="flex:1;min-width:0;padding-bottom:${!isLast?'4':'0'}px">
+        <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:10px;padding:9px 12px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:${h.desc?'5':'0'}px">
+            <div style="font-size:10px;font-weight:800;color:${ic.cor};text-transform:uppercase;letter-spacing:.4px">${num}º — ${esc(h.tipo||'')}</div>
+            <div style="font-size:9px;color:var(--txt3);white-space:nowrap;flex-shrink:0">${dt}</div>
+          </div>
+          ${h.desc?`<div style="font-size:12px;color:var(--txt2);line-height:1.5;margin-bottom:5px">${esc(h.desc)}</div>`:''}
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div>${badge}</div>
+            ${isManual?`<button onclick="deletarNotaCard('${id}','${h.id}')" style="background:none;border:none;color:var(--txt3);cursor:pointer;font-size:12px;padding:0" title="Excluir">🗑</button>`:'<div></div>'}
+          </div>
+          ${h.usuario_nome?`<div style="font-size:10px;color:var(--txt3);margin-top:4px">👤 ${esc(h.usuario_nome)}</div>`:''}
         </div>
       </div>
-      ${isManual?`<button onclick="deletarNotaCard('${id}','${h.id}')" style="background:none;border:none;color:var(--txt3);cursor:pointer;font-size:14px;padding:0 4px;flex-shrink:0" title="Excluir">🗑</button>`:''}
     </div>`;
   }).join('');
 }
@@ -3378,56 +3422,76 @@ async function deletarNotaCard(revId, notaId){
 
 function renderCardInfo(id){
   const rev = DB.revendas.find(r=>r.id===id);
-  const el  = document.getElementById('card-info-content') || document.getElementById('card-info-list');
+  const el  = document.getElementById('card-info-content');
   if(!rev||!el) return;
 
-  const etapas = getEtapas();
+  const etapas  = getEtapas();
+  const etapa   = etapas.find(e=>e.id===rev.status)||{};
+  const stInfo  = _waStatusInfo(rev.status);
+  const cor     = stInfo.cor || 'var(--acc)';
+  const cnpj    = perfilAtual&&perfilAtual.pode_ver_cnpj ? (rev.cnpj||'—') : (rev.cnpj ? '••••••/••-••' : '—');
+  const cidUf   = [rev.cidade, rev.uf].filter(Boolean).join(' / ') || '—';
+  const diasIng = rev.ingresso ? Math.floor((Date.now()-new Date(rev.ingresso))/86400000) : null;
 
-  // Selector de etapa do pipeline
-  let html = '';
-  html += '<div style="padding:12px;background:var(--bg2);border-radius:var(--r);border:2px solid var(--acc);margin-bottom:14px">';
-  html += '<div style="font-size:10px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">⚡ ETAPA DO PIPELINE</div>';
-  html += '<div style="display:flex;align-items:center;gap:10px">';
-  html += '<select id="card-etapa-select" style="flex:1;padding:8px 10px;font-size:13px;font-weight:600;border-radius:var(--r);border:1px solid var(--bdr);background:var(--card)">';
-  etapas.forEach(function(e){
-    html += '<option value="' + e.id + '"' + (e.id===rev.status?' selected':'') + '>' + e.icon + ' ' + e.id + '</option>';
-  });
-  html += '</select>';
-  html += '<button class="btn btn-p btn-sm" id="btn-mover-etapa-card">Mover ▶</button>';
-  html += '</div></div>';
-
-  // Campos informativos
-  const cnpj = perfilAtual&&perfilAtual.pode_ver_cnpj ? (rev.cnpj||'—') : (rev.cnpj ? '••••••/••-••' : '—');
-  const cidUf = [rev.cidade, rev.uf].filter(Boolean).join(' / ') || '—';
   const campos = [
-    ['NOME',          rev.nome],
-    ['E-MAIL',        rev.email],
-    ['TELEFONE',      rev.tel],
-    ['CIDADE / UF',   cidUf],
-    ['CNPJ',          cnpj],
-    ['SEGMENTO',      rev.segmento],
-    ['PORTE',         rev.porte],
-    ['RESPONSÁVEL',  rev.cs],
-    ['CARGO',        rev.cargo],
-    ['CONTRATOS',     rev.contratos],
-    ['CURVA ABC',     rev.curva],
-    ['INGRESSO',      fmtDate(rev.ingresso)],
-    ['OBSERVAÇÕES',   rev.obs],
-  ];
+    ['CNPJ',        cnpj],
+    ['CIDADE / UF', cidUf],
+    ['SEGMENTO',    rev.segmento],
+    ['PORTE',       rev.porte],
+    ['RESPONSÁVEL', rev.cs],
+    ['CARGO',       rev.cargo],
+    ['CONTRATOS',   rev.contratos],
+    ['CURVA ABC',   rev.curva],
+    ['INGRESSO',    fmtDate(rev.ingresso)],
+  ].filter(([,v])=>v);
 
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
-  campos.forEach(function(c){
-    html += '<div style="padding:12px;background:var(--bg2);border-radius:var(--r);border:1px solid var(--bdr)">';
-    html += '<div style="font-size:10px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">' + c[0] + '</div>';
-    html += '<div style="font-size:13px;font-weight:500">' + safe(c[1]||'—') + '</div>';
-    html += '</div>';
-  });
-  html += '</div>';
+  el.innerHTML = `
+    <div style="padding:12px 16px;background:${cor}12;border-bottom:1px solid ${cor}30">
+      <div style="display:inline-flex;align-items:center;gap:6px;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.4px;border:1px solid ${cor}40;color:${cor};background:${cor}18;margin-bottom:6px">
+        ${etapa.icon||''} ${esc(rev.status||'—')}
+      </div>
+      ${diasIng!==null?`<div style="font-size:11px;color:var(--txt3)">${diasIng} dias desde o ingresso</div>`:''}
+    </div>
 
-  el.innerHTML = html;
+    <div style="padding:14px 16px;border-bottom:1px solid var(--bdr)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:40px;height:40px;border-radius:50%;background:${cor}16;border:2px solid ${cor}40;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🏢</div>
+        <div style="min-width:0">
+          <div style="font-weight:700;font-size:13px;line-height:1.3">${esc(rev.nome)}</div>
+          ${rev.tel?`<div style="font-size:11px;color:var(--txt3);margin-top:2px">📞 ${esc(rev.tel)}</div>`:''}
+          ${rev.email?`<div style="font-size:11px;color:var(--txt3)">✉️ ${esc(rev.email)}</div>`:''}
+        </div>
+      </div>
+    </div>
 
-  // Adiciona evento ao botão após inserir no DOM
-  var btnMover = document.getElementById('btn-mover-etapa-card');
+    <div style="padding:12px 16px;border-bottom:1px solid var(--bdr);display:grid;grid-template-columns:1fr 1fr;gap:7px">
+      ${campos.map(([k,v])=>`
+        <div style="background:var(--bg2);border-radius:6px;padding:7px 9px;border:1px solid var(--bdr)">
+          <div style="font-size:9px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${k}</div>
+          <div style="font-size:11px;font-weight:500;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(String(v))}">${esc(String(v))}</div>
+        </div>`).join('')}
+    </div>
+
+    ${rev.obs?`
+    <div style="padding:12px 16px;border-bottom:1px solid var(--bdr)">
+      <div style="background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.25);border-radius:8px;padding:10px 12px">
+        <div style="font-size:9px;font-weight:700;color:#d97706;letter-spacing:.5px;margin-bottom:5px">📌 OBSERVAÇÕES / PRÓXIMA AÇÃO</div>
+        <div style="font-size:12px;line-height:1.5;color:var(--txt)">${esc(rev.obs)}</div>
+      </div>
+    </div>`:''}
+
+    <div style="padding:12px 16px">
+      <div style="font-size:9px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">⚡ ETAPA DO PIPELINE</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="card-etapa-select" style="flex:1;padding:7px 10px;font-size:12px;font-weight:600;border-radius:var(--r);border:1px solid var(--bdr);background:var(--bg2);color:var(--txt)">
+          ${etapas.map(e=>`<option value="${esc(e.id)}"${e.id===rev.status?' selected':''}>${esc(e.icon+' '+e.id)}</option>`).join('')}
+        </select>
+        <button class="btn btn-p btn-sm" id="btn-mover-etapa-card">Mover ▶</button>
+      </div>
+    </div>
+  `;
+
+  const btnMover = document.getElementById('btn-mover-etapa-card');
   if(btnMover) btnMover.addEventListener('click', function(){ moverCardInfoEtapa(id); });
 }
 
@@ -3474,6 +3538,7 @@ async function moverCardInfoEtapa(revId){
 
     renderKanban(); drawPipelineChart();
     toast(`✅ ${rev.nome} → ${newStatus}`);
+    renderCardInfo(revId);
     setTimeout(()=>renderCardHistorico(revId), 300);
   };
 
