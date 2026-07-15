@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const { createClient }      = require('@supabase/supabase-js');
 const QRCode                = require('qrcode');
 
@@ -34,12 +34,15 @@ async function buscarRevenda(phone) {
 
 // ── Persistência ─────────────────────────────────────────────────────
 
-async function salvarMensagem(revendaId, direction, body, phone) {
+async function salvarMensagem(revendaId, direction, body, phone, mediaBase64, mediaMimetype, mediaFilename) {
   const { error } = await sb.from('whatsapp_messages').insert({
-    revenda_id: revendaId,
+    revenda_id:     revendaId,
     direction,
-    body,
-    phone: phone || null,
+    body:           body || '',
+    phone:          phone || null,
+    media_base64:   mediaBase64   || null,
+    media_mimetype: mediaMimetype || null,
+    media_filename: mediaFilename || null,
   });
   if (error) console.error('[WhatsApp] Erro ao salvar msg:', error.message);
 }
@@ -78,8 +81,17 @@ async function enviarPendente(msg) {
 
   console.log(`[WhatsApp] → Enviando: ${chatId} | ${(msg.body||'').slice(0,60)}`);
 
+  // Prepara conteúdo: mídia ou texto
+  let conteudo = msg.body || '';
+  let sendOpts = {};
+  if (msg.media_base64 && msg.media_mimetype) {
+    conteudo = new MessageMedia(msg.media_mimetype, msg.media_base64, msg.media_filename || 'arquivo');
+    if (msg.body) sendOpts.caption = msg.body;
+    console.log(`[WhatsApp] → Mídia: ${msg.media_mimetype} (${msg.media_filename || 'sem nome'})`);
+  }
+
   try {
-    await client.sendMessage(chatId, msg.body);
+    await client.sendMessage(chatId, conteudo, sendOpts);
     await sb.from('mensagens_pendentes').update({ status: 'sent' }).eq('id', msg.id);
     console.log(`[WhatsApp] ✓ ${chatId}`);
   } catch (err) {
@@ -88,7 +100,7 @@ async function enviarPendente(msg) {
     if (msg.phone.includes('@lid') && dig.length >= 10) {
       const fallback = `${dig.startsWith('55') ? dig : '55' + dig}@c.us`;
       try {
-        await client.sendMessage(fallback, msg.body);
+        await client.sendMessage(fallback, conteudo, sendOpts);
         await sb.from('mensagens_pendentes').update({ status: 'sent' }).eq('id', msg.id);
         console.log(`[WhatsApp] ✓ fallback ${fallback}`);
         _processando.delete(msg.id);
@@ -184,10 +196,22 @@ client.on('message', async msg => {
   if (msg.isStatus || msg.from === 'status@broadcast') return;
   const phone = msg.from.replace(/@c\.us$/, '');
   try {
+    let mediaBase64 = null, mediaMimetype = null, mediaFilename = null;
+    if (msg.hasMedia) {
+      try {
+        const media = await msg.downloadMedia();
+        mediaBase64   = media.data;
+        mediaMimetype = media.mimetype;
+        mediaFilename = media.filename || null;
+      } catch (me) {
+        console.warn(`[WhatsApp] Não foi possível baixar mídia de ${phone}:`, me.message);
+      }
+    }
+    const body = msg.body || (mediaFilename ? `[${mediaFilename}]` : (mediaMimetype ? '[mídia]' : ''));
     const rev = await buscarRevenda(phone);
-    await salvarMensagem(rev?.id || null, 'inbound', msg.body, phone);
-    if (rev) await registrarHistorico(rev.id, '💬 WhatsApp', msg.body);
-    console.log(`[WhatsApp] ← ${rev?.nome || phone}: ${msg.body.slice(0, 80)}`);
+    await salvarMensagem(rev?.id || null, 'inbound', body, phone, mediaBase64, mediaMimetype, mediaFilename);
+    if (rev) await registrarHistorico(rev.id, '💬 WhatsApp', body);
+    console.log(`[WhatsApp] ← ${rev?.nome || phone}: ${body.slice(0, 80)}`);
   } catch (err) {
     console.error(`[WhatsApp] Erro (recebido de ${phone}):`, err.message);
   }
@@ -200,10 +224,22 @@ client.on('message_create', async msg => {
   // Remove apenas @c.us; preserva @lid e outros identificadores
   const phone = msg.to.replace(/@c\.us$/, '');
   try {
+    let mediaBase64 = null, mediaMimetype = null, mediaFilename = null;
+    if (msg.hasMedia) {
+      try {
+        const media = await msg.downloadMedia();
+        mediaBase64   = media.data;
+        mediaMimetype = media.mimetype;
+        mediaFilename = media.filename || null;
+      } catch (me) {
+        console.warn(`[WhatsApp] Não foi possível baixar mídia enviada para ${phone}:`, me.message);
+      }
+    }
+    const body = msg.body || (mediaFilename ? `[${mediaFilename}]` : (mediaMimetype ? '[mídia]' : ''));
     const rev = await buscarRevenda(phone);
-    await salvarMensagem(rev?.id || null, 'outbound', msg.body, phone);
-    if (rev) await registrarHistorico(rev.id, '📤 WhatsApp enviado', msg.body);
-    console.log(`[WhatsApp] → ${rev?.nome || phone}: ${msg.body.slice(0, 80)}`);
+    await salvarMensagem(rev?.id || null, 'outbound', body, phone, mediaBase64, mediaMimetype, mediaFilename);
+    if (rev) await registrarHistorico(rev.id, '📤 WhatsApp enviado', body);
+    console.log(`[WhatsApp] → ${rev?.nome || phone}: ${body.slice(0, 80)}`);
   } catch (err) {
     console.error(`[WhatsApp] Erro (enviado para ${phone}):`, err.message);
   }
