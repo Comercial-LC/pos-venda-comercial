@@ -6276,16 +6276,18 @@ function initApp(){
         }
       ).subscribe();
 
-    // Realtime: nova mensagem WhatsApp → recarrega lista de conversas
+    // Realtime: nova mensagem WhatsApp → recarrega lista e thread atual
     sb.channel('wa_msgs_live')
       .on('postgres_changes',
         {event:'INSERT', schema:'public', table:'whatsapp_messages'},
         async (payload)=>{
-          const rId=payload.new?.revenda_id;
-          if(!rId) return;
-          if(document.getElementById('p-whatsapp')?.classList.contains('on')){
-            await _carregarConversasWa();
-            if(_waRevendaSel===rId) abrirWaThread(rId);
+          if(!document.getElementById('p-whatsapp')?.classList.contains('on')) return;
+          await _carregarConversasWa();
+          // Recarrega thread aberta comparando por phone OU revenda_id
+          const p = payload.new?.phone;
+          const r = payload.new?.revenda_id;
+          if(_waRevendaSel && (_waRevendaSel === p || _waRevendaSel === r)){
+            abrirWaThread(_waRevendaSel);
           }
         }
       ).subscribe();
@@ -6733,18 +6735,48 @@ async function enviarMsgWhatsapp(){
   const input = document.getElementById('wa-msg-input');
   const body  = (input?.value||'').trim();
   if(!body || !_waRevendaSel) return;
-  const phone = window._waThreadPhone||'';
-  if(!phone){ toast('Número não encontrado','warn'); return; }
-  input.value = '';
+
+  // Normaliza telefone: garante código de país 55 (Brasil) se não tiver
+  const rawPhone = window._waThreadPhone||'';
+  if(!rawPhone){ toast('Número não encontrado para esta conversa','warn'); return; }
+  const dig   = rawPhone.replace(/\D/g,'');
+  const phone = (dig.length >= 12 && dig.startsWith('55')) ? dig : '55' + dig;
+
+  input.value   = '';
   input.disabled = true;
+
+  // Exibe mensagem otimisticamente enquanto aguarda o serviço processar
+  const msgsEl = document.getElementById('wa-thread-msgs');
+  let optDiv = null;
+  if(msgsEl){
+    const hora = new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    optDiv = document.createElement('div');
+    optDiv.dataset.optimistic = '1';
+    optDiv.style.cssText = 'display:flex;justify-content:flex-end';
+    optDiv.innerHTML = `<div style="max-width:72%;background:rgba(37,211,102,.12);border-radius:12px 12px 2px 12px;padding:8px 12px;border:1px solid var(--bdr);opacity:.65">
+      <div style="font-size:13px;line-height:1.5">${esc(body)}</div>
+      <div style="font-size:10px;color:var(--txt3);margin-top:3px;text-align:right">${hora} ⏳</div>
+    </div>`;
+    msgsEl.appendChild(optDiv);
+    msgsEl.scrollTop = msgsEl.scrollHeight;
+  }
+
   const { error } = await sb.from('mensagens_pendentes').insert({
     revenda_id: window._waThreadRevendaId || null,
     phone,
     body,
   });
+
   input.disabled = false;
   input.focus();
-  if(error){ toast('Erro ao enviar: '+error.message,'err'); input.value=body; }
+
+  if(error){
+    toast('Erro ao enviar: ' + error.message, 'err');
+    input.value = body;
+    optDiv?.remove();
+    return;
+  }
+  // Mensagem enfileirada — o balão definitivo chega via Realtime quando o serviço processar
 }
 
 async function desconectarWhatsapp(){
