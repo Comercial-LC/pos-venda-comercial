@@ -66,7 +66,8 @@ async function atualizarStatus(status, extra = {}) {
 // ── Envio de mensagens pendentes ──────────────────────────────────────
 
 async function enviarPendente(msg) {
-  const chatId = `${msg.phone}@c.us`;
+  // Preserva @lid (novo formato WhatsApp); caso contrário, usa @c.us
+  const chatId = msg.phone.includes('@') ? msg.phone : `${msg.phone}@c.us`;
   try {
     await client.sendMessage(chatId, msg.body);
     await sb.from('mensagens_pendentes').update({ status: 'sent' }).eq('id', msg.id);
@@ -138,7 +139,7 @@ client.on('disconnected', async reason => {
 client.on('message', async msg => {
   // Ignora status/stories do WhatsApp
   if (msg.isStatus || msg.from === 'status@broadcast') return;
-  const phone = msg.from.replace('@c.us', '');
+  const phone = msg.from.replace(/@c\.us$/, '');
   try {
     const rev = await buscarRevenda(phone);
     await salvarMensagem(rev?.id || null, 'inbound', msg.body, phone);
@@ -153,7 +154,8 @@ client.on('message_create', async msg => {
   if (!msg.fromMe) return;
   // Ignora status/stories do WhatsApp
   if (msg.isStatus || msg.to === 'status@broadcast') return;
-  const phone = msg.to.replace('@c.us', '');
+  // Remove apenas @c.us; preserva @lid e outros identificadores
+  const phone = msg.to.replace(/@c\.us$/, '');
   try {
     const rev = await buscarRevenda(phone);
     await salvarMensagem(rev?.id || null, 'outbound', msg.body, phone);
