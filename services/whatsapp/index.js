@@ -108,6 +108,7 @@ client.on('qr', async qr => {
 });
 
 client.on('ready', async () => {
+  _clientReady = true;
   const numero = client.info?.wid?.user || '';
   console.log(`[WhatsApp] Conectado. Número: ${numero || '(não disponível)'}`);
   await atualizarStatus('conectado', { qr_code: null, numero });
@@ -127,6 +128,7 @@ client.on('ready', async () => {
 });
 
 client.on('disconnected', async reason => {
+  _clientReady = false;
   console.warn('[WhatsApp] Desconectado:', reason);
   await atualizarStatus('desconectado', { qr_code: null, numero: null });
 });
@@ -160,18 +162,33 @@ client.on('message_create', async msg => {
   }
 });
 
-// ── Comando de desconexão pelo portal ────────────────────────────────
+// ── Comandos do portal (disconnect / reconnect) ───────────────────────
+let _clientReady = false;
+
 sb.channel('commands-ch')
   .on('postgres_changes',
     { event: 'INSERT', schema: 'public', table: 'whatsapp_commands' },
     async (payload) => {
       const { id, action } = payload.new || {};
-      if(!id || action !== 'disconnect') return;
-      console.log('[WhatsApp] Desconexão solicitada pelo portal');
+      if(!id) return;
       await sb.from('whatsapp_commands').update({ executed_at: new Date().toISOString() }).eq('id', id);
-      try { await client.logout(); } catch(e) { console.error('[WhatsApp] Erro ao desconectar:', e.message); }
-      await atualizarStatus('iniciando', { qr_code: null, numero: null });
-      setTimeout(() => { try { client.initialize(); } catch(e) {} }, 2000);
+
+      if(action === 'disconnect'){
+        console.log('[WhatsApp] Desconexão solicitada pelo portal');
+        try { await client.logout(); } catch(e) { console.error('[WhatsApp] Erro ao desconectar:', e.message); }
+        _clientReady = false;
+        await atualizarStatus('iniciando', { qr_code: null, numero: null });
+        setTimeout(() => { try { client.initialize(); } catch(e) {} }, 2000);
+
+      } else if(action === 'reconnect'){
+        if(_clientReady){
+          console.log('[WhatsApp] Já conectado, ignorando reconexão');
+          return;
+        }
+        console.log('[WhatsApp] Reconexão solicitada pelo portal');
+        await atualizarStatus('iniciando', { qr_code: null, numero: null });
+        setTimeout(() => { try { client.initialize(); } catch(e) { console.error('[WhatsApp] Erro ao reinicializar:', e.message); } }, 500);
+      }
     }
   ).subscribe();
 

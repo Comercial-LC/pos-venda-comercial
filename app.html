@@ -6317,16 +6317,23 @@ function _renderWaConexao(st){
             <img id="wa-qr-img" src="${qr}" alt="QR Code WhatsApp"
               style="width:228px;height:228px;border-radius:12px;border:2px solid var(--bdr);display:block;margin:0 auto">
           </div>
-          <div style="font-size:12px;color:var(--txt3);line-height:1.7">
+          <div style="font-size:12px;color:var(--txt3);line-height:1.7;margin-bottom:16px">
             Abra o WhatsApp → Aparelhos Conectados → Conectar aparelho
           </div>
+          <button class="btn btn-s" onclick="reconectarWhatsapp()" style="font-size:12px;gap:6px">
+            🔄 Gerar novo QR
+          </button>
           ` : `
-          <div style="padding:28px 0">
-            <div style="font-size:40px;margin-bottom:12px">⏳</div>
-            <div style="font-size:13px;color:var(--txt3);line-height:1.8">
-              Aguardando QR Code...<br>
-              Certifique-se de que o serviço está rodando:<br>
-              <code style="background:var(--bg2);padding:4px 10px;border-radius:4px;font-size:11px">cd services/whatsapp &amp;&amp; npm start</code>
+          <div style="padding:20px 0 24px">
+            <div style="font-size:40px;margin-bottom:14px">⏳</div>
+            <div style="font-size:13px;color:var(--txt3);line-height:1.8;margin-bottom:20px">
+              O serviço WhatsApp está desconectado.<br>Se ele já estiver rodando, clique abaixo para reconectar.
+            </div>
+            <button class="btn btn-p" onclick="reconectarWhatsapp()" style="font-size:13px;gap:6px;margin-bottom:10px;width:100%">
+              ▶ Iniciar conexão
+            </button>
+            <div style="font-size:11px;color:var(--txt3);margin-top:8px">
+              Necessário: serviço rodando com <code style="background:var(--bg2);padding:2px 6px;border-radius:3px">npm start</code>
             </div>
           </div>
           `}
@@ -6502,6 +6509,14 @@ async function desconectarWhatsapp(){
   const { error } = await sb.from('whatsapp_commands').insert({ action: 'disconnect' });
   if(error){ toast('Erro: '+error.message,'err'); return; }
   toast('Comando enviado. Aguarde a desconexão...','ok');
+}
+
+async function reconectarWhatsapp(){
+  const btn = document.querySelector('[onclick="reconectarWhatsapp()"]');
+  if(btn){ btn.disabled = true; btn.textContent = 'Aguardando...'; }
+  const { error } = await sb.from('whatsapp_commands').insert({ action: 'reconnect' });
+  if(error){ toast('Erro: '+error.message,'err'); if(btn){ btn.disabled=false; btn.textContent='▶ Iniciar conexão'; } return; }
+  toast('Comando enviado — aguarde o QR Code aparecer','ok');
 }
 
 function normalizarFoneJS(tel){ return String(tel||'').replace(/\D/g,''); }
