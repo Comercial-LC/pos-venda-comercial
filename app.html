@@ -6343,49 +6343,62 @@ function _renderWaConexao(st){
     </div>`;
 }
 
-// ── Chat Hub (WhatsApp conectado) ─────────────────────────────────────
+// ── Chat Hub 3 colunas (WhatsApp conectado) ───────────────────────────
 function _renderWaChatHub(st){
   const root = document.getElementById('wa-root');
   if(!root) return;
   const numero = st?.numero || '';
   root.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-      <div>
-        <div style="font-size:19px;font-weight:700">💬 WhatsApp</div>
-        <div style="font-size:12px;color:var(--txt3)">Conversas das revendas</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:12px">
+    <!-- Barra de status -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="font-size:17px;font-weight:700">💬 WhatsApp <span style="font-size:12px;font-weight:400;color:var(--txt3)">— Central de Atendimento</span></div>
+      <div style="display:flex;align-items:center;gap:10px">
         <div style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#22c55e;font-weight:600">
-          <div style="width:8px;height:8px;border-radius:50%;background:#22c55e"></div>
+          <div style="width:7px;height:7px;border-radius:50%;background:#22c55e"></div>
           Conectado${numero ? ' (+' + esc(numero) + ')' : ''}
         </div>
         <button class="btn btn-s" onclick="desconectarWhatsapp()"
-          style="font-size:11px;padding:4px 10px;color:#ef4444;border-color:#ef444488">Desconectar</button>
+          style="font-size:11px;padding:3px 9px;color:#ef4444;border-color:#ef444466">Desconectar</button>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:300px 1fr;border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;height:calc(100vh - 185px)">
+
+    <!-- Grade 3 colunas -->
+    <div style="display:grid;grid-template-columns:25% 45% 30%;border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;height:calc(100vh - 168px)">
+
+      <!-- Col 1: Lista de conversas -->
       <div style="border-right:1px solid var(--bdr);display:flex;flex-direction:column;background:var(--bg)">
         <div style="padding:10px 12px;border-bottom:1px solid var(--bdr)">
-          <input type="text" id="wa-search" placeholder="🔍 Buscar revenda..." oninput="filtrarWaList()"
-            style="width:100%;padding:8px 10px;font-size:13px;border-radius:var(--r);border:1px solid var(--bdr);background:var(--bg2);color:var(--txt);box-sizing:border-box">
+          <input type="text" id="wa-search" placeholder="🔍 Buscar..." oninput="filtrarWaList()"
+            style="width:100%;padding:7px 10px;font-size:12px;border-radius:var(--r);border:1px solid var(--bdr);background:var(--bg2);color:var(--txt);box-sizing:border-box">
         </div>
         <div id="wa-conv-items" style="flex:1;overflow-y:auto">
           <div style="padding:16px;color:var(--txt3);font-size:13px">Carregando conversas...</div>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;background:var(--bg2)">
-        <div id="wa-thread-header" style="padding:12px 18px;border-bottom:1px solid var(--bdr);background:var(--bg);min-height:56px;display:flex;align-items:center;gap:12px">
+
+      <!-- Col 2: Janela de chat -->
+      <div style="display:flex;flex-direction:column;background:var(--bg2);border-right:1px solid var(--bdr)">
+        <div id="wa-thread-header" style="padding:10px 16px;border-bottom:1px solid var(--bdr);background:var(--bg);min-height:52px;display:flex;align-items:center;gap:10px">
           <div style="color:var(--txt3);font-size:13px">Selecione uma conversa à esquerda</div>
         </div>
-        <div id="wa-thread-msgs" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px"></div>
-        <div id="wa-thread-input" style="padding:10px 14px;border-top:1px solid var(--bdr);background:var(--bg);display:none;gap:8px;align-items:center">
+        <div id="wa-thread-msgs" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px"></div>
+        <div id="wa-thread-input" style="padding:8px 12px;border-top:1px solid var(--bdr);background:var(--bg);display:none;gap:8px;align-items:center">
           <input id="wa-msg-input" type="text" placeholder="Digite uma mensagem..."
             onkeydown="if(event.key==='Enter')enviarMsgWhatsapp()"
-            style="flex:1;padding:10px 16px;border-radius:20px;border:1px solid var(--bdr);font-size:13px;background:var(--bg2);color:var(--txt);outline:none">
+            style="flex:1;padding:9px 14px;border-radius:20px;border:1px solid var(--bdr);font-size:13px;background:var(--bg2);color:var(--txt);outline:none">
           <button onclick="enviarMsgWhatsapp()" class="btn btn-p"
-            style="width:40px;height:40px;padding:0;border-radius:50%;font-size:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center">➤</button>
+            style="width:36px;height:36px;padding:0;border-radius:50%;font-size:15px;flex-shrink:0;display:flex;align-items:center;justify-content:center">➤</button>
         </div>
       </div>
+
+      <!-- Col 3: Detalhe do lead -->
+      <div id="wa-lead-panel" style="display:flex;flex-direction:column;background:var(--bg);overflow:hidden">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;color:var(--txt3)">
+          <div style="font-size:32px;margin-bottom:10px">👆</div>
+          <div style="font-size:13px">Selecione uma conversa para ver o perfil do lead</div>
+        </div>
+      </div>
+
     </div>`;
 }
 
@@ -6518,6 +6531,137 @@ function abrirWaThread(key){
     </div>`;
   }).join('');
   msgsEl.scrollTop = msgsEl.scrollHeight;
+  _renderWaLeadPanel(conv);
+}
+
+// ── Helpers de ícone e status ─────────────────────────────────────────
+function _waTipoIcon(tipo){
+  const t = (tipo||'').toLowerCase();
+  if(t.includes('whatsapp'))                         return { icon:'💬', cor:'#22c55e', bg:'rgba(34,197,94,.12)' };
+  if(t.includes('liga') || t.includes('📞'))         return { icon:'📞', cor:'#3b82f6', bg:'rgba(59,130,246,.12)' };
+  if(t.includes('email') || t.includes('📧'))        return { icon:'📧', cor:'#8b5cf6', bg:'rgba(139,92,246,.12)' };
+  if(t.includes('reuni') || t.includes('📅'))        return { icon:'📅', cor:'#f59e0b', bg:'rgba(245,158,11,.12)' };
+  if(t.includes('handover') || t.includes('🤝'))     return { icon:'🤝', cor:'#10b981', bg:'rgba(16,185,129,.12)' };
+  if(t.includes('proposta') || t.includes('📄'))     return { icon:'📄', cor:'#6366f1', bg:'rgba(99,102,241,.12)' };
+  return { icon:'📌', cor:'#6b7280', bg:'rgba(107,114,128,.12)' };
+}
+
+function _waStatusInfo(status){
+  const s = (status||'').toLowerCase();
+  if(s.includes('ativo') && !s.includes('in'))       return { cor:'#22c55e' };
+  if(s.includes('inativ')||s.includes('churn')||s.includes('cancel')||s.includes('perdido')) return { cor:'#ef4444' };
+  if(s.includes('nova'))                             return { cor:'#3b82f6' };
+  if(s.includes('implant'))                          return { cor:'#f59e0b' };
+  if(s.includes('academy')||s.includes('libera'))    return { cor:'#8b5cf6' };
+  if(s.includes('decola')||s.includes('primeiro'))   return { cor:'#10b981' };
+  if(s.includes('handover')||s.includes('onboard'))  return { cor:'#6366f1' };
+  return { cor:'#6b7280' };
+}
+
+// ── Painel da coluna 3 — Perfil + Timeline ────────────────────────────
+async function _renderWaLeadPanel(conv){
+  const el = document.getElementById('wa-lead-panel');
+  if(!el) return;
+
+  if(!conv?.revendaId){
+    el.innerHTML = `
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;color:var(--txt3)">
+        <div style="font-size:36px;margin-bottom:12px">👤</div>
+        <div style="font-weight:600;font-size:13px;margin-bottom:6px;color:var(--txt2)">Contato não cadastrado</div>
+        <div style="font-size:12px">Número não vinculado a nenhuma revenda.</div>
+      </div>`;
+    return;
+  }
+
+  el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--txt3);font-size:12px">Carregando...</div>';
+
+  const [{ data: rev }, { data: hist }] = await Promise.all([
+    sb.from('revendas').select('*').eq('id', conv.revendaId).maybeSingle(),
+    sb.from('historico_cards').select('*').eq('revenda_id', conv.revendaId)
+      .order('criado_em', { ascending: false }).limit(40),
+  ]);
+
+  if(!rev){ el.innerHTML = '<div style="padding:16px;color:var(--txt3);font-size:12px">Revenda não encontrada.</div>'; return; }
+
+  const st      = _waStatusInfo(rev.status);
+  const cidUf   = [rev.cidade, rev.uf].filter(Boolean).join(' / ') || '—';
+  const periodo = hist?.length > 1
+    ? `${new Date(hist[hist.length-1].criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})} → ${new Date(hist[0].criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})}`
+    : hist?.length === 1 ? new Date(hist[0].criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
+
+  const infoRows = [
+    ['CS',       rev.cs],
+    ['Segmento', rev.segmento],
+    ['Porte',    rev.porte],
+    ['CNPJ',     rev.cnpj],
+    ['Contratos',rev.contratos],
+  ].filter(([,v])=>v);
+
+  const histHTML = (hist||[]).length ? (hist||[]).map(h => {
+    const ic   = _waTipoIcon(h.tipo);
+    const data = new Date(h.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const isWa = (h.tipo||'').toLowerCase().includes('whatsapp');
+    return `<div style="display:flex;gap:8px;margin-bottom:10px">
+      <div style="flex-shrink:0;margin-top:2px">
+        <div style="width:28px;height:28px;border-radius:50%;background:${ic.bg};border:1px solid ${ic.cor}30;display:flex;align-items:center;justify-content:center;font-size:13px">${ic.icon}</div>
+      </div>
+      <div style="flex:1;background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;padding:7px 9px;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:4px;margin-bottom:2px">
+          <div style="font-size:10px;font-weight:700;color:${ic.cor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(h.tipo||'Evento')}</div>
+          <div style="font-size:10px;color:var(--txt3);flex-shrink:0">${data}</div>
+        </div>
+        <div style="font-size:11px;color:var(--txt2);line-height:1.4">${esc((h.descricao||'').slice(0,90))}${(h.descricao||'').length>90?'…':''}</div>
+        ${isWa ? '<div style="margin-top:3px;font-size:10px;color:#22c55e;font-weight:600">✓✓ Entregue</div>' : ''}
+      </div>
+    </div>`;
+  }).join('') : '<div style="text-align:center;padding:16px 0;color:var(--txt3);font-size:12px">Nenhuma interação registrada.</div>';
+
+  el.innerHTML = `
+    <!-- Perfil -->
+    <div style="padding:14px 14px 10px;border-bottom:1px solid var(--bdr)">
+      <div style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.5px;border:1px solid ${st.cor}40;color:${st.cor};background:${st.cor}10;margin-bottom:8px">
+        ${esc(rev.status||'—')}
+      </div>
+      <div style="font-weight:700;font-size:14px;margin-bottom:2px">${esc(rev.nome)}</div>
+      <div style="font-size:11px;color:var(--txt3)">${esc(cidUf)}</div>
+    </div>
+
+    <!-- Campos -->
+    ${infoRows.length ? `
+    <div style="padding:10px 14px;border-bottom:1px solid var(--bdr);display:flex;flex-direction:column;gap:5px">
+      ${infoRows.map(([k,v])=>`
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px">${k}</span>
+          <span style="font-size:11px;font-weight:500;color:var(--txt)">${esc(String(v))}</span>
+        </div>`).join('')}
+    </div>` : ''}
+
+    <!-- Observações -->
+    ${rev.obs ? `
+    <div style="padding:10px 14px;border-bottom:1px solid var(--bdr)">
+      <div style="background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.25);border-radius:8px;padding:9px 11px">
+        <div style="font-size:10px;font-weight:700;color:#d97706;letter-spacing:.4px;margin-bottom:4px">📌 OBSERVAÇÕES</div>
+        <div style="font-size:11px;line-height:1.5;color:var(--txt)">${esc(rev.obs)}</div>
+      </div>
+    </div>` : ''}
+
+    <!-- Timeline -->
+    <div style="padding:10px 14px;flex:1;overflow-y:auto">
+      <div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px">Linha do Tempo</div>
+      ${histHTML}
+    </div>
+
+    <!-- Rodapé -->
+    <div style="padding:8px 14px;border-top:1px solid var(--bdr);background:var(--bg2);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+      <div style="text-align:center">
+        <div style="font-size:16px;font-weight:700">${(hist||[]).length}</div>
+        <div style="font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px">Interações</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:10px;font-weight:600">${esc(periodo)}</div>
+        <div style="font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px">Período</div>
+      </div>
+    </div>`;
 }
 
 async function enviarMsgWhatsapp(){
