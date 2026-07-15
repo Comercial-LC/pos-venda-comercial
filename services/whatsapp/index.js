@@ -139,10 +139,9 @@ client.on('message', async msg => {
   const phone = msg.from.replace('@c.us', '');
   try {
     const rev = await buscarRevenda(phone);
-    if (!rev) return;
-    await salvarMensagem(rev.id, 'inbound', msg.body, phone);
-    await registrarHistorico(rev.id, '💬 WhatsApp', msg.body);
-    console.log(`[WhatsApp] ← ${rev.nome}: ${msg.body.slice(0, 80)}`);
+    await salvarMensagem(rev?.id || null, 'inbound', msg.body, phone);
+    if (rev) await registrarHistorico(rev.id, '💬 WhatsApp', msg.body);
+    console.log(`[WhatsApp] ← ${rev?.nome || phone}: ${msg.body.slice(0, 80)}`);
   } catch (err) {
     console.error(`[WhatsApp] Erro (recebido de ${phone}):`, err.message);
   }
@@ -153,10 +152,9 @@ client.on('message_create', async msg => {
   const phone = msg.to.replace('@c.us', '');
   try {
     const rev = await buscarRevenda(phone);
-    if (!rev) return;
-    await salvarMensagem(rev.id, 'outbound', msg.body, phone);
-    await registrarHistorico(rev.id, '📤 WhatsApp enviado', msg.body);
-    console.log(`[WhatsApp] → ${rev.nome}: ${msg.body.slice(0, 80)}`);
+    await salvarMensagem(rev?.id || null, 'outbound', msg.body, phone);
+    if (rev) await registrarHistorico(rev.id, '📤 WhatsApp enviado', msg.body);
+    console.log(`[WhatsApp] → ${rev?.nome || phone}: ${msg.body.slice(0, 80)}`);
   } catch (err) {
     console.error(`[WhatsApp] Erro (enviado para ${phone}):`, err.message);
   }
