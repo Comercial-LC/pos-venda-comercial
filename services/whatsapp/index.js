@@ -10,11 +10,12 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
 
 const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
+// ── Utilitários ──────────────────────────────────────────────────────
+
 function normalizarFone(tel) {
   return String(tel || '').replace(/\D/g, '');
 }
 
-// Tolerante a prefixo +55: "11999..." bate com "5511999..."
 function foneBate(armazenado, recebido) {
   if (!armazenado || !recebido) return false;
   return armazenado === recebido ||
@@ -31,7 +32,19 @@ async function buscarRevenda(phone) {
   );
 }
 
-async function registrar(revendaId, tipo, descricao) {
+// ── Persistência ─────────────────────────────────────────────────────
+
+async function salvarMensagem(revendaId, direction, body, phone) {
+  const { error } = await sb.from('whatsapp_messages').insert({
+    revenda_id: revendaId,
+    direction,
+    body,
+    phone: phone || null,
+  });
+  if (error) console.error('[WhatsApp] Erro ao salvar msg:', error.message);
+}
+
+async function registrarHistorico(revendaId, tipo, descricao) {
   const { error } = await sb.from('historico_cards').insert({
     revenda_id:   revendaId,
     tipo,
@@ -39,7 +52,7 @@ async function registrar(revendaId, tipo, descricao) {
     manual:       false,
     usuario_nome: 'WhatsApp Bot',
   });
-  if (error) throw error;
+  if (error) console.error('[WhatsApp] Erro ao salvar histórico:', error.message);
 }
 
 async function atualizarStatus(status, extra = {}) {
@@ -50,8 +63,37 @@ async function atualizarStatus(status, extra = {}) {
   if (error) console.error('[WhatsApp] Erro ao atualizar status:', error.message);
 }
 
+// ── Envio de mensagens pendentes ──────────────────────────────────────
+
+async function enviarPendente(msg) {
+  const chatId = `${msg.phone}@c.us`;
+  try {
+    await client.sendMessage(chatId, msg.body);
+    await sb.from('mensagens_pendentes').update({ status: 'sent' }).eq('id', msg.id);
+    console.log(`[WhatsApp] ✓ Enviado para ${msg.phone}`);
+  } catch (err) {
+    console.error(`[WhatsApp] Erro ao enviar para ${msg.phone}:`, err.message);
+    await sb.from('mensagens_pendentes').update({ status: 'error' }).eq('id', msg.id);
+  }
+}
+
+async function processarPendentes() {
+  const { data } = await sb.from('mensagens_pendentes')
+    .select('*').eq('status', 'pending').order('created_at');
+  for (const msg of data || []) {
+    await enviarPendente(msg);
+  }
+}
+
+// ── Cliente WhatsApp ─────────────────────────────────────────────────
+
 const client = new Client({
   authStrategy: new LocalAuth({ dataPath: './.wwebjs_auth' }),
+  webVersion: '2.3000.1023204675',
+  webVersionCache: {
+    type: 'remote',
+    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1023204675.html',
+  },
   puppeteer: { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] },
 });
 
@@ -69,6 +111,19 @@ client.on('ready', async () => {
   const numero = client.info?.wid?.user || '';
   console.log(`[WhatsApp] Conectado. Número: ${numero || '(não disponível)'}`);
   await atualizarStatus('conectado', { qr_code: null, numero });
+
+  // Envia mensagens que ficaram na fila durante offline
+  await processarPendentes();
+
+  // Monitora novas mensagens pendentes em tempo real
+  sb.channel('pendentes-ch')
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'mensagens_pendentes' },
+      async (payload) => {
+        if (payload.new?.status !== 'pending') return;
+        await enviarPendente(payload.new);
+      }
+    ).subscribe();
 });
 
 client.on('disconnected', async reason => {
@@ -76,12 +131,15 @@ client.on('disconnected', async reason => {
   await atualizarStatus('desconectado', { qr_code: null, numero: null });
 });
 
+// ── Eventos de mensagem ───────────────────────────────────────────────
+
 client.on('message', async msg => {
   const phone = msg.from.replace('@c.us', '');
   try {
     const rev = await buscarRevenda(phone);
     if (!rev) return;
-    await registrar(rev.id, '💬 WhatsApp', msg.body);
+    await salvarMensagem(rev.id, 'inbound', msg.body, phone);
+    await registrarHistorico(rev.id, '💬 WhatsApp', msg.body);
     console.log(`[WhatsApp] ← ${rev.nome}: ${msg.body.slice(0, 80)}`);
   } catch (err) {
     console.error(`[WhatsApp] Erro (recebido de ${phone}):`, err.message);
@@ -94,7 +152,8 @@ client.on('message_create', async msg => {
   try {
     const rev = await buscarRevenda(phone);
     if (!rev) return;
-    await registrar(rev.id, '📤 WhatsApp enviado', msg.body);
+    await salvarMensagem(rev.id, 'outbound', msg.body, phone);
+    await registrarHistorico(rev.id, '📤 WhatsApp enviado', msg.body);
     console.log(`[WhatsApp] → ${rev.nome}: ${msg.body.slice(0, 80)}`);
   } catch (err) {
     console.error(`[WhatsApp] Erro (enviado para ${phone}):`, err.message);

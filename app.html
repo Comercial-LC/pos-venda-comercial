@@ -497,6 +497,11 @@ select option{background:var(--bg2)}
             <div style="color:var(--txt3);font-size:13px">Selecione uma conversa à esquerda</div>
           </div>
           <div id="wa-thread-msgs" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px"></div>
+          <!-- Campo de envio -->
+          <div id="wa-thread-input" style="padding:10px 14px;border-top:1px solid var(--bdr);background:var(--bg);display:none;gap:8px;align-items:center">
+            <input id="wa-msg-input" type="text" placeholder="Digite uma mensagem..." onkeydown="if(event.key==='Enter')enviarMsgWhatsapp()" style="flex:1;padding:10px 16px;border-radius:20px;border:1px solid var(--bdr);font-size:13px;background:var(--bg2);color:var(--txt);outline:none">
+            <button onclick="enviarMsgWhatsapp()" class="btn btn-p" style="width:40px;height:40px;padding:0;border-radius:50%;font-size:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center">➤</button>
+          </div>
         </div>
       </div>
     </div>
@@ -6231,12 +6236,10 @@ function initApp(){
     // Realtime: atualiza painel WhatsApp ao receber nova mensagem
     sb.channel('wa_msgs_live')
       .on('postgres_changes',
-        {event:'INSERT', schema:'public', table:'historico_cards'},
+        {event:'INSERT', schema:'public', table:'whatsapp_messages'},
         async (payload)=>{
-          const tipo=payload.new?.tipo||'';
-          if(!tipo.includes('WhatsApp')) return;
-          const rId=payload.new.revenda_id;
-          // Re-carrega conversas se o painel estiver aberto
+          const rId=payload.new?.revenda_id;
+          if(!rId) return;
           if(document.getElementById('p-whatsapp')?.classList.contains('on')){
             await renderWhatsapp();
             if(_waRevendaSel===rId) abrirWaThread(rId);
@@ -6272,19 +6275,17 @@ async function renderWhatsapp(){
   if(!listEl) return;
   listEl.innerHTML = '<div style="padding:16px;color:var(--txt3);font-size:13px">Carregando...</div>';
 
-  const { data: msgs } = await sb.from('historico_cards')
-    .select('revenda_id, tipo, descricao, criado_em, usuario_nome, revendas(id, nome, tel)')
-    .in('tipo', ['💬 WhatsApp', '📤 WhatsApp enviado'])
-    .order('criado_em', { ascending: false })
-    .limit(500);
+  const { data: msgs } = await sb.from('whatsapp_messages')
+    .select('*, revendas(id, nome, tel)')
+    .order('created_at', { ascending: false })
+    .limit(2000);
 
   if(!msgs || !msgs.length){
-    listEl.innerHTML = '<div style="padding:16px;color:var(--txt3);font-size:13px">Nenhuma conversa registrada ainda.</div>';
+    listEl.innerHTML = '<div style="padding:16px;color:var(--txt3);font-size:13px">Nenhuma conversa ainda.<br>Aguardando mensagens...</div>';
     document.getElementById('wa-thread-header').innerHTML = '<div style="color:var(--txt3);font-size:13px">Selecione uma conversa à esquerda</div>';
     return;
   }
 
-  // Agrupa por revenda (order: mais recente primeiro)
   const convMap = new Map();
   for(const m of msgs){
     const rId = m.revenda_id;
@@ -6293,7 +6294,6 @@ async function renderWhatsapp(){
   }
   window._waConvMap = convMap;
   _renderWaList([...convMap.values()]);
-
   if(!_waRevendaSel){ const first=[...convMap.keys()][0]; if(first) abrirWaThread(first); }
 }
 
@@ -6303,9 +6303,9 @@ function _renderWaList(convs){
   if(!convs.length){ listEl.innerHTML = '<div style="padding:16px;color:var(--txt3);font-size:13px">Nenhum resultado.</div>'; return; }
   listEl.innerHTML = convs.map(c => {
     const last = c.last;
-    const sent = last.tipo === '📤 WhatsApp enviado';
-    const preview = esc((last.descricao||'').slice(0, 52) + ((last.descricao||'').length > 52 ? '…' : ''));
-    const data = new Date(last.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+    const sent = last.direction === 'outbound';
+    const preview = esc((last.body||'').slice(0, 52) + ((last.body||'').length > 52 ? '…' : ''));
+    const data = new Date(last.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
     const sel = _waRevendaSel === c.rev?.id ? 'background:var(--accl);' : '';
     return `<div class="wa-conv-item" onclick="abrirWaThread(${c.rev?.id})" style="padding:12px 14px;cursor:pointer;border-bottom:1px solid var(--bdr);display:flex;gap:10px;align-items:flex-start;${sel}">
       <div style="width:40px;height:40px;border-radius:50%;background:rgba(37,211,102,.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">💬</div>
@@ -6332,14 +6332,16 @@ function abrirWaThread(revendaId){
   const conv = window._waConvMap?.get(revendaId);
   if(!conv) return;
 
-  // Atualiza seleção visual
   const q=(document.getElementById('wa-search')?.value||'').toLowerCase();
   const convs=[...(window._waConvMap||new Map()).values()];
   _renderWaList(q ? convs.filter(c=>(c.rev?.nome||'').toLowerCase().includes(q)) : convs);
 
-  const header = document.getElementById('wa-thread-header');
-  const msgsEl = document.getElementById('wa-thread-msgs');
+  const header  = document.getElementById('wa-thread-header');
+  const msgsEl  = document.getElementById('wa-thread-msgs');
+  const inputEl = document.getElementById('wa-thread-input');
   if(!header || !msgsEl) return;
+
+  window._waThreadPhone = normalizarFoneJS(conv.rev?.tel||'');
 
   header.innerHTML = `
     <div style="width:40px;height:40px;border-radius:50%;background:rgba(37,211,102,.15);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">💬</div>
@@ -6349,14 +6351,15 @@ function abrirWaThread(revendaId){
     </div>
     <button class="btn btn-s btn-sm" onclick="openCardModal(${revendaId})">Ver card completo</button>`;
 
-  const sorted=[...conv.msgs].sort((a,b)=>new Date(a.criado_em)-new Date(b.criado_em));
+  if(inputEl) inputEl.style.display = 'flex';
+
+  const sorted=[...conv.msgs].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
   msgsEl.innerHTML = sorted.map(m=>{
-    const sent=m.tipo==='📤 WhatsApp enviado';
-    const hora=new Date(m.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const sent = m.direction==='outbound';
+    const hora = new Date(m.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     return `<div style="display:flex;justify-content:${sent?'flex-end':'flex-start'}">
       <div style="max-width:72%;background:${sent?'rgba(37,211,102,.15)':'var(--bg)'};border-radius:${sent?'12px 12px 2px 12px':'12px 12px 12px 2px'};padding:8px 12px;border:1px solid var(--bdr)">
-        ${!sent?`<div style="font-size:10px;font-weight:600;color:var(--acc);margin-bottom:3px">${esc(m.usuario_nome||'WhatsApp Bot')}</div>`:''}
-        <div style="font-size:13px;line-height:1.5">${esc(m.descricao||'')}</div>
+        <div style="font-size:13px;line-height:1.5">${esc(m.body||'')}</div>
         <div style="font-size:10px;color:var(--txt3);margin-top:3px;text-align:right">${hora}${sent?' ✓✓':''}</div>
       </div>
     </div>`;
@@ -6364,27 +6367,48 @@ function abrirWaThread(revendaId){
   msgsEl.scrollTop = msgsEl.scrollHeight;
 }
 
+async function enviarMsgWhatsapp(){
+  const input = document.getElementById('wa-msg-input');
+  const body  = (input?.value||'').trim();
+  if(!body || !_waRevendaSel) return;
+  const phone = window._waThreadPhone||'';
+  if(!phone){ toast('Número não encontrado para esta revenda','warn'); return; }
+
+  input.value = '';
+  input.disabled = true;
+
+  const { error } = await sb.from('mensagens_pendentes').insert({
+    revenda_id: _waRevendaSel,
+    phone,
+    body,
+  });
+
+  input.disabled = false;
+  input.focus();
+  if(error){ toast('Erro ao enviar: '+error.message,'err'); input.value=body; }
+}
+
+function normalizarFoneJS(tel){ return String(tel||'').replace(/\D/g,''); }
+
 async function renderCardWhatsapp(id){
   const el=document.getElementById('card-wa-msgs');
   if(!el||!id) return;
   el.innerHTML='<div style="text-align:center;padding:20px;color:var(--txt3)">⏳ Carregando...</div>';
-  const { data: msgs }=await sb.from('historico_cards')
+  const { data: msgs }=await sb.from('whatsapp_messages')
     .select('*')
     .eq('revenda_id', id)
-    .in('tipo',['💬 WhatsApp','📤 WhatsApp enviado'])
-    .order('criado_em',{ascending:true})
+    .order('created_at',{ascending:true})
     .limit(200);
   if(!msgs||!msgs.length){
     el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt3);font-size:13px">Nenhuma mensagem WhatsApp neste card.</div>';
     return;
   }
   el.innerHTML=msgs.map(m=>{
-    const sent=m.tipo==='📤 WhatsApp enviado';
-    const hora=new Date(m.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const sent=m.direction==='outbound';
+    const hora=new Date(m.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     return `<div style="display:flex;justify-content:${sent?'flex-end':'flex-start'}">
       <div style="max-width:75%;background:${sent?'rgba(37,211,102,.15)':'var(--bg2)'};border-radius:${sent?'12px 12px 2px 12px':'12px 12px 12px 2px'};padding:8px 12px;border:1px solid var(--bdr)">
-        ${!sent?`<div style="font-size:10px;font-weight:600;color:var(--acc);margin-bottom:3px">${esc(m.usuario_nome||'WhatsApp Bot')}</div>`:''}
-        <div style="font-size:13px;line-height:1.5">${esc(m.descricao||'')}</div>
+        <div style="font-size:13px;line-height:1.5">${esc(m.body||'')}</div>
         <div style="font-size:10px;color:var(--txt3);margin-top:3px;text-align:right">${hora}${sent?' ✓✓':''}</div>
       </div>
     </div>`;
