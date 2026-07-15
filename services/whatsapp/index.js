@@ -160,5 +160,20 @@ client.on('message_create', async msg => {
   }
 });
 
+// ── Comando de desconexão pelo portal ────────────────────────────────
+sb.channel('commands-ch')
+  .on('postgres_changes',
+    { event: 'INSERT', schema: 'public', table: 'whatsapp_commands' },
+    async (payload) => {
+      const { id, action } = payload.new || {};
+      if(!id || action !== 'disconnect') return;
+      console.log('[WhatsApp] Desconexão solicitada pelo portal');
+      await sb.from('whatsapp_commands').update({ executed_at: new Date().toISOString() }).eq('id', id);
+      try { await client.logout(); } catch(e) { console.error('[WhatsApp] Erro ao desconectar:', e.message); }
+      await atualizarStatus('iniciando', { qr_code: null, numero: null });
+      setTimeout(() => { try { client.initialize(); } catch(e) {} }, 2000);
+    }
+  ).subscribe();
+
 atualizarStatus('iniciando').catch(() => {});
 client.initialize();

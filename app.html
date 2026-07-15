@@ -481,29 +481,7 @@ select option{background:var(--bg2)}
 
     <!-- WHATSAPP -->
     <div class="panel" id="p-whatsapp">
-      <div style="font-size:19px;font-weight:700;margin-bottom:4px">💬 WhatsApp</div>
-      <div style="font-size:12px;color:var(--txt3);margin-bottom:16px">Conversas das revendas via WhatsApp</div>
-      <div style="display:grid;grid-template-columns:300px 1fr;border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;height:calc(100vh - 165px)">
-        <!-- Lista de conversas -->
-        <div style="border-right:1px solid var(--bdr);display:flex;flex-direction:column;background:var(--bg)">
-          <div style="padding:10px 12px;border-bottom:1px solid var(--bdr)">
-            <input type="text" id="wa-search" placeholder="🔍 Buscar revenda..." oninput="filtrarWaList()" style="width:100%;padding:8px 10px;font-size:13px;border-radius:var(--r);border:1px solid var(--bdr);background:var(--bg2);color:var(--txt);box-sizing:border-box">
-          </div>
-          <div id="wa-conv-items" style="flex:1;overflow-y:auto"></div>
-        </div>
-        <!-- Thread de mensagens -->
-        <div style="display:flex;flex-direction:column;background:var(--bg2)">
-          <div id="wa-thread-header" style="padding:12px 18px;border-bottom:1px solid var(--bdr);background:var(--bg);min-height:56px;display:flex;align-items:center;gap:12px">
-            <div style="color:var(--txt3);font-size:13px">Selecione uma conversa à esquerda</div>
-          </div>
-          <div id="wa-thread-msgs" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px"></div>
-          <!-- Campo de envio -->
-          <div id="wa-thread-input" style="padding:10px 14px;border-top:1px solid var(--bdr);background:var(--bg);display:none;gap:8px;align-items:center">
-            <input id="wa-msg-input" type="text" placeholder="Digite uma mensagem..." onkeydown="if(event.key==='Enter')enviarMsgWhatsapp()" style="flex:1;padding:10px 16px;border-radius:20px;border:1px solid var(--bdr);font-size:13px;background:var(--bg2);color:var(--txt);outline:none">
-            <button onclick="enviarMsgWhatsapp()" class="btn btn-p" style="width:40px;height:40px;padding:0;border-radius:50%;font-size:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center">➤</button>
-          </div>
-        </div>
-      </div>
+      <div id="wa-root"></div>
     </div>
 
     <!-- TIMELINE -->
@@ -6233,7 +6211,7 @@ function initApp(){
         }
       ).subscribe();
 
-    // Realtime: atualiza painel WhatsApp ao receber nova mensagem
+    // Realtime: nova mensagem WhatsApp → recarrega lista de conversas
     sb.channel('wa_msgs_live')
       .on('postgres_changes',
         {event:'INSERT', schema:'public', table:'whatsapp_messages'},
@@ -6241,17 +6219,20 @@ function initApp(){
           const rId=payload.new?.revenda_id;
           if(!rId) return;
           if(document.getElementById('p-whatsapp')?.classList.contains('on')){
-            await renderWhatsapp();
+            await _carregarConversasWa();
             if(_waRevendaSel===rId) abrirWaThread(rId);
           }
         }
       ).subscribe();
 
-    // Realtime: atualiza painel de Integrações ao mudar status do WhatsApp
+    // Realtime: mudança de status WhatsApp → atualiza painel correspondente
     sb.channel('wa_status_sync')
       .on('postgres_changes',
         {event:'*', schema:'public', table:'whatsapp_status'},
-        ()=>{ if(document.getElementById('p-integracao')?.classList.contains('on')) renderWaStatus(); }
+        async ()=>{
+          if(document.getElementById('p-integracao')?.classList.contains('on')) renderWaStatus();
+          if(document.getElementById('p-whatsapp')?.classList.contains('on')) renderWhatsapp();
+        }
       ).subscribe();
 
     // ── PASSO 6: Resize handler ───────────────────────────────
@@ -6268,12 +6249,143 @@ function initApp(){
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ─── WhatsApp ────────────────────────────────────────────────────────
-let _waRevendaSel = null;
+let _waRevendaSel  = null;
+let _waPollingTimer = null;
 
+// ── Polling de status (fallback para Realtime) ────────────────────────
+function _waStartPolling(){
+  _waStopPolling();
+  _waPollingTimer = setInterval(async () => {
+    const { data } = await sb.from('whatsapp_status').select('status,qr_code,numero').eq('id',1).maybeSingle();
+    if(!data) return;
+    if(data.status === 'conectado'){
+      _waStopPolling();
+      if(document.getElementById('p-whatsapp')?.classList.contains('on')) renderWhatsapp();
+      return;
+    }
+    // Atualiza QR sem re-renderizar tudo
+    const qrEl = document.getElementById('wa-qr-img');
+    if(qrEl && data.qr_code) qrEl.src = data.qr_code;
+  }, 5000);
+}
+
+function _waStopPolling(){
+  if(_waPollingTimer){ clearInterval(_waPollingTimer); _waPollingTimer = null; }
+}
+
+// ── Ponto de entrada do painel ────────────────────────────────────────
 async function renderWhatsapp(){
+  const root = document.getElementById('wa-root');
+  if(!root) return;
+  root.innerHTML = '<div style="padding:40px;text-align:center;color:var(--txt3)">Carregando...</div>';
+  const { data: st } = await sb.from('whatsapp_status').select('*').eq('id',1).maybeSingle();
+  if((st?.status||'desconectado') === 'conectado'){
+    _waStopPolling();
+    _renderWaChatHub(st);
+    await _carregarConversasWa();
+  } else {
+    _renderWaConexao(st);
+    _waStartPolling();
+  }
+}
+
+// ── Tela de conexão / QR Code ─────────────────────────────────────────
+function _renderWaConexao(st){
+  const root = document.getElementById('wa-root');
+  if(!root) return;
+  const status = st?.status || 'desconectado';
+  const qr     = st?.qr_code || null;
+  const S = {
+    'desconectado':  { label:'DESCONECTADO',      cor:'#ef4444', dot:'🔴', msg:'Inicie o serviço WhatsApp no servidor para gerar o QR Code.' },
+    'iniciando':     { label:'INICIANDO...',       cor:'#f59e0b', dot:'🟡', msg:'O serviço está carregando, aguarde o QR Code...' },
+    'aguardando_qr': { label:'AGUARDANDO LEITURA', cor:'#f59e0b', dot:'🟡', msg:'Escaneie o QR Code abaixo com o WhatsApp do celular.' },
+    'desconectando': { label:'DESCONECTANDO...',   cor:'#f59e0b', dot:'🟡', msg:'Encerrando sessão, aguarde...' },
+  };
+  const s = S[status] || { label: status.toUpperCase(), cor:'#6b7280', dot:'⚪', msg:'' };
+  root.innerHTML = `
+    <div style="min-height:calc(100vh - 120px);display:flex;align-items:center;justify-content:center">
+      <div style="max-width:440px;width:100%;text-align:center;padding:24px">
+        <div style="width:80px;height:80px;border-radius:50%;background:rgba(37,211,102,.1);display:flex;align-items:center;justify-content:center;font-size:42px;margin:0 auto 20px">💬</div>
+        <div style="font-size:22px;font-weight:700;margin-bottom:6px">WhatsApp</div>
+        <div style="font-size:13px;color:var(--txt3);margin-bottom:28px">${esc(s.msg)}</div>
+        <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);padding:36px;box-shadow:0 4px 24px rgba(0,0,0,.07)">
+          <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 16px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.8px;border:1px solid ${s.cor}40;color:${s.cor};background:${s.cor}12;margin-bottom:28px">
+            ${s.dot} ${esc(s.label)}
+          </div>
+          ${qr ? `
+          <div style="margin-bottom:16px">
+            <img id="wa-qr-img" src="${qr}" alt="QR Code WhatsApp"
+              style="width:228px;height:228px;border-radius:12px;border:2px solid var(--bdr);display:block;margin:0 auto">
+          </div>
+          <div style="font-size:12px;color:var(--txt3);line-height:1.7">
+            Abra o WhatsApp → Aparelhos Conectados → Conectar aparelho
+          </div>
+          ` : `
+          <div style="padding:28px 0">
+            <div style="font-size:40px;margin-bottom:12px">⏳</div>
+            <div style="font-size:13px;color:var(--txt3);line-height:1.8">
+              Aguardando QR Code...<br>
+              Certifique-se de que o serviço está rodando:<br>
+              <code style="background:var(--bg2);padding:4px 10px;border-radius:4px;font-size:11px">cd services/whatsapp &amp;&amp; npm start</code>
+            </div>
+          </div>
+          `}
+        </div>
+        <div style="font-size:11px;color:var(--txt3);margin-top:14px;opacity:.6">Atualiza automaticamente em tempo real</div>
+      </div>
+    </div>`;
+}
+
+// ── Chat Hub (WhatsApp conectado) ─────────────────────────────────────
+function _renderWaChatHub(st){
+  const root = document.getElementById('wa-root');
+  if(!root) return;
+  const numero = st?.numero || '';
+  root.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-size:19px;font-weight:700">💬 WhatsApp</div>
+        <div style="font-size:12px;color:var(--txt3)">Conversas das revendas</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#22c55e;font-weight:600">
+          <div style="width:8px;height:8px;border-radius:50%;background:#22c55e"></div>
+          Conectado${numero ? ' (+' + esc(numero) + ')' : ''}
+        </div>
+        <button class="btn btn-s" onclick="desconectarWhatsapp()"
+          style="font-size:11px;padding:4px 10px;color:#ef4444;border-color:#ef444488">Desconectar</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:300px 1fr;border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;height:calc(100vh - 185px)">
+      <div style="border-right:1px solid var(--bdr);display:flex;flex-direction:column;background:var(--bg)">
+        <div style="padding:10px 12px;border-bottom:1px solid var(--bdr)">
+          <input type="text" id="wa-search" placeholder="🔍 Buscar revenda..." oninput="filtrarWaList()"
+            style="width:100%;padding:8px 10px;font-size:13px;border-radius:var(--r);border:1px solid var(--bdr);background:var(--bg2);color:var(--txt);box-sizing:border-box">
+        </div>
+        <div id="wa-conv-items" style="flex:1;overflow-y:auto">
+          <div style="padding:16px;color:var(--txt3);font-size:13px">Carregando conversas...</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;background:var(--bg2)">
+        <div id="wa-thread-header" style="padding:12px 18px;border-bottom:1px solid var(--bdr);background:var(--bg);min-height:56px;display:flex;align-items:center;gap:12px">
+          <div style="color:var(--txt3);font-size:13px">Selecione uma conversa à esquerda</div>
+        </div>
+        <div id="wa-thread-msgs" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px"></div>
+        <div id="wa-thread-input" style="padding:10px 14px;border-top:1px solid var(--bdr);background:var(--bg);display:none;gap:8px;align-items:center">
+          <input id="wa-msg-input" type="text" placeholder="Digite uma mensagem..."
+            onkeydown="if(event.key==='Enter')enviarMsgWhatsapp()"
+            style="flex:1;padding:10px 16px;border-radius:20px;border:1px solid var(--bdr);font-size:13px;background:var(--bg2);color:var(--txt);outline:none">
+          <button onclick="enviarMsgWhatsapp()" class="btn btn-p"
+            style="width:40px;height:40px;padding:0;border-radius:50%;font-size:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center">➤</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── Carrega lista de conversas ────────────────────────────────────────
+async function _carregarConversasWa(){
   const listEl = document.getElementById('wa-conv-items');
   if(!listEl) return;
-  listEl.innerHTML = '<div style="padding:16px;color:var(--txt3);font-size:13px">Carregando...</div>';
 
   const { data: msgs } = await sb.from('whatsapp_messages')
     .select('*, revendas(id, nome, tel)')
@@ -6282,7 +6394,6 @@ async function renderWhatsapp(){
 
   if(!msgs || !msgs.length){
     listEl.innerHTML = '<div style="padding:16px;color:var(--txt3);font-size:13px">Nenhuma conversa ainda.<br>Aguardando mensagens...</div>';
-    document.getElementById('wa-thread-header').innerHTML = '<div style="color:var(--txt3);font-size:13px">Selecione uma conversa à esquerda</div>';
     return;
   }
 
@@ -6300,14 +6411,18 @@ async function renderWhatsapp(){
 function _renderWaList(convs){
   const listEl = document.getElementById('wa-conv-items');
   if(!listEl) return;
-  if(!convs.length){ listEl.innerHTML = '<div style="padding:16px;color:var(--txt3);font-size:13px">Nenhum resultado.</div>'; return; }
+  if(!convs.length){
+    listEl.innerHTML = '<div style="padding:16px;color:var(--txt3);font-size:13px">Nenhum resultado.</div>';
+    return;
+  }
   listEl.innerHTML = convs.map(c => {
     const last = c.last;
     const sent = last.direction === 'outbound';
-    const preview = esc((last.body||'').slice(0, 52) + ((last.body||'').length > 52 ? '…' : ''));
-    const data = new Date(last.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
-    const sel = _waRevendaSel === c.rev?.id ? 'background:var(--accl);' : '';
-    return `<div class="wa-conv-item" onclick="abrirWaThread(${c.rev?.id})" style="padding:12px 14px;cursor:pointer;border-bottom:1px solid var(--bdr);display:flex;gap:10px;align-items:flex-start;${sel}">
+    const preview = esc((last.body||'').slice(0,52) + ((last.body||'').length > 52 ? '…' : ''));
+    const data  = new Date(last.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+    const sel   = _waRevendaSel === c.rev?.id ? 'background:var(--accl);' : '';
+    const rid   = esc(String(c.rev?.id||''));
+    return `<div class="wa-conv-item" onclick="abrirWaThread('${rid}')" style="padding:12px 14px;cursor:pointer;border-bottom:1px solid var(--bdr);display:flex;gap:10px;align-items:flex-start;${sel}">
       <div style="width:40px;height:40px;border-radius:50%;background:rgba(37,211,102,.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">💬</div>
       <div style="flex:1;min-width:0">
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:4px">
@@ -6322,8 +6437,8 @@ function _renderWaList(convs){
 }
 
 function filtrarWaList(){
-  const q=(document.getElementById('wa-search')?.value||'').toLowerCase();
-  const convs=[...(window._waConvMap||new Map()).values()];
+  const q = (document.getElementById('wa-search')?.value||'').toLowerCase();
+  const convs = [...(window._waConvMap||new Map()).values()];
   _renderWaList(q ? convs.filter(c=>(c.rev?.nome||'').toLowerCase().includes(q)) : convs);
 }
 
@@ -6332,8 +6447,8 @@ function abrirWaThread(revendaId){
   const conv = window._waConvMap?.get(revendaId);
   if(!conv) return;
 
-  const q=(document.getElementById('wa-search')?.value||'').toLowerCase();
-  const convs=[...(window._waConvMap||new Map()).values()];
+  const q = (document.getElementById('wa-search')?.value||'').toLowerCase();
+  const convs = [...(window._waConvMap||new Map()).values()];
   _renderWaList(q ? convs.filter(c=>(c.rev?.nome||'').toLowerCase().includes(q)) : convs);
 
   const header  = document.getElementById('wa-thread-header');
@@ -6343,19 +6458,20 @@ function abrirWaThread(revendaId){
 
   window._waThreadPhone = normalizarFoneJS(conv.rev?.tel||'');
 
+  const rid = esc(String(revendaId));
   header.innerHTML = `
     <div style="width:40px;height:40px;border-radius:50%;background:rgba(37,211,102,.15);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">💬</div>
     <div style="flex:1">
       <div style="font-weight:600">${esc(conv.rev?.nome||'?')}</div>
       <div style="font-size:11px;color:var(--txt3)">${esc(conv.rev?.tel||'')} · ${conv.msgs.length} mensagem${conv.msgs.length>1?'s':''}</div>
     </div>
-    <button class="btn btn-s btn-sm" onclick="openCardModal(${revendaId})">Ver card completo</button>`;
+    <button class="btn btn-s btn-sm" onclick="openCardModal('${rid}')">Ver card completo</button>`;
 
   if(inputEl) inputEl.style.display = 'flex';
 
-  const sorted=[...conv.msgs].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+  const sorted = [...conv.msgs].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
   msgsEl.innerHTML = sorted.map(m=>{
-    const sent = m.direction==='outbound';
+    const sent = m.direction === 'outbound';
     const hora = new Date(m.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     return `<div style="display:flex;justify-content:${sent?'flex-end':'flex-start'}">
       <div style="max-width:72%;background:${sent?'rgba(37,211,102,.15)':'var(--bg)'};border-radius:${sent?'12px 12px 2px 12px':'12px 12px 12px 2px'};padding:8px 12px;border:1px solid var(--bdr)">
@@ -6373,39 +6489,36 @@ async function enviarMsgWhatsapp(){
   if(!body || !_waRevendaSel) return;
   const phone = window._waThreadPhone||'';
   if(!phone){ toast('Número não encontrado para esta revenda','warn'); return; }
-
   input.value = '';
   input.disabled = true;
-
-  const { error } = await sb.from('mensagens_pendentes').insert({
-    revenda_id: _waRevendaSel,
-    phone,
-    body,
-  });
-
+  const { error } = await sb.from('mensagens_pendentes').insert({ revenda_id: _waRevendaSel, phone, body });
   input.disabled = false;
   input.focus();
   if(error){ toast('Erro ao enviar: '+error.message,'err'); input.value=body; }
 }
 
+async function desconectarWhatsapp(){
+  if(!confirm('Desconectar o WhatsApp? O serviço irá gerar um novo QR Code para reconectar.')) return;
+  const { error } = await sb.from('whatsapp_commands').insert({ action: 'disconnect' });
+  if(error){ toast('Erro: '+error.message,'err'); return; }
+  toast('Comando enviado. Aguarde a desconexão...','ok');
+}
+
 function normalizarFoneJS(tel){ return String(tel||'').replace(/\D/g,''); }
 
 async function renderCardWhatsapp(id){
-  const el=document.getElementById('card-wa-msgs');
+  const el = document.getElementById('card-wa-msgs');
   if(!el||!id) return;
-  el.innerHTML='<div style="text-align:center;padding:20px;color:var(--txt3)">⏳ Carregando...</div>';
-  const { data: msgs }=await sb.from('whatsapp_messages')
-    .select('*')
-    .eq('revenda_id', id)
-    .order('created_at',{ascending:true})
-    .limit(200);
+  el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--txt3)">⏳ Carregando...</div>';
+  const { data: msgs } = await sb.from('whatsapp_messages')
+    .select('*').eq('revenda_id', id).order('created_at',{ascending:true}).limit(200);
   if(!msgs||!msgs.length){
-    el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt3);font-size:13px">Nenhuma mensagem WhatsApp neste card.</div>';
+    el.innerHTML = '<div style="text-align:center;padding:30px;color:var(--txt3);font-size:13px">Nenhuma mensagem WhatsApp neste card.</div>';
     return;
   }
-  el.innerHTML=msgs.map(m=>{
-    const sent=m.direction==='outbound';
-    const hora=new Date(m.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  el.innerHTML = msgs.map(m=>{
+    const sent = m.direction === 'outbound';
+    const hora = new Date(m.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     return `<div style="display:flex;justify-content:${sent?'flex-end':'flex-start'}">
       <div style="max-width:75%;background:${sent?'rgba(37,211,102,.15)':'var(--bg2)'};border-radius:${sent?'12px 12px 2px 12px':'12px 12px 12px 2px'};padding:8px 12px;border:1px solid var(--bdr)">
         <div style="font-size:13px;line-height:1.5">${esc(m.body||'')}</div>
@@ -6413,7 +6526,7 @@ async function renderCardWhatsapp(id){
       </div>
     </div>`;
   }).join('');
-  el.scrollTop=el.scrollHeight;
+  el.scrollTop = el.scrollHeight;
 }
 
 // ─── Integrações ────────────────────────────────────────────────────
