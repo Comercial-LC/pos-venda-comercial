@@ -66,14 +66,38 @@ async function atualizarStatus(status, extra = {}) {
 // ── Envio de mensagens pendentes ──────────────────────────────────────
 
 async function enviarPendente(msg) {
-  // Preserva @lid (novo formato WhatsApp); caso contrário, usa @c.us
-  const chatId = msg.phone.includes('@') ? msg.phone : `${msg.phone}@c.us`;
+  if (!_clientReady) {
+    console.warn(`[WhatsApp] Serviço não pronto — mensagem ${msg.id} aguardando`);
+    return;
+  }
+
+  // Monta chatId: preserva @lid/@ se já presente; caso contrário adiciona @c.us
+  const dig    = (msg.phone || '').replace(/\D/g, '');
+  const chatId = msg.phone.includes('@') ? msg.phone : `${dig}@c.us`;
+
+  console.log(`[WhatsApp] → Enviando para chatId: ${chatId} | body: ${(msg.body||'').slice(0,60)}`);
+
   try {
     await client.sendMessage(chatId, msg.body);
     await sb.from('mensagens_pendentes').update({ status: 'sent' }).eq('id', msg.id);
-    console.log(`[WhatsApp] ✓ Enviado para ${msg.phone}`);
+    console.log(`[WhatsApp] ✓ Entregue: ${chatId}`);
   } catch (err) {
-    console.error(`[WhatsApp] Erro ao enviar para ${msg.phone}:`, err.message);
+    console.error(`[WhatsApp] ✗ Falhou (${chatId}): ${err.message}`);
+
+    // Fallback: se @lid falhou, tenta o número puro com @c.us
+    if (msg.phone.includes('@lid') && dig.length >= 10) {
+      const fallback = `${dig.startsWith('55') ? dig : '55' + dig}@c.us`;
+      console.log(`[WhatsApp] → Fallback @c.us: ${fallback}`);
+      try {
+        await client.sendMessage(fallback, msg.body);
+        await sb.from('mensagens_pendentes').update({ status: 'sent' }).eq('id', msg.id);
+        console.log(`[WhatsApp] ✓ Entregue via fallback: ${fallback}`);
+        return;
+      } catch (err2) {
+        console.error(`[WhatsApp] ✗ Fallback também falhou: ${err2.message}`);
+      }
+    }
+
     await sb.from('mensagens_pendentes').update({ status: 'error' }).eq('id', msg.id);
   }
 }
@@ -122,10 +146,23 @@ client.on('ready', async () => {
     .on('postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'mensagens_pendentes' },
       async (payload) => {
+        console.log(`[WhatsApp] Realtime INSERT mensagens_pendentes: phone=${payload.new?.phone}`);
         if (payload.new?.status !== 'pending') return;
         await enviarPendente(payload.new);
       }
-    ).subscribe();
+    ).subscribe((status) => {
+      console.log(`[WhatsApp] Canal pendentes-ch: ${status}`);
+    });
+
+  // Polling de segurança a cada 30s — garante envio mesmo se Realtime falhar
+  setInterval(async () => {
+    const { data } = await sb.from('mensagens_pendentes')
+      .select('*').eq('status', 'pending').order('created_at').limit(10);
+    if (data?.length) {
+      console.log(`[WhatsApp] Polling: ${data.length} mensagem(ns) pendente(s) encontrada(s)`);
+      for (const msg of data) await enviarPendente(msg);
+    }
+  }, 30000);
 });
 
 client.on('disconnected', async reason => {
