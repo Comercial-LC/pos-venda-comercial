@@ -3456,12 +3456,29 @@ function renderCardInfo(id){
     <div style="padding:14px 16px;border-bottom:1px solid var(--bdr)">
       <div style="display:flex;align-items:center;gap:10px">
         <div style="width:40px;height:40px;border-radius:50%;background:${cor}16;border:2px solid ${cor}40;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🏢</div>
-        <div style="min-width:0">
+        <div style="min-width:0;width:100%">
           <div style="font-weight:700;font-size:13px;line-height:1.3">${esc(rev.nome)}</div>
-          ${rev.tel?`<div style="font-size:11px;color:var(--txt3);margin-top:2px">📞 ${esc(rev.tel)}</div>`:''}
-          ${rev.email?`<div style="font-size:11px;color:var(--txt3)">✉️ ${esc(rev.email)}</div>`:''}
+          ${rev.email?`<div style="font-size:11px;color:var(--txt3);margin-top:2px">✉️ ${esc(rev.email)}</div>`:''}
         </div>
       </div>
+      ${(()=>{
+        // Coleta todos os telefones disponíveis (tel pode ser concatenado com " / ")
+        const phones = [];
+        (rev.tel||'').split(/\s*\/\s*/).map(t=>t.trim()).filter(Boolean).forEach(t=>phones.push(t));
+        if(rev.tel2) phones.push(rev.tel2);
+        if(rev.tel3) phones.push(rev.tel3);
+        if(!phones.length) return '';
+        return `<div style="margin-top:10px;display:flex;flex-direction:column;gap:5px">
+          ${phones.map(p=>`
+            <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg2);border:1px solid var(--bdr);border-radius:7px;padding:6px 10px">
+              <span style="font-size:12px;color:var(--txt2)">📞 ${esc(p)}</span>
+              <button onclick="abrirWaComFone('${esc(p)}','${esc(id)}','${esc(rev.nome)}')"
+                style="display:inline-flex;align-items:center;gap:4px;background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.35);border-radius:6px;padding:3px 9px;font-size:11px;color:#22c55e;cursor:pointer;font-weight:600;white-space:nowrap">
+                💬 WhatsApp
+              </button>
+            </div>`).join('')}
+        </div>`;
+      })()}
     </div>
 
     <div style="padding:12px 16px;border-bottom:1px solid var(--bdr);display:grid;grid-template-columns:1fr 1fr;gap:7px">
@@ -6317,6 +6334,7 @@ function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 
 // ─── WhatsApp ────────────────────────────────────────────────────────
 let _waRevendaSel  = null;
+let _waPendingOpen = null; // { phone, revendaId, nome } — abre conversa após carregarConversas
 let _waPollingTimer = null;
 
 // ── Polling de status (fallback para Realtime) ────────────────────────
@@ -6503,7 +6521,36 @@ async function _carregarConversasWa(){
   }
   window._waConvMap = convMap;
   _renderWaList([...convMap.values()]);
-  if(!_waRevendaSel){ const first=[...convMap.keys()][0]; if(first) abrirWaThread(first); }
+
+  if(_waPendingOpen){
+    const pending   = _waPendingOpen;
+    _waPendingOpen  = null;
+    const dig       = pending.phone.replace(/\D/g,'');
+    // Procura conversa existente por telefone (com ou sem DDI 55)
+    let key = null;
+    for(const [k, c] of convMap.entries()){
+      const cp = (c.phone||'').replace(/\D/g,'');
+      if(cp === dig || ('55'+cp) === dig || cp === ('55'+dig)){ key = k; break; }
+    }
+    if(!key){
+      // Cria conversa sintética para envio inicial
+      const revSynth = window.DB?.revendas.find(r=>r.id===pending.revendaId)
+        || { id: pending.revendaId, nome: pending.nome||'', tel: pending.phone };
+      const synthConv = {
+        phone: pending.phone, rev: revSynth, revendaId: pending.revendaId,
+        msgs: [],
+        last: { body: '— nova conversa —', created_at: new Date().toISOString(), direction: 'outbound' },
+      };
+      convMap.set(pending.phone, synthConv);
+      window._waConvMap = convMap;
+      _renderWaList([...convMap.values()]);
+      key = pending.phone;
+    }
+    abrirWaThread(key);
+  } else if(!_waRevendaSel){
+    const first = [...convMap.keys()][0];
+    if(first) abrirWaThread(first);
+  }
 }
 
 function _fmtFone(phone){
@@ -6777,6 +6824,43 @@ async function enviarMsgWhatsapp(){
     return;
   }
   // Mensagem enfileirada — o balão definitivo chega via Realtime quando o serviço processar
+}
+
+// Abre o chat hub do WhatsApp diretamente em um contato específico (a partir do card)
+function abrirWaComFone(phone, revendaId, nome){
+  if(!phone) return;
+  const dig      = phone.replace(/\D/g,'');
+  const phoneNorm = (dig.length >= 12 && dig.startsWith('55')) ? dig : '55' + dig;
+
+  closeMo('mo-card');
+
+  const pWa = document.getElementById('p-whatsapp');
+  if(pWa?.classList.contains('on') && window._waConvMap){
+    // Painel já aberto — busca conversa existente ou cria sintética
+    let key = null;
+    for(const [k, c] of window._waConvMap.entries()){
+      const cp = (c.phone||'').replace(/\D/g,'');
+      if(cp === dig || ('55'+cp) === dig || cp === ('55'+dig)){ key = k; break; }
+    }
+    if(!key){
+      const revSynth = window.DB?.revendas.find(r=>r.id===revendaId)
+        || { id: revendaId, nome: nome||'', tel: phone };
+      const synthConv = {
+        phone: phoneNorm, rev: revSynth, revendaId,
+        msgs: [],
+        last: { body: '— nova conversa —', created_at: new Date().toISOString(), direction: 'outbound' },
+      };
+      window._waConvMap.set(phoneNorm, synthConv);
+      _renderWaList([...window._waConvMap.values()]);
+      key = phoneNorm;
+    }
+    abrirWaThread(key);
+    return;
+  }
+
+  // Painel fechado — sinaliza para abrir a conversa após renderizar
+  _waPendingOpen = { phone: phoneNorm, revendaId, nome };
+  go('whatsapp');
 }
 
 async function desconectarWhatsapp(){
