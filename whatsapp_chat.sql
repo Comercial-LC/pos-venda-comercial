@@ -5,7 +5,7 @@
 
 CREATE TABLE IF NOT EXISTS public.whatsapp_messages (
   id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  revenda_id integer NOT NULL REFERENCES public.revendas(id) ON DELETE CASCADE,
+  revenda_id uuid NOT NULL REFERENCES public.revendas(id) ON DELETE CASCADE,
   direction  text NOT NULL CHECK (direction IN ('inbound','outbound')),
   body       text NOT NULL DEFAULT '',
   phone      text,
@@ -32,7 +32,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.whatsapp_messages;
 
 CREATE TABLE IF NOT EXISTS public.mensagens_pendentes (
   id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  revenda_id integer NOT NULL,
+  revenda_id uuid NOT NULL,
   phone      text NOT NULL,
   body       text NOT NULL,
   status     text DEFAULT 'pending',
