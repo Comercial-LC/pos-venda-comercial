@@ -6389,7 +6389,7 @@ function _renderWaChatHub(st){
     </div>`;
 }
 
-// ── Carrega lista de conversas ────────────────────────────────────────
+// ── Carrega lista de conversas (todos os contatos) ────────────────────
 async function _carregarConversasWa(){
   const listEl = document.getElementById('wa-conv-items');
   if(!listEl) return;
@@ -6404,15 +6404,34 @@ async function _carregarConversasWa(){
     return;
   }
 
+  // Agrupa por telefone — funciona para revendas cadastradas e desconhecidos
   const convMap = new Map();
   for(const m of msgs){
-    const rId = m.revenda_id;
-    if(!convMap.has(rId)) convMap.set(rId, { rev: m.revendas, msgs: [], last: m });
-    convMap.get(rId).msgs.push(m);
+    const key = m.phone || String(m.revenda_id) || 'desconhecido';
+    if(!convMap.has(key)){
+      // Tenta achar revenda pelo join ou pelo DB local
+      const revJoin = m.revendas;
+      const revDB   = !revJoin && m.phone
+        ? (window.DB?.revendas||[]).find(r =>
+            [r.tel, r.tel2, r.tel3].some(t => normalizarFoneJS(t||'') === m.phone)
+          )
+        : null;
+      const rev = revJoin || revDB || { id: null, nome: _fmtFone(m.phone), tel: m.phone };
+      convMap.set(key, { phone: m.phone, rev, revendaId: m.revenda_id, msgs: [], last: m });
+    }
+    convMap.get(key).msgs.push(m);
   }
   window._waConvMap = convMap;
   _renderWaList([...convMap.values()]);
   if(!_waRevendaSel){ const first=[...convMap.keys()][0]; if(first) abrirWaThread(first); }
+}
+
+function _fmtFone(phone){
+  if(!phone) return 'Desconhecido';
+  const d = String(phone).replace(/\D/g,'');
+  if(d.length === 13) return `+${d.slice(0,2)} ${d.slice(2,4)} ${d.slice(4,9)}-${d.slice(9)}`;
+  if(d.length === 12) return `+${d.slice(0,2)} ${d.slice(2,4)} ${d.slice(4,8)}-${d.slice(8)}`;
+  return phone;
 }
 
 function _renderWaList(convs){
@@ -6423,17 +6442,21 @@ function _renderWaList(convs){
     return;
   }
   listEl.innerHTML = convs.map(c => {
-    const last = c.last;
-    const sent = last.direction === 'outbound';
-    const preview = esc((last.body||'').slice(0,52) + ((last.body||'').length > 52 ? '…' : ''));
-    const data  = new Date(last.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
-    const sel   = _waRevendaSel === c.rev?.id ? 'background:var(--accl);' : '';
-    const rid   = esc(String(c.rev?.id||''));
-    return `<div class="wa-conv-item" onclick="abrirWaThread('${rid}')" style="padding:12px 14px;cursor:pointer;border-bottom:1px solid var(--bdr);display:flex;gap:10px;align-items:flex-start;${sel}">
-      <div style="width:40px;height:40px;border-radius:50%;background:rgba(37,211,102,.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">💬</div>
+    const last     = c.last;
+    const sent     = last.direction === 'outbound';
+    const preview  = esc((last.body||'').slice(0,52) + ((last.body||'').length > 52 ? '…' : ''));
+    const data     = new Date(last.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+    const isRev    = !!c.rev?.id;
+    const key      = esc(c.phone || String(c.rev?.id||''));
+    const sel      = _waRevendaSel === (c.phone || String(c.rev?.id)) ? 'background:var(--accl);' : '';
+    const avatar   = isRev ? '💬' : '👤';
+    const avatarBg = isRev ? 'rgba(37,211,102,.15)' : 'rgba(107,114,128,.12)';
+    const tag      = isRev ? '' : `<span style="font-size:10px;color:var(--txt3);background:var(--bg2);padding:1px 5px;border-radius:3px;margin-left:4px">novo</span>`;
+    return `<div class="wa-conv-item" onclick="abrirWaThread('${key}')" style="padding:12px 14px;cursor:pointer;border-bottom:1px solid var(--bdr);display:flex;gap:10px;align-items:flex-start;${sel}">
+      <div style="width:40px;height:40px;border-radius:50%;background:${avatarBg};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${avatar}</div>
       <div style="flex:1;min-width:0">
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:4px">
-          <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.rev?.nome||'?')}</div>
+          <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.rev?.nome||'?')}${tag}</div>
           <div style="font-size:11px;color:var(--txt3);flex-shrink:0">${data}</div>
         </div>
         <div style="font-size:12px;color:var(--txt3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sent?'Você: ':''}${preview}</div>
@@ -6449,30 +6472,37 @@ function filtrarWaList(){
   _renderWaList(q ? convs.filter(c=>(c.rev?.nome||'').toLowerCase().includes(q)) : convs);
 }
 
-function abrirWaThread(revendaId){
-  _waRevendaSel = revendaId;
-  const conv = window._waConvMap?.get(revendaId);
+function abrirWaThread(key){
+  _waRevendaSel = key;
+  const conv = window._waConvMap?.get(key);
   if(!conv) return;
 
   const q = (document.getElementById('wa-search')?.value||'').toLowerCase();
   const convs = [...(window._waConvMap||new Map()).values()];
-  _renderWaList(q ? convs.filter(c=>(c.rev?.nome||'').toLowerCase().includes(q)) : convs);
+  _renderWaList(q ? convs.filter(c=>{
+    const k = c.phone || String(c.rev?.id||'');
+    return (c.rev?.nome||k).toLowerCase().includes(q);
+  }) : convs);
 
   const header  = document.getElementById('wa-thread-header');
   const msgsEl  = document.getElementById('wa-thread-msgs');
   const inputEl = document.getElementById('wa-thread-input');
   if(!header || !msgsEl) return;
 
-  window._waThreadPhone = normalizarFoneJS(conv.rev?.tel||'');
+  window._waThreadPhone    = conv.phone || normalizarFoneJS(conv.rev?.tel||'');
+  window._waThreadRevendaId = conv.revendaId || null;
 
-  const rid = esc(String(revendaId));
+  const isRev   = !!conv.rev?.id;
+  const avatar  = isRev ? '💬' : '👤';
+  const avBg    = isRev ? 'rgba(37,211,102,.15)' : 'rgba(107,114,128,.12)';
+  const rid     = conv.revendaId ? esc(String(conv.revendaId)) : null;
   header.innerHTML = `
-    <div style="width:40px;height:40px;border-radius:50%;background:rgba(37,211,102,.15);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">💬</div>
+    <div style="width:40px;height:40px;border-radius:50%;background:${avBg};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${avatar}</div>
     <div style="flex:1">
       <div style="font-weight:600">${esc(conv.rev?.nome||'?')}</div>
-      <div style="font-size:11px;color:var(--txt3)">${esc(conv.rev?.tel||'')} · ${conv.msgs.length} mensagem${conv.msgs.length>1?'s':''}</div>
+      <div style="font-size:11px;color:var(--txt3)">${esc(conv.phone||'')} · ${conv.msgs.length} mensagem${conv.msgs.length>1?'s':''}</div>
     </div>
-    <button class="btn btn-s btn-sm" onclick="openCardModal('${rid}')">Ver card completo</button>`;
+    ${rid ? `<button class="btn btn-s btn-sm" onclick="openCardModal('${rid}')">Ver card</button>` : ''}`;
 
   if(inputEl) inputEl.style.display = 'flex';
 
@@ -6495,10 +6525,14 @@ async function enviarMsgWhatsapp(){
   const body  = (input?.value||'').trim();
   if(!body || !_waRevendaSel) return;
   const phone = window._waThreadPhone||'';
-  if(!phone){ toast('Número não encontrado para esta revenda','warn'); return; }
+  if(!phone){ toast('Número não encontrado','warn'); return; }
   input.value = '';
   input.disabled = true;
-  const { error } = await sb.from('mensagens_pendentes').insert({ revenda_id: _waRevendaSel, phone, body });
+  const { error } = await sb.from('mensagens_pendentes').insert({
+    revenda_id: window._waThreadRevendaId || null,
+    phone,
+    body,
+  });
   input.disabled = false;
   input.focus();
   if(error){ toast('Erro ao enviar: '+error.message,'err'); input.value=body; }
