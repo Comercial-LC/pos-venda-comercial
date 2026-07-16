@@ -282,7 +282,7 @@ async function doRegister(){
   clearMsg();
   const {data,error}=await sb.auth.signUp({
     email, password:senha,
-    options:{data:{nome}, emailRedirectTo: window.location.origin+'/index.html'}
+    options:{data:{nome}, emailRedirectTo: window.location.href.split('?')[0].split('#')[0]}
   });
   setLoading('btn-register',false,'Criar conta');
   if(error){showMsg(error.message,'err');return}
@@ -296,7 +296,7 @@ async function doForgot(){
   setLoading('btn-forgot',true,'Enviando');
   clearMsg();
   const {error}=await sb.auth.resetPasswordForEmail(email,{
-    redirectTo: window.location.origin+'/index.html'
+    redirectTo: window.location.href.split('?')[0].split('#')[0]
   });
   setLoading('btn-forgot',false,'Enviar link');
   if(error){showMsg(error.message,'err');return}
