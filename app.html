@@ -6451,12 +6451,12 @@ function _renderWaChatHub(st){
     <div style="display:grid;grid-template-columns:25% 45% 30%;border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;height:calc(100vh - 168px)">
 
       <!-- Col 1: Lista de conversas -->
-      <div style="border-right:1px solid var(--bdr);display:flex;flex-direction:column;background:var(--bg)">
-        <div style="padding:10px 12px;border-bottom:1px solid var(--bdr)">
+      <div style="border-right:1px solid var(--bdr);display:flex;flex-direction:column;background:var(--bg);min-height:0;overflow:hidden">
+        <div style="padding:10px 12px;border-bottom:1px solid var(--bdr);flex-shrink:0">
           <input type="text" id="wa-search" placeholder="🔍 Buscar..." oninput="filtrarWaList()"
             style="width:100%;padding:7px 10px;font-size:12px;border-radius:var(--r);border:1px solid var(--bdr);background:var(--bg2);color:var(--txt);box-sizing:border-box">
         </div>
-        <div id="wa-conv-items" style="flex:1;overflow-y:auto">
+        <div id="wa-conv-items" style="flex:1;overflow-y:auto;min-height:0">
           <div style="padding:16px;color:var(--txt3);font-size:13px">Carregando conversas...</div>
         </div>
       </div>
@@ -6570,10 +6570,17 @@ async function _carregarConversasWa(){
 
 function _fmtFone(phone){
   if(!phone) return 'Desconhecido';
-  const d = String(phone).replace(/\D/g,'');
-  if(d.length === 13) return `+${d.slice(0,2)} ${d.slice(2,4)} ${d.slice(4,9)}-${d.slice(9)}`;
-  if(d.length === 12) return `+${d.slice(0,2)} ${d.slice(2,4)} ${d.slice(4,8)}-${d.slice(8)}`;
-  return phone;
+  const s = String(phone);
+  if(s.includes('@g.us')){
+    const n = s.replace('@g.us','').replace(/\D/g,'');
+    return 'Grupo ' + (n.slice(-6)||n);
+  }
+  const d = s.replace(/@[a-z.]+$/,'').replace(/\D/g,'');
+  if(d.length === 13) return `+${d.slice(0,2)} (${d.slice(2,4)}) ${d.slice(4,9)}-${d.slice(9)}`;
+  if(d.length === 12) return `+${d.slice(0,2)} (${d.slice(2,4)}) ${d.slice(4,8)}-${d.slice(8)}`;
+  if(d.length === 11) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+  if(d.length === 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
+  return d.length > 14 ? d.slice(0,5)+'...'+d.slice(-4) : (d||s.slice(0,20));
 }
 
 function _renderWaList(convs){
