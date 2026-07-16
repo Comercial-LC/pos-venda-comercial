@@ -86,8 +86,12 @@ async function enviarPendente(msg) {
   let sendOpts = {};
   if (msg.media_base64 && msg.media_mimetype) {
     conteudo = new MessageMedia(msg.media_mimetype, msg.media_base64, msg.media_filename || 'arquivo');
-    if (msg.body) sendOpts.caption = msg.body;
-    console.log(`[WhatsApp] → Mídia: ${msg.media_mimetype} (${msg.media_filename || 'sem nome'})`);
+    if (msg.media_as_sticker) {
+      sendOpts.sendMediaAsSticker = true;
+    } else if (msg.body) {
+      sendOpts.caption = msg.body;
+    }
+    console.log(`[WhatsApp] → ${msg.media_as_sticker ? 'Figurinha' : 'Mídia'}: ${msg.media_mimetype} (${msg.media_filename || 'sem nome'})`);
   }
 
   try {
