@@ -109,6 +109,28 @@ input::placeholder{color:var(--txt3)}
       <div style="font-size:13px;color:var(--txt2);line-height:1.6">Enviamos um link de confirmação para <strong id="confirm-email-display"></strong>.<br>Clique no link e depois retorne para fazer login.</div>
       <div style="margin-top:20px"><span style="font-size:13px;color:var(--acc);cursor:pointer" onclick="showTab('login')">← Voltar ao login</span></div>
     </div>
+
+    <!-- TELA: NOVA SENHA (recuperação via link do e-mail) -->
+    <div id="tela-nova-senha" style="display:none">
+      <div style="font-size:15px;font-weight:600;margin-bottom:4px">🔐 Definir nova senha</div>
+      <div style="font-size:13px;color:var(--txt2);margin-bottom:18px">Escolha uma nova senha segura para sua conta.</div>
+      <div class="fg">
+        <label>Nova senha</label>
+        <div style="position:relative">
+          <input id="nova-senha" type="password" placeholder="Mínimo 8 caracteres" style="padding-right:40px"
+            oninput="checkStrengthNs(this.value)" onkeydown="if(event.key==='Enter')doNovaSenha()">
+          <span onclick="togglePass('nova-senha')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--txt3);font-size:14px">👁</span>
+        </div>
+        <div class="strength" id="strength-bar-ns"></div>
+        <div class="pass-hint" id="strength-txt-ns"></div>
+      </div>
+      <div class="fg">
+        <label>Confirmar nova senha</label>
+        <input id="nova-senha2" type="password" placeholder="Repita a senha"
+          onkeydown="if(event.key==='Enter')doNovaSenha()">
+      </div>
+      <button class="btn btn-p" id="btn-nova-senha" onclick="doNovaSenha()">Salvar nova senha</button>
+    </div>
   </div>
 
   <div class="footer">Portal Sucesso da Revenda © 2025 · Dados protegidos conforme LGPD</div>
@@ -121,17 +143,33 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // Verifica se já tem sessão ativa → redireciona para o app
 (async()=>{
+  // PKCE flow: Supabase v2 envia ?code= na URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const code = urlParams.get('code');
+  if(code){
+    const { error } = await sb.auth.exchangeCodeForSession(code);
+    if(!error){ history.replaceState(null,'',window.location.pathname); showTab('nova-senha'); return; }
+  }
+  // Implicit flow: token no hash (#access_token=...&type=recovery)
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+  const htype = hash.get('type');
+  if(htype === 'recovery'){
+    // Supabase já detectou o token no hash e abriu a sessão — só mostrar o formulário
+    history.replaceState(null,'',window.location.pathname);
+    showTab('nova-senha');
+    return;
+  }
+  if(htype === 'signup'){
+    history.replaceState(null,'',window.location.pathname);
+    showMsg('E-mail confirmado! Você já pode fazer login.','ok');
+    return;
+  }
   const {data:{session}} = await sb.auth.getSession();
   if(session) window.location.replace('./app.html');
-  // Trata redirect de confirmação de e-mail
-  const hash = new URLSearchParams(window.location.hash.slice(1));
-  if(hash.get('type')==='signup' || hash.get('type')==='recovery'){
-    showMsg('E-mail confirmado! Você já pode fazer login.','ok');
-  }
 })();
 
 function showTab(tab){
-  ['login','register','forgot','confirm'].forEach(t=>{
+  ['login','register','forgot','confirm','nova-senha'].forEach(t=>{
     document.getElementById('tela-'+t).style.display = t===tab?'block':'none';
   });
   clearMsg();
@@ -150,24 +188,44 @@ function togglePass(id){
   el.type = el.type==='password' ? 'text' : 'password';
 }
 
-function checkStrength(v){
-  const bar=document.getElementById('strength-bar');
-  const txt=document.getElementById('strength-txt');
-  if(!v){bar.style.background='';bar.style.width='0';txt.textContent='';return}
+function _calcStrength(v){
   let score=0;
   if(v.length>=8)score++;
   if(/[A-Z]/.test(v))score++;
   if(/[0-9]/.test(v))score++;
   if(/[^A-Za-z0-9]/.test(v))score++;
-  const levels=[
-    {w:'25%',c:'var(--err)',t:'Muito fraca'},
-    {w:'50%',c:'var(--warn)',t:'Fraca'},
-    {w:'75%',c:'#f97316',t:'Média'},
-    {w:'100%',c:'var(--ok)',t:'Forte ✓'},
-  ];
-  const l=levels[Math.max(0,score-1)];
+  return [{w:'25%',c:'var(--err)',t:'Muito fraca'},{w:'50%',c:'var(--warn)',t:'Fraca'},{w:'75%',c:'#f97316',t:'Média'},{w:'100%',c:'var(--ok)',t:'Forte ✓'}][Math.max(0,score-1)];
+}
+function checkStrength(v){
+  const bar=document.getElementById('strength-bar');
+  const txt=document.getElementById('strength-txt');
+  if(!v){bar.style.background='';bar.style.width='0';txt.textContent='';return}
+  const l=_calcStrength(v);
   bar.style.background=l.c; bar.style.width=l.w;
   txt.textContent=l.t; txt.style.color=l.c;
+}
+function checkStrengthNs(v){
+  const bar=document.getElementById('strength-bar-ns');
+  const txt=document.getElementById('strength-txt-ns');
+  if(!v){bar.style.background='';bar.style.width='0';txt.textContent='';return}
+  const l=_calcStrength(v);
+  bar.style.background=l.c; bar.style.width=l.w;
+  txt.textContent=l.t; txt.style.color=l.c;
+}
+
+async function doNovaSenha(){
+  const senha=document.getElementById('nova-senha').value;
+  const senha2=document.getElementById('nova-senha2').value;
+  if(!senha||senha.length<8){showMsg('A senha deve ter pelo menos 8 caracteres.','err');return}
+  if(senha!==senha2){showMsg('As senhas não coincidem.','err');return}
+  setLoading('btn-nova-senha',true,'Salvando');
+  clearMsg();
+  const {error}=await sb.auth.updateUser({password:senha});
+  setLoading('btn-nova-senha',false,'Salvar nova senha');
+  if(error){showMsg(error.message,'err');return}
+  showMsg('Senha redefinida com sucesso! Redirecionando para o login...','ok');
+  await sb.auth.signOut();
+  setTimeout(()=>showTab('login'),2500);
 }
 
 function setLoading(btnId, loading, txt){
