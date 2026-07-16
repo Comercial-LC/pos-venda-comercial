@@ -6474,7 +6474,10 @@ function _renderWaChatHub(st){
             <label title="Anexar arquivo" style="cursor:pointer;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:var(--bg2);border:1px solid var(--bdr);flex-shrink:0;font-size:15px;user-select:none">📎
               <input type="file" id="wa-file-input" style="display:none" accept="image/*,audio/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.zip,.rar" onchange="handleWaFileAttach(this)">
             </label>
-            <button id="wa-emoji-btn" onclick="toggleWaEmoji()" title="Emoji / Figurinha"
+            <label title="Enviar figurinha (sticker)" style="cursor:pointer;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:var(--bg2);border:1px solid var(--bdr);flex-shrink:0;font-size:15px;user-select:none">🎭
+              <input type="file" id="wa-sticker-input" style="display:none" accept="image/*" onchange="handleWaStickerAttach(this)">
+            </label>
+            <button id="wa-emoji-btn" onclick="toggleWaEmoji()" title="Emoji"
               style="width:34px;height:34px;padding:0;border-radius:50%;font-size:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--bg2);border:1px solid var(--bdr);cursor:pointer">😊</button>
             <input id="wa-msg-input" type="text" placeholder="Digite uma mensagem..."
               onkeydown="if(event.key==='Enter'&&!event.shiftKey){enviarMsgWhatsapp();event.preventDefault()}"
@@ -6852,6 +6855,7 @@ function _waUpdateSendBtn(){
 }
 
 function _clearWaMedia(){
+  if(window._waPendingMedia?.audioUrl) URL.revokeObjectURL(window._waPendingMedia.audioUrl);
   window._waPendingMedia = null;
   const el = document.getElementById('wa-media-preview');
   if(el){ el.style.display = 'none'; el.innerHTML = ''; }
@@ -6874,13 +6878,30 @@ function handleWaFileAttach(input){
       prev.innerHTML = `${isImg
         ? `<img src="${dataUrl}" style="max-height:56px;max-width:80px;border-radius:6px;object-fit:cover">`
         : `<div style="font-size:22px">${_waMediaIcon(file.type)}</div>`}
+        <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(file.name)}</div><div style="font-size:10px;color:var(--txt3)">${(file.size/1024).toFixed(0)} KB</div></div>
+        <button onclick="_clearWaMedia()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--txt3);padding:0 4px">✕</button>`;
+    }
+    _waUpdateSendBtn();
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleWaStickerAttach(input){
+  const file = input.files[0];
+  input.value = '';
+  if(!file) return;
+  if(file.size > 5 * 1024 * 1024){ toast('Imagem muito grande para figurinha (máx 5 MB)','warn'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    window._waPendingMedia = { base64: dataUrl.split(',')[1], mimetype: file.type, filename: file.name, dataUrl, asSticker: true };
+    const prev = document.getElementById('wa-media-preview');
+    if(prev){
+      prev.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--bdr);background:var(--bg2)';
+      prev.innerHTML = `<img src="${dataUrl}" style="max-height:56px;max-width:56px;border-radius:8px;object-fit:cover">
         <div style="flex:1;min-width:0">
-          <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(file.name)}</div>
-          <div style="font-size:10px;color:var(--txt3);margin-bottom:3px">${(file.size/1024).toFixed(0)} KB</div>
-          ${isImg ? `<div style="display:flex;gap:4px">
-            <button id="wa-send-foto-btn" onclick="_waSetSendMode(false)" style="font-size:10px;padding:1px 7px;border-radius:10px;border:1px solid var(--acc);background:var(--acc);color:#fff;cursor:pointer">📷 Foto</button>
-            <button id="wa-send-sticker-btn" onclick="_waSetSendMode(true)" style="font-size:10px;padding:1px 7px;border-radius:10px;border:1px solid var(--bdr);background:none;cursor:pointer">🎭 Figurinha</button>
-          </div>` : ''}
+          <div style="font-size:12px;font-weight:600">🎭 Figurinha</div>
+          <div style="font-size:10px;color:var(--txt3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(file.name)}</div>
         </div>
         <button onclick="_clearWaMedia()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--txt3);padding:0 4px">✕</button>`;
     }
@@ -6889,7 +6910,7 @@ function handleWaFileAttach(input){
   reader.readAsDataURL(file);
 }
 
-let _waRecorder = null, _waAudioChunks = [], _waIsRecording = false;
+let _waRecorder = null, _waAudioChunks = [], _waIsRecording = false, _waRecTimer = null, _waRecSeconds = 0;
 
 async function toggleGravacaoWa(){
   if(_waIsRecording){ pararGravacaoWa(); } else { await iniciarGravacaoWa(); }
@@ -6901,6 +6922,7 @@ async function iniciarGravacaoWa(){
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     _waAudioChunks = [];
     _waIsRecording = true;
+    _waRecSeconds = 0;
     const mt = MediaRecorder.isTypeSupported('audio/ogg; codecs=opus') ? 'audio/ogg; codecs=opus'
              : MediaRecorder.isTypeSupported('audio/webm; codecs=opus') ? 'audio/webm; codecs=opus'
              : 'audio/webm';
@@ -6908,34 +6930,53 @@ async function iniciarGravacaoWa(){
     _waRecorder.ondataavailable = e => { if(e.data.size > 0) _waAudioChunks.push(e.data); };
     _waRecorder.start(100);
     const btn = document.getElementById('wa-rec-btn');
+    const inp = document.getElementById('wa-msg-input');
     if(btn){ btn.textContent = '⏹️'; btn.style.background = 'rgba(239,68,68,.18)'; btn.style.border = '1px solid rgba(239,68,68,.5)'; btn.title = 'Clique para parar e enviar'; }
+    if(inp){ inp.disabled = true; inp.placeholder = '🔴 Gravando... 0:00 — clique ⏹️ para parar'; }
+    _waRecTimer = setInterval(() => {
+      _waRecSeconds++;
+      const m = String(Math.floor(_waRecSeconds/60)).padStart(2,'0');
+      const s = String(_waRecSeconds % 60).padStart(2,'0');
+      const i = document.getElementById('wa-msg-input');
+      if(i) i.placeholder = `🔴 Gravando... ${m}:${s} — clique ⏹️ para parar`;
+    }, 1000);
   } catch(e){
     _waIsRecording = false;
-    toast('Microfone não permitido: ' + (e.message||'sem permissão'), 'warn');
+    toast('Microfone não permitido: ' + (e.message||'erro ao acessar mic'), 'warn');
   }
 }
 
 function pararGravacaoWa(){
   if(!_waIsRecording || !_waRecorder || _waRecorder.state === 'inactive') return;
   _waIsRecording = false;
+  clearInterval(_waRecTimer); _waRecTimer = null;
   const btn = document.getElementById('wa-rec-btn');
+  const inp = document.getElementById('wa-msg-input');
   if(btn){ btn.textContent = '🎤'; btn.style.background = ''; btn.style.border = '1px solid var(--bdr)'; btn.title = 'Clique para gravar áudio'; }
+  if(inp){ inp.disabled = false; inp.placeholder = 'Digite uma mensagem...'; }
+  const durSec = _waRecSeconds;
   _waRecorder.stop();
   _waRecorder.onstop = () => {
     const blob = new Blob(_waAudioChunks, { type: _waRecorder.mimeType });
     _waRecorder.stream.getTracks().forEach(t => t.stop());
     _waRecorder = null;
-    if(blob.size < 500){ toast('Gravação muito curta','warn'); return; }
+    if(blob.size < 500){ toast('Gravação muito curta — tente novamente','warn'); return; }
+    const audioUrl = URL.createObjectURL(blob);
     const reader = new FileReader();
     reader.onload = e => {
       const dataUrl = e.target.result;
       const ext = blob.type.includes('ogg') ? 'ogg' : 'webm';
-      window._waPendingMedia = { base64: dataUrl.split(',')[1], mimetype: blob.type, filename: `audio_${Date.now()}.${ext}`, dataUrl };
+      window._waPendingMedia = { base64: dataUrl.split(',')[1], mimetype: blob.type, filename: `audio_${Date.now()}.${ext}`, dataUrl, audioUrl };
       const prev = document.getElementById('wa-media-preview');
       if(prev){
         prev.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--bdr);background:var(--bg2)';
-        prev.innerHTML = `<div style="font-size:22px">🎵</div>
-          <audio controls style="flex:1;height:36px"><source src="${dataUrl}" type="${blob.type}"></audio>
+        const m = String(Math.floor(durSec/60)).padStart(2,'0');
+        const s = String(durSec % 60).padStart(2,'0');
+        prev.innerHTML = `<div style="font-size:20px">🎵</div>
+          <div style="flex:1">
+            <audio controls src="${audioUrl}" style="width:100%;height:34px"></audio>
+            <div style="font-size:10px;color:var(--txt3);margin-top:2px">Áudio gravado — ${m}:${s}</div>
+          </div>
           <button onclick="_clearWaMedia()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--txt3);padding:0 4px">✕</button>`;
       }
       _waUpdateSendBtn();
