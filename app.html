@@ -6468,21 +6468,22 @@ function _renderWaChatHub(st){
         </div>
         <div id="wa-thread-msgs" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px;min-height:0"></div>
         <div id="wa-thread-input" style="display:none;flex-direction:column;flex-shrink:0;background:var(--bg)">
+          <div id="wa-emoji-picker" style="display:none;padding:6px 10px;border-top:1px solid var(--bdr);background:var(--bg2);flex-wrap:wrap;gap:1px"></div>
           <div id="wa-media-preview" style="display:none"></div>
           <div style="padding:6px 10px;border-top:1px solid var(--bdr);display:flex;align-items:center;gap:6px">
             <label title="Anexar arquivo" style="cursor:pointer;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:var(--bg2);border:1px solid var(--bdr);flex-shrink:0;font-size:15px;user-select:none">📎
               <input type="file" id="wa-file-input" style="display:none" accept="image/*,audio/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.zip,.rar" onchange="handleWaFileAttach(this)">
             </label>
+            <button id="wa-emoji-btn" onclick="toggleWaEmoji()" title="Emoji / Figurinha"
+              style="width:34px;height:34px;padding:0;border-radius:50%;font-size:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--bg2);border:1px solid var(--bdr);cursor:pointer">😊</button>
             <input id="wa-msg-input" type="text" placeholder="Digite uma mensagem..."
               onkeydown="if(event.key==='Enter'&&!event.shiftKey){enviarMsgWhatsapp();event.preventDefault()}"
               oninput="_waUpdateSendBtn()"
               style="flex:1;padding:9px 14px;border-radius:20px;border:1px solid var(--bdr);font-size:13px;background:var(--bg2);color:var(--txt);outline:none">
             <button id="wa-send-btn" onclick="enviarMsgWhatsapp()" title="Enviar"
               style="width:34px;height:34px;padding:0;border-radius:50%;font-size:15px;flex-shrink:0;display:none;align-items:center;justify-content:center;background:var(--acc);color:#fff;border:none;cursor:pointer">➤</button>
-            <button id="wa-rec-btn" title="Segure para gravar áudio"
-              style="width:34px;height:34px;padding:0;border-radius:50%;font-size:15px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--bg2);border:1px solid var(--bdr);cursor:pointer"
-              onmousedown="iniciarGravacaoWa()" onmouseup="pararGravacaoWa()"
-              ontouchstart="iniciarGravacaoWa()" ontouchend="pararGravacaoWa()">🎤</button>
+            <button id="wa-rec-btn" onclick="toggleGravacaoWa()" title="Clique para gravar áudio"
+              style="width:34px;height:34px;padding:0;border-radius:50%;font-size:15px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--bg2);border:1px solid var(--bdr);cursor:pointer">🎤</button>
           </div>
         </div>
       </div>
@@ -6873,7 +6874,14 @@ function handleWaFileAttach(input){
       prev.innerHTML = `${isImg
         ? `<img src="${dataUrl}" style="max-height:56px;max-width:80px;border-radius:6px;object-fit:cover">`
         : `<div style="font-size:22px">${_waMediaIcon(file.type)}</div>`}
-        <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(file.name)}</div><div style="font-size:10px;color:var(--txt3)">${(file.size/1024).toFixed(0)} KB</div></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(file.name)}</div>
+          <div style="font-size:10px;color:var(--txt3);margin-bottom:3px">${(file.size/1024).toFixed(0)} KB</div>
+          ${isImg ? `<div style="display:flex;gap:4px">
+            <button id="wa-send-foto-btn" onclick="_waSetSendMode(false)" style="font-size:10px;padding:1px 7px;border-radius:10px;border:1px solid var(--acc);background:var(--acc);color:#fff;cursor:pointer">📷 Foto</button>
+            <button id="wa-send-sticker-btn" onclick="_waSetSendMode(true)" style="font-size:10px;padding:1px 7px;border-radius:10px;border:1px solid var(--bdr);background:none;cursor:pointer">🎭 Figurinha</button>
+          </div>` : ''}
+        </div>
         <button onclick="_clearWaMedia()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--txt3);padding:0 4px">✕</button>`;
     }
     _waUpdateSendBtn();
@@ -6881,12 +6889,18 @@ function handleWaFileAttach(input){
   reader.readAsDataURL(file);
 }
 
-let _waRecorder = null, _waAudioChunks = [];
+let _waRecorder = null, _waAudioChunks = [], _waIsRecording = false;
+
+async function toggleGravacaoWa(){
+  if(_waIsRecording){ pararGravacaoWa(); } else { await iniciarGravacaoWa(); }
+}
 
 async function iniciarGravacaoWa(){
+  if(_waIsRecording) return;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     _waAudioChunks = [];
+    _waIsRecording = true;
     const mt = MediaRecorder.isTypeSupported('audio/ogg; codecs=opus') ? 'audio/ogg; codecs=opus'
              : MediaRecorder.isTypeSupported('audio/webm; codecs=opus') ? 'audio/webm; codecs=opus'
              : 'audio/webm';
@@ -6894,22 +6908,24 @@ async function iniciarGravacaoWa(){
     _waRecorder.ondataavailable = e => { if(e.data.size > 0) _waAudioChunks.push(e.data); };
     _waRecorder.start(100);
     const btn = document.getElementById('wa-rec-btn');
-    if(btn){ btn.textContent = '⏹️'; btn.style.background = 'rgba(239,68,68,.15)'; btn.title = 'Solte para enviar'; }
+    if(btn){ btn.textContent = '⏹️'; btn.style.background = 'rgba(239,68,68,.18)'; btn.style.border = '1px solid rgba(239,68,68,.5)'; btn.title = 'Clique para parar e enviar'; }
   } catch(e){
+    _waIsRecording = false;
     toast('Microfone não permitido: ' + (e.message||'sem permissão'), 'warn');
   }
 }
 
-async function pararGravacaoWa(){
-  if(!_waRecorder || _waRecorder.state === 'inactive') return;
+function pararGravacaoWa(){
+  if(!_waIsRecording || !_waRecorder || _waRecorder.state === 'inactive') return;
+  _waIsRecording = false;
   const btn = document.getElementById('wa-rec-btn');
-  if(btn){ btn.textContent = '🎤'; btn.style.background = ''; btn.title = 'Segure para gravar áudio'; }
+  if(btn){ btn.textContent = '🎤'; btn.style.background = ''; btn.style.border = '1px solid var(--bdr)'; btn.title = 'Clique para gravar áudio'; }
   _waRecorder.stop();
   _waRecorder.onstop = () => {
     const blob = new Blob(_waAudioChunks, { type: _waRecorder.mimeType });
     _waRecorder.stream.getTracks().forEach(t => t.stop());
     _waRecorder = null;
-    if(blob.size < 500) return;
+    if(blob.size < 500){ toast('Gravação muito curta','warn'); return; }
     const reader = new FileReader();
     reader.onload = e => {
       const dataUrl = e.target.result;
@@ -6926,6 +6942,43 @@ async function pararGravacaoWa(){
     };
     reader.readAsDataURL(blob);
   };
+}
+
+// ── Emoji picker ──────────────────────────────────────────────────────
+const _WA_EMOJIS = ['😊','😂','😍','🥰','😅','🤔','😬','🙏','💪','👍','👎','❤️',
+  '🎉','✅','❌','🔥','💯','⚡','🚀','💡','📊','📈','💰','🤝','👋','✨',
+  '😎','🤩','😄','🤦','🙄','💀','🫡','👏','🫂','🎯','📢','🔔','📅','🎊'];
+
+function toggleWaEmoji(){
+  const el = document.getElementById('wa-emoji-picker');
+  if(!el) return;
+  const open = el.style.display === 'flex';
+  if(open){ el.style.display = 'none'; return; }
+  if(!el.innerHTML){
+    el.innerHTML = _WA_EMOJIS.map(e =>
+      `<button onclick="insertWaEmoji('${e}')" style="font-size:20px;background:none;border:none;cursor:pointer;padding:3px;border-radius:6px;line-height:1">${e}</button>`
+    ).join('');
+  }
+  el.style.display = 'flex';
+}
+
+function insertWaEmoji(emoji){
+  const input = document.getElementById('wa-msg-input');
+  if(!input) return;
+  const pos = input.selectionStart ?? input.value.length;
+  input.value = input.value.slice(0, pos) + emoji + input.value.slice(pos);
+  input.focus();
+  input.setSelectionRange(pos + emoji.length, pos + emoji.length);
+  _waUpdateSendBtn();
+}
+
+function _waSetSendMode(asSticker){
+  if(!window._waPendingMedia) return;
+  window._waPendingMedia.asSticker = asSticker;
+  const fb = document.getElementById('wa-send-foto-btn');
+  const sb = document.getElementById('wa-send-sticker-btn');
+  if(fb){ fb.style.background = asSticker ? 'none' : 'var(--acc)'; fb.style.color = asSticker ? 'inherit' : '#fff'; fb.style.border = `1px solid ${asSticker ? 'var(--bdr)' : 'var(--acc)'}`; }
+  if(sb){ sb.style.background = asSticker ? 'rgba(99,102,241,.15)' : 'none'; sb.style.border = `1px solid ${asSticker ? 'var(--acc)' : 'var(--bdr)'}`; }
 }
 
 async function enviarMsgWhatsapp(){
@@ -6968,6 +7021,7 @@ async function enviarMsgWhatsapp(){
     phone,
     body: body || (media?.filename || ''),
     ...(media ? { media_base64: media.base64, media_mimetype: media.mimetype, media_filename: media.filename } : {}),
+    ...(media?.asSticker ? { media_as_sticker: true } : {}),
   };
 
   const { error } = await sb.from('mensagens_pendentes').insert(payload);
