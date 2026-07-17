@@ -3658,14 +3658,15 @@ async function toggleInativadoPortal(revId){
   }
 
   // Registra no histórico do card
-  await sb.from('historico_cards').insert({
-    revenda_id:   revId,
-    tipo:         novoValor ? '🔴 Inativado no portal' : '✅ Reativado no portal',
-    descricao:    novoValor ? 'Marcado como Inativado no portal' : 'Marcação "Inativado no portal" removida',
-    manual:       false,
-    usuario_id:   sessaoAtual?.user?.id   || null,
-    usuario_nome: perfilAtual?.nome       || 'Sistema',
-  });
+  await inserirHistorico(
+    revId,
+    novoValor ? '🔴 Inativado no portal' : '✅ Reativado no portal',
+    novoValor ? 'Marcado como Inativado no portal' : 'Marcação "Inativado no portal" removida',
+    perfilAtual?.nome || 'Sistema'
+  );
+
+  // Atualiza histórico no modal se estiver aberto
+  if(currentCardId === revId) setTimeout(()=>renderCardHistorico(revId), 200);
 
   toast(novoValor ? '✅ Marcado como Inativado no portal' : 'Marcação removida', 'ok');
   // Recarrega do banco para garantir que os contadores reflitam o estado real
