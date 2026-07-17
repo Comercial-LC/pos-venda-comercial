@@ -1901,6 +1901,7 @@ async function renderTVDashboard(){
   const atrasadas   = task.filter(t=>t.status!=='Concluída'&&t.vencimento&&t.vencimento<today()).length;
 
   const tvInativos = rv.filter(r=>
+    !r.inativado_portal &&
     ['inativo','inativa','perdido','cancelado','churn']
       .some(n=>(r.status||'').toLowerCase().includes(n))
   ).length;
@@ -2220,8 +2221,9 @@ function normalizeRevenda(r){
     ingresso:  r.ingresso||'',
     obs:       r.obs||'',
     produtos:  r.produtos||[],
-    tpc:       r.tpc||'',
-    criadoEm:  r.criado_em,
+    tpc:             r.tpc||'',
+    inativado_portal: r.inativado_portal || false,
+    criadoEm:        r.criado_em,
   };
 }
 function normalizeUsuario(u){
@@ -2593,7 +2595,7 @@ function renderDashboard(){
 
   const nomesInativos = ['inativo','inativa','perdido','cancelado','churn'];
   const inativos = rv.filter(r=>
-    nomesInativos.some(n=>(r.status||'').toLowerCase().includes(n))
+    !r.inativado_portal && nomesInativos.some(n=>(r.status||'').toLowerCase().includes(n))
   ).length;
 
   const ultimaEhInativa = nomesInativos.some(n => ultimaEtapa.toLowerCase().includes(n));
@@ -3465,10 +3467,21 @@ function renderCardInfo(id){
     ['INGRESSO',    fmtDate(rev.ingresso)],
   ].filter(([,v])=>v);
 
+  const ip = rev.inativado_portal;
   el.innerHTML = `
     <div style="padding:12px 16px;background:${cor}12;border-bottom:1px solid ${cor}30">
-      <div style="display:inline-flex;align-items:center;gap:6px;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.4px;border:1px solid ${cor}40;color:${cor};background:${cor}18;margin-bottom:6px">
-        ${etapa.icon||''} ${esc(rev.status||'—')}
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:${diasIng!==null?'4px':'0'}">
+        <div style="display:inline-flex;align-items:center;gap:6px;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.4px;border:1px solid ${cor}40;color:${cor};background:${cor}18">
+          ${etapa.icon||''} ${esc(rev.status||'—')}
+        </div>
+        <button onclick="toggleInativadoPortal('${esc(id)}')"
+          title="${ip ? 'Clique para remover a marcação' : 'Marcar como inativado no portal LC'}"
+          style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.3px;cursor:pointer;transition:all .15s;
+            ${ip
+              ? 'background:rgba(234,88,12,.18);border:1px solid rgba(234,88,12,.5);color:#ea580c'
+              : 'background:var(--bg2);border:1px solid var(--bdr);color:var(--txt3)'}">
+          ${ip ? '🔴' : '⚪'} ${ip ? 'Inativado no portal' : 'Inativar no portal'}
+        </button>
       </div>
       ${diasIng!==null?`<div style="font-size:11px;color:var(--txt3)">${diasIng} dias desde o ingresso</div>`:''}
     </div>
@@ -3615,6 +3628,30 @@ function renderCardProdutos(id){
   cnt.style.cssText = 'width:100%;margin-top:8px;font-size:12px;color:var(--txt3)';
   cnt.textContent = prods.length+'/'+getProdutosList().length+' produtos ativados';
   el.appendChild(cnt);
+}
+
+async function toggleInativadoPortal(revId){
+  const rev = DB.revendas.find(r=>r.id===revId);
+  if(!rev) return;
+  const novoValor = !rev.inativado_portal;
+
+  const revIdx = DB.revendas.findIndex(r=>r.id===revId);
+  if(revIdx > -1) DB.revendas[revIdx].inativado_portal = novoValor;
+  renderCardInfo(revId);
+
+  const {error} = await sb.from('revendas')
+    .update({ inativado_portal: novoValor, atualizado_em: new Date().toISOString() })
+    .eq('id', revId);
+
+  if(error){
+    if(revIdx > -1) DB.revendas[revIdx].inativado_portal = rev.inativado_portal;
+    renderCardInfo(revId);
+    toast('Erro ao salvar: '+error.message, 'err');
+    return;
+  }
+
+  toast(novoValor ? 'Marcado como Inativado no portal' : 'Marcação removida', 'ok');
+  renderDashboard();
 }
 
 async function toggleProdutoCard(revId, produto){
@@ -3976,7 +4013,7 @@ function deleteHandover(id){
 }
 
 // ─── RELATÓRIOS ────────────────────────────────────────────────────
-const _ehInativo = r => ['inativo','inativa','perdido','cancelado','churn'].some(n=>(r.status||'').toLowerCase().includes(n));
+const _ehInativo = r => !r.inativado_portal && ['inativo','inativa','perdido','cancelado','churn'].some(n=>(r.status||'').toLowerCase().includes(n));
 
 async function renderRelatorios(){
   const rv = DB.revendas || [];
