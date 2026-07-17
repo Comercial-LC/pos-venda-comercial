@@ -6522,7 +6522,7 @@ async function _carregarConversasWa(){
   if(!listEl) return;
 
   const { data: msgs, error: msgsErr } = await sb.from('whatsapp_messages')
-    .select('id, revenda_id, direction, body, phone, created_at, media_mimetype, media_filename, revendas(id, nome, tel)')
+    .select('id, revenda_id, direction, body, phone, created_at, media_mimetype, media_filename')
     .order('created_at', { ascending: false })
     .limit(2000);
 
@@ -6546,14 +6546,20 @@ async function _carregarConversasWa(){
   for(const m of msgs){
     const key = m.phone || String(m.revenda_id) || 'desconhecido';
     if(!convMap.has(key)){
-      // Tenta achar revenda pelo join ou pelo DB local
-      const revJoin = m.revendas;
-      const revDB   = !revJoin && m.phone
+      // Busca revenda pelo DB local (por phone) ou pelo revenda_id
+      const phoneDigits = (m.phone||'').replace(/@[a-z.]+$/,'').replace(/\D/g,'');
+      const revDB = m.phone
         ? (window.DB?.revendas||[]).find(r =>
-            [r.tel, r.tel2, r.tel3].some(t => normalizarFoneJS(t||'') === m.phone)
+            [r.tel, r.tel2, r.tel3].some(t => {
+              const td = normalizarFoneJS(t||'');
+              return td && (td === phoneDigits || td.endsWith(phoneDigits) || phoneDigits.endsWith(td));
+            })
           )
         : null;
-      const rev = revJoin || revDB || { id: null, nome: _fmtFone(m.phone), tel: m.phone };
+      const revById = !revDB && m.revenda_id
+        ? (window.DB?.revendas||[]).find(r => r.id === m.revenda_id)
+        : null;
+      const rev = revDB || revById || { id: null, nome: _fmtFone(m.phone), tel: m.phone };
       convMap.set(key, { phone: m.phone, rev, revendaId: m.revenda_id, msgs: [], last: m });
     }
     convMap.get(key).msgs.push(m);
