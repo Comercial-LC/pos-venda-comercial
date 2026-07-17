@@ -3031,6 +3031,7 @@ function renderKanban(){
             <div style="font-size:13px;font-weight:600;margin-bottom:3px;padding-right:24px">${safe(r.nome)}</div>
             <div style="font-size:11px;color:var(--txt3)">· ${safe(r.cs||'Sem CS')}</div>
             ${r.contratos ? `<div style="font-size:11px;color:var(--txt3)">${r.contratos} contratos${r.curva?' · Curva '+r.curva:''}</div>` : ''}
+            ${r.inativado_portal ? `<div style="margin-top:5px"><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(234,88,12,.15);color:#ea580c;border:1px solid rgba(234,88,12,.35);font-weight:600">🔴 Inativado no portal</span></div>` : ''}
             ${prodCheck}
             <!-- Barra de progresso da jornada -->
             <div style="margin-top:8px">
@@ -3655,6 +3656,16 @@ async function toggleInativadoPortal(revId){
     renderDashboard();
     return;
   }
+
+  // Registra no histórico do card
+  await sb.from('historico_cards').insert({
+    revenda_id:   revId,
+    tipo:         novoValor ? '🔴 Inativado no portal' : '✅ Reativado no portal',
+    descricao:    novoValor ? 'Marcado como Inativado no portal' : 'Marcação "Inativado no portal" removida',
+    manual:       false,
+    usuario_id:   sessaoAtual?.user?.id   || null,
+    usuario_nome: perfilAtual?.nome       || 'Sistema',
+  });
 
   toast(novoValor ? '✅ Marcado como Inativado no portal' : 'Marcação removida', 'ok');
   // Recarrega do banco para garantir que os contadores reflitam o estado real
