@@ -6521,10 +6521,20 @@ async function _carregarConversasWa(){
   const listEl = document.getElementById('wa-conv-items');
   if(!listEl) return;
 
-  const { data: msgs } = await sb.from('whatsapp_messages')
+  const { data: msgs, error: msgsErr } = await sb.from('whatsapp_messages')
     .select('id, revenda_id, direction, body, phone, created_at, media_mimetype, media_filename, revendas(id, nome, tel)')
     .order('created_at', { ascending: false })
     .limit(2000);
+
+  if(msgsErr){
+    console.error('[WA] Erro ao carregar conversas:', msgsErr.message);
+    listEl.innerHTML = `<div style="padding:16px;color:var(--err);font-size:12px">
+      ⚠️ Erro ao carregar conversas.<br>
+      <span style="color:var(--txt3)">${msgsErr.message}</span><br><br>
+      <span style="color:var(--txt3)">Execute a migração SQL no Supabase caso ainda não tenha feito.</span>
+    </div>`;
+    return;
+  }
 
   if(!msgs || !msgs.length){
     listEl.innerHTML = '<div style="padding:16px;color:var(--txt3);font-size:13px">Nenhuma conversa ainda.<br>Aguardando mensagens...</div>';
@@ -7154,6 +7164,7 @@ async function enviarMsgWhatsapp(){
     revenda_id: window._waThreadRevendaId || null,
     phone,
     body: body || (media?.filename || ''),
+    status: 'pending',
     ...(media ? { media_base64: media.base64, media_mimetype: media.mimetype, media_filename: media.filename } : {}),
     ...(media?.asSticker ? { media_as_sticker: true } : {}),
   };
@@ -7163,7 +7174,8 @@ async function enviarMsgWhatsapp(){
   if(input) input.focus();
 
   if(error){
-    toast('Erro ao enviar: ' + error.message, 'err');
+    const hint = error.message?.includes('column') ? ' — Execute a migração SQL no Supabase.' : '';
+    toast('Erro ao enviar: ' + error.message + hint, 'err');
     if(body && input) input.value = body;
     optDiv?.remove();
     return;
