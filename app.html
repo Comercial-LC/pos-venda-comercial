@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -4776,8 +4776,7 @@ async function carregarMetas(){
         ? `<span style="color:#22c55e">+${_s.delta} acima do esperado</span>`
         : `<span style="color:#ef4444">${_s.delta} abaixo do esperado</span>`;
 
-      return `<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--rl);
-                padding:18px;border-left:4px solid ${_s.borda}">
+      return `<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--rxl);padding:20px;box-shadow:var(--sh);border-left:4px solid ${_s.borda}">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px">
           <div>
             <div style="font-size:13px;font-weight:700">${safe(m.nome)}</div>
@@ -5773,8 +5772,7 @@ async function renderMetas(){
         padding-top:8px;border-top:1px solid var(--bdr)">${safe(raw.descricao)}</div>`;
     } catch(e){}
 
-    return `<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--rl);
-      padding:20px;border-left:4px solid ${cfg.borda}">
+    return `<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--rxl);padding:20px;box-shadow:var(--sh);border-left:4px solid ${cfg.borda}">
 
       <!-- Header -->
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
