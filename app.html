@@ -1892,6 +1892,7 @@ async function renderTVDashboard(){
   console.log('📺 TV contagem penúltima:', rv.filter(r=>r.status===penultimaEtapa).length);
 
   const emJornada   = rv.filter(r=>{
+    if(r.inativado_portal) return false;
     const s=(r.status||'').toLowerCase();
     return !['inativo','inativa','perdido','cancelado','churn'].some(n=>s.includes(n))
       && r.status!==ultimaEtapa && r.status!==penultimaEtapa;
@@ -2159,7 +2160,8 @@ async function loadFromSupabase(){
             cs:r.cs, contratos:r.contratos, curva:r.curva,
             ingresso:r.ingresso, cidade:r.cidade, uf:r.uf,
             email:r.email, tel:r.tel, produtos:r.produtos,
-            id_origem:r.id_origem, criadoEm:r.criadoEm
+            id_origem:r.id_origem, criadoEm:r.criadoEm,
+            inativado_portal:r.inativado_portal||false
           }))));
         sessionStorage.setItem('sb_revendas_total', DB.revendas.length);
       } catch(e){}
@@ -3655,6 +3657,8 @@ async function toggleInativadoPortal(revId){
   }
 
   toast(novoValor ? '✅ Marcado como Inativado no portal' : 'Marcação removida', 'ok');
+  // Recarrega do banco para garantir que os contadores reflitam o estado real
+  await loadFromSupabase();
   renderDashboard();
   if(document.getElementById('tv-dash')?.classList.contains('on')) renderTVDashboard();
 }
