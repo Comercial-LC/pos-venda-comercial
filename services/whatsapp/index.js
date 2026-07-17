@@ -2,6 +2,17 @@ require('dotenv').config();
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const { createClient }      = require('@supabase/supabase-js');
 const QRCode                = require('qrcode');
+const path                  = require('path');
+const fs                    = require('fs');
+
+// Remove locks do Chrome que ficam presos após crashes/reinicializações do PM2
+function limparLockChrome() {
+  const sessionDir = path.join(__dirname, '.wwebjs_auth', 'session');
+  ['lockfile', 'SingletonLock', 'SingletonSocket', 'SingletonCookie'].forEach(f => {
+    const p = path.join(sessionDir, f);
+    try { if (fs.existsSync(p)) { fs.unlinkSync(p); console.log(`[WhatsApp] Lock removido: ${f}`); } } catch {}
+  });
+}
 
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
   console.error('[WhatsApp] SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY são obrigatórios no .env');
@@ -265,19 +276,27 @@ sb.channel('commands-ch')
         try { await client.logout(); } catch(e) { console.error('[WhatsApp] Erro ao desconectar:', e.message); }
         _clientReady = false;
         await atualizarStatus('iniciando', { qr_code: null, numero: null });
-        setTimeout(() => { try { client.initialize(); } catch(e) {} }, 2000);
+        setTimeout(() => { limparLockChrome(); try { client.initialize(); } catch(e) {} }, 2000);
 
       } else if(action === 'reconnect'){
         if(_clientReady){
           console.log('[WhatsApp] Já conectado, ignorando reconexão');
+          // Garante que o status no banco reflita a conexão ativa
+          await atualizarStatus('conectado', { qr_code: null, numero: client.info?.wid?.user || '' });
           return;
         }
         console.log('[WhatsApp] Reconexão solicitada pelo portal');
         await atualizarStatus('iniciando', { qr_code: null, numero: null });
+        limparLockChrome();
         setTimeout(() => { try { client.initialize(); } catch(e) { console.error('[WhatsApp] Erro ao reinicializar:', e.message); } }, 500);
       }
     }
   ).subscribe();
 
+// Encerramento limpo: marca como desconectado ao parar o PM2
+process.on('SIGINT',  () => { atualizarStatus('desconectado', { qr_code: null, numero: null }).catch(()=>{}).finally(() => process.exit(0)); });
+process.on('SIGTERM', () => { atualizarStatus('desconectado', { qr_code: null, numero: null }).catch(()=>{}).finally(() => process.exit(0)); });
+
+limparLockChrome();
 atualizarStatus('iniciando').catch(() => {});
 client.initialize();
