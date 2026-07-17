@@ -3,13 +3,39 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co https://api.anthropic.com; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; frame-ancestors 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' https://*.supabase.co https://api.anthropic.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; object-src 'none'; frame-ancestors 'none';">
 <title>Portal Sucesso da Revenda — LC Sistemas</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root{--bg:#0A0A0F;--bg2:#111118;--card:#18181F;--card2:#1E1E28;--inp:#0D0D14;--bdr:#2A2A3A;--bdr2:#3A3A50;--txt:#F5F5FF;--txt2:#9999BB;--txt3:#555566;--acc:#F5C518;--acc2:#E0B010;--accl:#2A2200;--ok:#22C55E;--okl:#0A2E1A;--warn:#F59E0B;--warnl:#2D1F05;--err:#EF4444;--errl:#2D0A0A;--pur:#6B2FA0;--purl:#1A0A2E;--tel:#14B8A6;--tell:#0A1F1E;--r:8px;--rl:12px;--sh:0 4px 24px rgba(0,0,0,.5);--tr:all .2s ease;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
-[data-theme=light]{--bg:#F5F0FF;--bg2:#EDE5FF;--card:#FFFFFF;--card2:#F8F4FF;--inp:#F0EAFF;--bdr:#D4C8F0;--bdr2:#C0B0E8;--txt:#0F0A1A;--txt2:#4A3870;--txt3:#8878AA;--acc:#6B2FA0;--acc2:#5A2590;--accl:#EDE5FF;--okl:#D1FAE5;--warnl:#FEF3C7;--errl:#FEE2E2;--purl:#F3E8FF;--tell:#CCFBF1}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+:root{
+  --bg:#121824;--bg2:#1A2234;--card:#1E293B;--card2:#243047;
+  --inp:#0F1729;--bdr:#2D3748;--bdr2:#3D4F6A;
+  --txt:#F3F4F6;--txt2:#9CA3AF;--txt3:#6B7280;
+  --acc:#FF6B00;--acc2:#FFA800;--accl:rgba(255,107,0,.13);
+  --prim:#2E1A47;--priml:rgba(46,26,71,.3);
+  --ok:#22C55E;--okl:rgba(34,197,94,.13);
+  --warn:#F59E0B;--warnl:rgba(245,158,11,.13);
+  --err:#EF4444;--errl:rgba(239,68,68,.13);
+  --pur:#7C3AED;--purl:rgba(124,58,237,.18);
+  --r:8px;--rl:12px;--rxl:16px;
+  --sh:0 4px 20px rgba(0,0,0,.4);--sh2:0 8px 32px rgba(0,0,0,.55);
+  --tr:all .2s ease;
+  --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif
+}
+[data-theme=light]{
+  --bg:#F8F9FA;--bg2:#FFFFFF;--card:#FFFFFF;--card2:#F1F5F9;
+  --inp:#F1F5F9;--bdr:#E2E8F0;--bdr2:#CBD5E1;
+  --txt:#1F2937;--txt2:#4B5563;--txt3:#9CA3AF;
+  --acc:#FF6B00;--acc2:#FFA800;--accl:rgba(255,107,0,.08);
+  --prim:#2E1A47;--priml:rgba(46,26,71,.07);
+  --ok:#16A34A;--okl:rgba(22,163,74,.1);
+  --warn:#D97706;--warnl:rgba(217,119,6,.1);
+  --err:#DC2626;--errl:rgba(220,38,38,.1);
+  --pur:#6D28D9;--purl:rgba(109,40,217,.1);
+  --sh:0 2px 12px rgba(0,0,0,.07);--sh2:0 4px 24px rgba(0,0,0,.11)
+}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:var(--font);background:var(--bg);color:var(--txt);min-height:100vh;display:flex;font-size:14px;line-height:1.5}
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:var(--bg2)}::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:3px}
@@ -1663,7 +1689,7 @@ async function renderTVLayout2Data(tvCfg, rv, etapas, todosKpis){
         +`<span style="padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;background:${s.bg};color:${s.cor};border:1px solid ${s.borda}">${s.icon} ${s.pct}%</span>`
         +`</div>`
         +`<div style="position:relative;background:rgba(255,255,255,0.08);border-radius:4px;height:8px;overflow:hidden">`
-        +`<div style="height:100%;background:${s.cor};width:${p}%;border-radius:4px;transition:width .6s"></div>`
+        +`<div style="height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));width:${p}%;border-radius:4px;transition:width .6s"></div>`
         +`</div>`
         +`<div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px">`
         +`<span>Atual: ${m.valor_atual}</span><span>Meta: ${m.valor_meta}</span>`
@@ -1683,7 +1709,7 @@ async function renderTVLayout2Data(tvCfg, rv, etapas, todosKpis){
         +`<span style="font-size:18px;width:24px;text-align:center">${e.icon}</span>`
         +`<span style="font-size:12px;color:var(--txt2);width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${safe(e.id)}</span>`
         +`<div style="flex:1;background:var(--bdr);border-radius:4px;height:12px;overflow:hidden">`
-        +`<div style="height:100%;background:${cor};width:${pct}%;border-radius:4px;transition:width .6s"></div>`
+        +`<div style="height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));width:${pct}%;border-radius:4px;transition:width .6s"></div>`
         +`</div>`
         +`<span style="font-size:16px;font-weight:800;color:${cor};width:36px;text-align:right">${cnt}</span>`
         +`</div>`;
@@ -1696,11 +1722,11 @@ async function renderTVLayout2Data(tvCfg, rv, etapas, todosKpis){
     const cols = Math.min(todosKpis.length || 4, tvCfg.kpisColunas);
     kpisEl2.style.gridTemplateColumns = `repeat(${cols},1fr)`;
     kpisEl2.innerHTML = todosKpis.map(k=>`
-      <div style="background:var(--card);border:1px solid var(--bdr);border-radius:14px;padding:16px 20px;`
-        +`display:flex;align-items:center;gap:14px;border-left:4px solid ${k.cor}">`
+      <div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--rxl);padding:16px 20px;`
+        +`display:flex;align-items:center;gap:14px;">`
         +`<div style="font-size:32px">${k.icon}</div>`
         +`<div>`
-        +`<div style="font-size:44px;font-weight:800;color:${k.cor};line-height:1">${k.val}</div>`
+        +`<div style="font-size:48px;font-weight:800;color:${k.cor};line-height:1">${k.val}</div>`
         +`<div style="font-size:13px;color:var(--txt2);margin-top:2px">${k.label}</div>`
         +`</div></div>`).join('');
   }
@@ -1948,11 +1974,11 @@ async function renderTVDashboard(){
   // ── Layout 1: renderização dos blocos ─────────────────────
 
   if(kpisEl) kpisEl.innerHTML = todosKpis.map(k=>`
-    <div style="background:var(--card);border:1px solid var(--bdr);border-radius:10px;
-      padding:12px 8px;text-align:center;border-top:3px solid ${k.cor};display:flex;align-items:center;gap:10px;justify-content:center">
+    <div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--rxl);
+      padding:12px 8px;text-align:center;display:flex;align-items:center;gap:10px;justify-content:center">
       <div style="font-size:22px">${k.icon}</div>
       <div>
-        <div style="font-size:32px;font-weight:800;color:${k.cor};line-height:1">${k.val}</div>
+        <div style="font-size:48px;font-weight:800;color:${k.cor};line-height:1">${k.val}</div>
         <div style="font-size:11px;color:var(--txt2);margin-top:2px;white-space:nowrap">${k.label}</div>
       </div>
     </div>`).join('');
@@ -1991,7 +2017,7 @@ async function renderTVDashboard(){
         // Barra dupla
         +'<div style="position:relative;background:rgba(255,255,255,0.08);border-radius:4px;height:8px;overflow:hidden;margin-bottom:4px">'
           +(s.mesAtual ? '<div style="position:absolute;left:0;top:0;height:100%;background:rgba(255,255,255,0.06);width:'+barEsp+'%;border-radius:6px"></div>' : '')
-          +'<div style="position:absolute;left:0;top:0;height:100%;background:'+s.cor+';width:'+s.pct+'%;border-radius:6px;transition:width .6s"></div>'
+          +'<div style="position:absolute;left:0;top:0;height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));width:'+s.pct+'%;border-radius:6px;transition:width .6s"></div>'
           +(s.mesAtual && barEsp<100 ? '<div style="position:absolute;top:0;height:100%;width:2px;background:rgba(255,255,255,0.35);left:'+barEsp+'%"></div>' : '')
         +'</div>'
         // Ritmo
@@ -2035,7 +2061,7 @@ async function renderTVDashboard(){
         <span style="font-size:16px;width:20px;text-align:center">${e.icon}</span>
         <span style="font-size:12px;color:var(--txt2);width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.id}</span>
         <div style="flex:1;background:var(--bdr);border-radius:4px;height:10px;overflow:hidden">
-          <div style="height:100%;background:${cor};width:${pct}%;border-radius:4px"></div>
+          <div style="height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));width:${pct}%;border-radius:4px"></div>
         </div>
         <span style="font-size:14px;font-weight:700;color:${cor};width:32px;text-align:right">${cnt}</span>
       </div>`;
@@ -6434,68 +6460,64 @@ function _renderWaChatHub(st){
   if(!root) return;
   const numero = st?.numero || '';
   root.innerHTML = `
-    <!-- Barra de status -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <div style="font-size:17px;font-weight:700">💬 WhatsApp <span style="font-size:12px;font-weight:400;color:var(--txt3)">— Central de Atendimento</span></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding:0 2px">
       <div style="display:flex;align-items:center;gap:10px">
-        <div style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#22c55e;font-weight:600">
-          <div style="width:7px;height:7px;border-radius:50%;background:#22c55e"></div>
+        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#25D366,#128C7E);display:flex;align-items:center;justify-content:center;font-size:18px">💬</div>
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--txt);letter-spacing:-.3px">WhatsApp <span style="color:var(--txt3);font-weight:400;font-size:13px">— Central de Atendimento</span></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#22c55e;font-weight:600;background:rgba(34,197,94,.1);padding:5px 12px;border-radius:20px;border:1px solid rgba(34,197,94,.25)">
+          <div style="width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px #22c55e"></div>
           Conectado${numero ? ' (+' + esc(numero) + ')' : ''}
         </div>
-        <button class="btn btn-s" onclick="desconectarWhatsapp()"
-          style="font-size:11px;padding:3px 9px;color:#ef4444;border-color:#ef444466">Desconectar</button>
+        <button class="btn btn-s" onclick="desconectarWhatsapp()" style="font-size:11px;padding:5px 12px;color:#ef4444;border-color:#ef444440;border-radius:20px;background:rgba(239,68,68,.08)">Desconectar</button>
       </div>
     </div>
 
-    <!-- Grade 3 colunas -->
-    <div style="display:grid;grid-template-columns:25% 45% 30%;border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;height:calc(100vh - 168px)">
+    <div style="display:grid;grid-template-columns:26% 44% 30%;border:1px solid var(--bdr);border-radius:var(--rxl);overflow:hidden;height:calc(100vh - 172px);box-shadow:var(--sh2)">
 
-      <!-- Col 1: Lista de conversas -->
+      <!-- Col 1 -->
       <div style="border-right:1px solid var(--bdr);display:flex;flex-direction:column;background:var(--bg);min-height:0;overflow:hidden">
-        <div style="padding:10px 12px;border-bottom:1px solid var(--bdr);flex-shrink:0">
-          <input type="text" id="wa-search" placeholder="🔍 Buscar..." oninput="filtrarWaList()"
-            style="width:100%;padding:7px 10px;font-size:12px;border-radius:var(--r);border:1px solid var(--bdr);background:var(--bg2);color:var(--txt);box-sizing:border-box">
+        <div style="padding:12px 14px;border-bottom:1px solid var(--bdr);flex-shrink:0">
+          <div style="position:relative">
+            <input type="text" id="wa-search" placeholder="Buscar conversa..." oninput="filtrarWaList()"
+              style="width:100%;padding:8px 12px 8px 34px;font-size:12.5px;border-radius:20px;border:1px solid var(--bdr2);background:var(--card);color:var(--txt);box-sizing:border-box;outline:none;font-family:var(--font)">
+            <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:13px;opacity:.5">🔍</span>
+          </div>
         </div>
-        <div id="wa-conv-items" style="flex:1;overflow-y:auto;min-height:0">
-          <div style="padding:16px;color:var(--txt3);font-size:13px">Carregando conversas...</div>
-        </div>
+        <div id="wa-conv-items" style="flex:1;overflow-y:auto;min-height:0"></div>
       </div>
 
-      <!-- Col 2: Janela de chat -->
+      <!-- Col 2 -->
       <div style="display:flex;flex-direction:column;background:var(--bg2);border-right:1px solid var(--bdr);overflow:hidden;min-height:0">
-        <div id="wa-thread-header" style="padding:10px 16px;border-bottom:1px solid var(--bdr);background:var(--bg);min-height:52px;display:flex;align-items:center;gap:10px;flex-shrink:0">
+        <div id="wa-thread-header" style="padding:12px 16px;border-bottom:1px solid var(--bdr);background:var(--bg);min-height:56px;display:flex;align-items:center;gap:12px;flex-shrink:0">
           <div style="color:var(--txt3);font-size:13px">Selecione uma conversa à esquerda</div>
         </div>
-        <div id="wa-thread-msgs" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px;min-height:0"></div>
-        <div id="wa-thread-input" style="display:none;flex-direction:column;flex-shrink:0;background:var(--bg)">
-          <div id="wa-emoji-picker" style="display:none;padding:6px 10px;border-top:1px solid var(--bdr);background:var(--bg2);flex-wrap:wrap;gap:1px"></div>
+        <div id="wa-thread-msgs" style="flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:10px;min-height:0"></div>
+        <div id="wa-thread-input" style="display:none;flex-direction:column;flex-shrink:0;background:var(--bg);padding:10px 14px 14px">
+          <div id="wa-emoji-picker" style="display:none;padding:8px 12px;border:1px solid var(--bdr);border-radius:12px;background:var(--card);flex-wrap:wrap;gap:2px;margin-bottom:8px;max-height:120px;overflow-y:auto"></div>
           <div id="wa-media-preview" style="display:none"></div>
-          <div style="padding:6px 10px;border-top:1px solid var(--bdr);display:flex;align-items:center;gap:6px">
-            <label title="Anexar arquivo" style="cursor:pointer;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:var(--bg2);border:1px solid var(--bdr);flex-shrink:0;font-size:15px;user-select:none">📎
-              <input type="file" id="wa-file-input" style="display:none" accept="image/*,audio/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.zip,.rar" onchange="handleWaFileAttach(this)">
-            </label>
-            <label title="Enviar figurinha (sticker)" style="cursor:pointer;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:var(--bg2);border:1px solid var(--bdr);flex-shrink:0;font-size:15px;user-select:none">🎭
-              <input type="file" id="wa-sticker-input" style="display:none" accept="image/*" onchange="handleWaStickerAttach(this)">
-            </label>
-            <button id="wa-emoji-btn" onclick="toggleWaEmoji()" title="Emoji"
-              style="width:34px;height:34px;padding:0;border-radius:50%;font-size:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--bg2);border:1px solid var(--bdr);cursor:pointer">😊</button>
+          <div style="display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--bdr2);border-radius:24px;padding:6px 8px 6px 14px">
+            <label title="Anexar arquivo" style="cursor:pointer;font-size:16px;opacity:.6;transition:opacity .2s;line-height:1;flex-shrink:0" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.6">📎<input type="file" id="wa-file-input" accept="image/*,audio/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.zip,.rar" style="display:none" onchange="handleWaFileAttach(this)"></label>
+            <label title="Enviar figurinha" style="cursor:pointer;font-size:16px;opacity:.6;transition:opacity .2s;line-height:1;flex-shrink:0" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.6">🎭<input type="file" id="wa-sticker-input" accept="image/*" style="display:none" onchange="handleWaStickerAttach(this)"></label>
+            <button id="wa-emoji-btn" onclick="toggleWaEmoji()" title="Emoji" style="background:none;border:none;cursor:pointer;font-size:16px;opacity:.6;transition:opacity .2s;padding:0;line-height:1;flex-shrink:0" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.6">😊</button>
             <input id="wa-msg-input" type="text" placeholder="Digite uma mensagem..."
               onkeydown="if(event.key==='Enter'&&!event.shiftKey){enviarMsgWhatsapp();event.preventDefault()}"
               oninput="_waUpdateSendBtn()"
-              style="flex:1;padding:9px 14px;border-radius:20px;border:1px solid var(--bdr);font-size:13px;background:var(--bg2);color:var(--txt);outline:none">
-            <button id="wa-send-btn" onclick="enviarMsgWhatsapp()" title="Enviar"
-              style="width:34px;height:34px;padding:0;border-radius:50%;font-size:15px;flex-shrink:0;display:none;align-items:center;justify-content:center;background:var(--acc);color:#fff;border:none;cursor:pointer">➤</button>
-            <button id="wa-rec-btn" onclick="toggleGravacaoWa()" title="Clique para gravar áudio"
-              style="width:34px;height:34px;padding:0;border-radius:50%;font-size:15px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--bg2);border:1px solid var(--bdr);cursor:pointer">🎤</button>
+              style="flex:1;background:none;border:none;outline:none;color:var(--txt);font-size:13.5px;font-family:var(--font);padding:4px 0">
+            <button id="wa-send-btn" onclick="enviarMsgWhatsapp()" style="display:none;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--acc2));border:none;cursor:pointer;font-size:14px;flex-shrink:0;color:#fff;box-shadow:0 2px 8px rgba(255,107,0,.35)">➤</button>
+            <button id="wa-rec-btn" onclick="toggleGravacaoWa()" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:var(--card2);border:1px solid var(--bdr2);cursor:pointer;font-size:15px;flex-shrink:0">🎤</button>
           </div>
         </div>
       </div>
 
-      <!-- Col 3: Detalhe do lead -->
-      <div id="wa-lead-panel" style="display:flex;flex-direction:column;background:var(--bg);overflow:hidden">
+      <!-- Col 3 -->
+      <div id="wa-lead-panel" style="display:flex;flex-direction:column;background:var(--bg);overflow:hidden;min-height:0">
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;color:var(--txt3)">
-          <div style="font-size:32px;margin-bottom:10px">👆</div>
-          <div style="font-size:13px">Selecione uma conversa para ver o perfil do lead</div>
+          <div style="font-size:36px;margin-bottom:12px;opacity:.4">👆</div>
+          <div style="font-size:13px">Selecione uma conversa para ver o perfil</div>
         </div>
       </div>
 
@@ -6583,34 +6605,74 @@ function _fmtFone(phone){
   return d.length > 14 ? d.slice(0,5)+'...'+d.slice(-4) : (d||s.slice(0,20));
 }
 
+const _waAccordion = new Set(['aguardando','andamento','critico','vip']);
+function _toggleWaAccordion(id){ _waAccordion.has(id)?_waAccordion.delete(id):_waAccordion.add(id); filtrarWaList(); }
 function _renderWaList(convs){
   const listEl = document.getElementById('wa-conv-items');
   if(!listEl) return;
   if(!convs.length){
-    listEl.innerHTML = '<div style="padding:16px;color:var(--txt3);font-size:13px">Nenhum resultado.</div>';
+    listEl.innerHTML = '<div style="padding:20px 16px;color:var(--txt3);font-size:13px;text-align:center">Nenhuma conversa encontrada.</div>';
     return;
   }
-  listEl.innerHTML = convs.map(c => {
-    const last     = c.last;
-    const sent     = last.direction === 'outbound';
-    const preview  = esc((last.body||'').slice(0,52) + ((last.body||'').length > 52 ? '…' : ''));
-    const data     = new Date(last.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+
+  // Classify into groups
+  const groups = [
+    { id:'critico',    label:'Crítico',             color:'#EF4444', items:[] },
+    { id:'aguardando', label:'Aguardando Resposta',  color:'#FF6B00', items:[] },
+    { id:'andamento',  label:'Em Andamento',         color:'#22C55E', items:[] },
+    { id:'vip',        label:'VIP',                  color:'#7C3AED', items:[] },
+  ];
+  convs.forEach(c => {
+    const isGroup  = (c.phone||'').includes('@g.us');
+    const isLinked = (c.phone||'').includes('@lid');
     const isRev    = !!c.rev?.id;
-    const key      = esc(c.phone || String(c.rev?.id||''));
-    const sel      = _waRevendaSel === (c.phone || String(c.rev?.id)) ? 'background:var(--accl);' : '';
-    const avatar   = isRev ? '💬' : '👤';
-    const avatarBg = isRev ? 'rgba(37,211,102,.15)' : 'rgba(107,114,128,.12)';
-    const tag      = isRev ? '' : `<span style="font-size:10px;color:var(--txt3);background:var(--bg2);padding:1px 5px;border-radius:3px;margin-left:4px">novo</span>`;
-    return `<div class="wa-conv-item" onclick="abrirWaThread('${key}')" style="padding:12px 14px;cursor:pointer;border-bottom:1px solid var(--bdr);display:flex;gap:10px;align-items:flex-start;${sel}">
-      <div style="width:40px;height:40px;border-radius:50%;background:${avatarBg};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${avatar}</div>
+    const lastIn   = c.last?.direction === 'inbound';
+    if(isGroup)              groups[3].items.push(c);
+    else if(!isRev && lastIn) groups[0].items.push(c);
+    else if(lastIn)          groups[1].items.push(c);
+    else if(isRev)           groups[2].items.push(c);
+    else                     groups[0].items.push(c);
+  });
+
+  const renderItem = c => {
+    const last    = c.last;
+    const sent    = last.direction === 'outbound';
+    const preview = esc((last.body||'').slice(0,48)+((last.body||'').length>48?'…':''));
+    const data    = new Date(last.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+    const isRev   = !!c.rev?.id;
+    const key     = esc(c.phone || String(c.rev?.id||''));
+    const isSel   = _waRevendaSel === (c.phone || String(c.rev?.id));
+    const initials= (c.rev?.nome||'?').slice(0,2).toUpperCase();
+    const tag     = !isRev ? `<span style="font-size:9px;font-weight:700;color:var(--acc);background:var(--accl);padding:2px 6px;border-radius:10px;letter-spacing:.3px">novo</span>` : '';
+    const selStyle = isSel
+      ? 'background:var(--purl);border-left:3px solid var(--pur);'
+      : 'border-left:3px solid transparent;';
+    return `<div class="wa-conv-item" onclick="abrirWaThread('${key}')" style="padding:11px 14px 11px 11px;cursor:pointer;border-bottom:1px solid var(--bdr);display:flex;gap:10px;align-items:flex-start;transition:background .15s;${selStyle}" onmouseover="if(!this.dataset.sel)this.style.background='var(--card)'" onmouseout="if(!this.dataset.sel)this.style.background=''" ${isSel?'data-sel=1':''}>
+      <div style="width:38px;height:38px;border-radius:50%;background:${isRev?'linear-gradient(135deg,var(--prim),var(--pur))':'var(--card2)'};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:${isRev?'#fff':'var(--txt3)'};flex-shrink:0;letter-spacing:-.5px">${isRev?initials:'👤'}</div>
       <div style="flex:1;min-width:0">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:4px">
-          <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.rev?.nome||'?')}${tag}</div>
-          <div style="font-size:11px;color:var(--txt3);flex-shrink:0">${data}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;margin-bottom:3px">
+          <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)">${esc(c.rev?.nome||_fmtFone(c.phone||''))}${tag}</div>
+          <div style="font-size:10px;color:var(--txt3);flex-shrink:0">${data}</div>
         </div>
-        <div style="font-size:12px;color:var(--txt3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sent?'Você: ':''}${preview}</div>
-        <div style="font-size:11px;color:var(--txt3);margin-top:2px">${c.msgs.length} msg${c.msgs.length>1?'s':''}</div>
+        <div style="font-size:11.5px;color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sent?'<span style="color:var(--txt2);font-size:10px">Você: </span>':''}${preview||'<span style="font-style:italic;opacity:.6">mídia</span>'}</div>
       </div>
+    </div>`;
+  };
+
+  listEl.innerHTML = groups.filter(g=>g.items.length).map(g => {
+    const open = _waAccordion.has(g.id);
+    const dot  = g.items.filter(c=>c.last?.direction==='inbound').length;
+    return `<div>
+      <div onclick="_toggleWaAccordion('${g.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;cursor:pointer;background:var(--card2);border-bottom:1px solid var(--bdr);user-select:none;position:sticky;top:0;z-index:1">
+        <div style="display:flex;align-items:center;gap:7px">
+          <div style="width:7px;height:7px;border-radius:50%;background:${g.color};box-shadow:0 0 5px ${g.color}66"></div>
+          <span style="font-size:11.5px;font-weight:700;color:${g.color};letter-spacing:.3px;text-transform:uppercase">${g.label}</span>
+          <span style="font-size:10px;color:var(--txt3);background:var(--card);padding:1px 6px;border-radius:10px;border:1px solid var(--bdr)">${g.items.length}</span>
+          ${dot?`<span style="font-size:10px;font-weight:700;color:#fff;background:${g.color};padding:1px 6px;border-radius:10px">${dot} novo</span>`:''}
+        </div>
+        <span style="color:var(--txt3);font-size:11px;transition:transform .2s;display:inline-block;transform:rotate(${open?'0':'180deg'})">${open?'▲':'▼'}</span>
+      </div>
+      ${open ? g.items.map(renderItem).join('') : ''}
     </div>`;
   }).join('');
 }
@@ -6721,90 +6783,114 @@ async function _renderWaLeadPanel(conv){
 
   if(!rev){ el.innerHTML = '<div style="padding:16px;color:var(--txt3);font-size:12px">Revenda não encontrada.</div>'; return; }
 
-  const st      = _waStatusInfo(rev.status);
-  const cidUf   = [rev.cidade, rev.uf].filter(Boolean).join(' / ') || '—';
-  const periodo = hist?.length > 1
-    ? `${new Date(hist[hist.length-1].criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})} → ${new Date(hist[0].criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})}`
-    : hist?.length === 1 ? new Date(hist[0].criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
+  // ── build KPI data ──────────────────────────────────────────────────
+  const hist40 = hist || [];
+  let metas6 = [], tasks5 = [];
+  try { const r = await sb.from('orion_metas').select('nome,meta,valor_atual,status').eq('revenda_id',conv.revendaId).order('nome').limit(6); metas6 = r.data||[]; } catch{}
+  try { const r = await sb.from('tarefas').select('titulo,status,prioridade,criado_em').eq('revenda_id',conv.revendaId).order('criado_em',{ascending:false}).limit(5); tasks5 = r.data||[]; } catch{}
 
-  const infoRows = [
-    ['CS',       rev.cs],
-    ['Segmento', rev.segmento],
-    ['Porte',    rev.porte],
-    ['CNPJ',     rev.cnpj],
-    ['Contratos',rev.contratos],
-  ].filter(([,v])=>v);
+  const cidUf = [rev.cidade, rev.uf].filter(Boolean).join(' · ');
+  const stMap = {
+    'Crítico':     { cor:'#EF4444', bg:'rgba(239,68,68,.12)' },
+    'No Ritmo':    { cor:'#22C55E', bg:'rgba(34,197,94,.12)' },
+    'Alerta':      { cor:'#F59E0B', bg:'rgba(245,158,11,.12)' },
+    'Novo':        { cor:'#3B82F6', bg:'rgba(59,130,246,.12)' },
+  };
+  const st2 = stMap[rev.status] || { cor:'var(--txt3)', bg:'var(--card2)' };
 
-  const histHTML = (hist||[]).length ? (hist||[]).map(h => {
-    const ic   = _waTipoIcon(h.tipo);
-    const data = new Date(h.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-    const isWa = (h.tipo||'').toLowerCase().includes('whatsapp');
-    return `<div style="display:flex;gap:8px;margin-bottom:10px">
-      <div style="flex-shrink:0;margin-top:2px">
-        <div style="width:28px;height:28px;border-radius:50%;background:${ic.bg};border:1px solid ${ic.cor}30;display:flex;align-items:center;justify-content:center;font-size:13px">${ic.icon}</div>
+  const priMap = { alta:'#EF4444', media:'#F59E0B', baixa:'#22C55E' };
+
+  // Pipeline mini-bars from metas
+  const pipelineHtml = metas6.length ? metas6.map(m => {
+    const pct = m.meta > 0 ? Math.min(100, Math.round((m.valor_atual||0)/m.meta*100)) : 0;
+    return `<div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:11px;color:var(--txt2);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${esc(m.nome)}</span>
+        <span style="font-size:11px;font-weight:700;color:${pct>=100?'var(--ok)':pct>=60?'var(--acc2)':'var(--err)'}">${pct}%</span>
       </div>
-      <div style="flex:1;background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;padding:7px 9px;min-width:0">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:4px;margin-bottom:2px">
-          <div style="font-size:10px;font-weight:700;color:${ic.cor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(h.tipo||'Evento')}</div>
-          <div style="font-size:10px;color:var(--txt3);flex-shrink:0">${data}</div>
-        </div>
-        <div style="font-size:11px;color:var(--txt2);line-height:1.4">${esc((h.descricao||'').slice(0,90))}${(h.descricao||'').length>90?'…':''}</div>
-        ${isWa ? '<div style="margin-top:3px;font-size:10px;color:#22c55e;font-weight:600">✓✓ Entregue</div>' : ''}
+      <div style="height:5px;background:var(--bdr);border-radius:10px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--acc),var(--acc2));border-radius:10px;transition:width .4s ease"></div>
       </div>
     </div>`;
-  }).join('') : '<div style="text-align:center;padding:16px 0;color:var(--txt3);font-size:12px">Nenhuma interação registrada.</div>';
+  }).join('') : '<div style="font-size:11px;color:var(--txt3);text-align:center;padding:8px 0">Sem metas cadastradas</div>';
 
-  el.innerHTML = `
-    <!-- Perfil -->
-    <div style="padding:14px 14px 10px;border-bottom:1px solid var(--bdr)">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px">
-        <div style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.5px;border:1px solid ${st.cor}40;color:${st.cor};background:${st.cor}10">
-          ${esc(rev.status||'—')}
-        </div>
-        <button onclick="openCardModal('${esc(rev.id)}')"
-          style="display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;background:var(--acc);color:#fff;border:none;white-space:nowrap">
-          📋 Ver card
-        </button>
-      </div>
-      <div style="font-weight:700;font-size:14px;margin-bottom:2px">${esc(rev.nome)}</div>
-      <div style="font-size:11px;color:var(--txt3)">${esc(cidUf)}</div>
-    </div>
-
-    <!-- Campos -->
-    ${infoRows.length ? `
-    <div style="padding:10px 14px;border-bottom:1px solid var(--bdr);display:flex;flex-direction:column;gap:5px">
-      ${infoRows.map(([k,v])=>`
-        <div style="display:flex;justify-content:space-between;align-items:baseline">
-          <span style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px">${k}</span>
-          <span style="font-size:11px;font-weight:500;color:var(--txt)">${esc(String(v))}</span>
+  // KPI from first meta
+  const kpi = metas6[0];
+  const kpiHtml = kpi ? `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:12px 0">
+      ${[['META',kpi.meta||0,'var(--txt2)'],['ATUAL',kpi.valor_atual||0,'var(--acc)'],['FALTAM',Math.max(0,(kpi.meta||0)-(kpi.valor_atual||0)),'var(--err)']].map(([l,v,c])=>`
+        <div style="background:var(--card2);border-radius:10px;padding:10px 8px;text-align:center;border:1px solid var(--bdr)">
+          <div style="font-size:18px;font-weight:800;color:${c};line-height:1">${v}</div>
+          <div style="font-size:9px;color:var(--txt3);margin-top:3px;letter-spacing:.5px;text-transform:uppercase">${l}</div>
         </div>`).join('')}
-    </div>` : ''}
+    </div>` : '';
 
-    <!-- Observações -->
-    ${rev.obs ? `
-    <div style="padding:10px 14px;border-bottom:1px solid var(--bdr)">
-      <div style="background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.25);border-radius:8px;padding:9px 11px">
-        <div style="font-size:10px;font-weight:700;color:#d97706;letter-spacing:.4px;margin-bottom:4px">📌 OBSERVAÇÕES</div>
-        <div style="font-size:11px;line-height:1.5;color:var(--txt)">${esc(rev.obs)}</div>
+  // Recent tasks
+  const tasksHtml = tasks5.length ? tasks5.map(t => {
+    const pc = priMap[t.prioridade] || 'var(--txt3)';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bdr)">
+      <div style="width:6px;height:6px;border-radius:50%;background:${pc};flex-shrink:0"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11.5px;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.titulo||'Tarefa')}</div>
+        <div style="font-size:10px;color:var(--txt3)">${esc(t.status||'')}</div>
       </div>
-    </div>` : ''}
+      <span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;flex-shrink:0;background:${pc}18;color:${pc}">${esc(t.prioridade||'')}</span>
+    </div>`;
+  }).join('') : '<div style="font-size:11px;color:var(--txt3);padding:8px 0">Nenhuma tarefa recente.</div>';
 
-    <!-- Timeline -->
-    <div style="padding:10px 14px;flex:1;overflow-y:auto">
-      <div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px">Linha do Tempo</div>
-      ${histHTML}
+  el.style.overflowY = 'auto';
+  el.innerHTML = `
+    <!-- Header -->
+    <div style="padding:14px 16px;border-bottom:1px solid var(--bdr);flex-shrink:0">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:10px;font-weight:700;color:var(--txt3);letter-spacing:.8px;text-transform:uppercase">Customer Intelligence Panel</span>
+        <button onclick="openCardModal('${esc(rev.id)}')" style="font-size:10px;padding:3px 10px;background:var(--accl);color:var(--acc);border:1px solid rgba(255,107,0,.3);border-radius:20px;cursor:pointer;font-weight:600">Ver card ↗</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--prim),var(--pur));display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0">${esc((rev.nome||'?').slice(0,2).toUpperCase())}</div>
+        <div style="min-width:0">
+          <div style="font-size:14px;font-weight:700;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(rev.nome)}</div>
+          <div style="font-size:11px;color:var(--txt3)">${esc(cidUf||'—')}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
+        <span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;background:${st2.bg};color:${st2.cor};border:1px solid ${st2.cor}30">${esc(rev.status||'—')}</span>
+        ${rev.cs?`<span style="font-size:10px;color:var(--txt3)">CS: <span style="color:var(--txt2)">${esc(rev.cs)}</span></span>`:''}
+      </div>
     </div>
 
-    <!-- Rodapé -->
-    <div style="padding:8px 14px;border-top:1px solid var(--bdr);background:var(--bg2);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
-      <div style="text-align:center">
-        <div style="font-size:16px;font-weight:700">${(hist||[]).length}</div>
-        <div style="font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px">Interações</div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:10px;font-weight:600">${esc(periodo)}</div>
-        <div style="font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px">Período</div>
-      </div>
+    <!-- Reseller Info -->
+    <div style="padding:10px 16px;border-bottom:1px solid var(--bdr)">
+      <div style="font-size:9px;font-weight:700;color:var(--txt3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px">Reseller Info · <span style="color:var(--acc)">LINKED RESELLER INFO: Portal Sucesso</span></div>
+      ${[['Segmento',rev.segmento],['Porte',rev.porte],['CNPJ',rev.cnpj],['Contratos',rev.contratos]].filter(([,v])=>v).map(([l,v])=>`
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;border-bottom:1px solid var(--bdr)">
+          <span style="font-size:10.5px;color:var(--txt3)">${l}</span>
+          <span style="font-size:11px;color:var(--txt);font-weight:500;max-width:130px;text-align:right;overflow:hidden;text-overflow:ellipsis">${esc(String(v))}</span>
+        </div>`).join('')}
+    </div>
+
+    <!-- Onboarding Pipeline (KPIs/Metas) -->
+    <div style="padding:10px 16px;border-bottom:1px solid var(--bdr)">
+      <div style="font-size:9px;font-weight:700;color:var(--txt3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px">Onboarding Pipeline</div>
+      ${pipelineHtml}
+    </div>
+
+    <!-- KPI Widgets -->
+    ${kpiHtml ? `<div style="padding:4px 16px 0;border-bottom:1px solid var(--bdr)">
+      <div style="font-size:9px;font-weight:700;color:var(--txt3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:0">KPI</div>
+      ${kpiHtml}
+    </div>` : ''}
+
+    <!-- Recent Tasks -->
+    <div style="padding:10px 16px;flex:1;overflow-y:auto">
+      <div style="font-size:9px;font-weight:700;color:var(--txt3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px">Recent Tasks List</div>
+      ${tasksHtml}
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:8px 16px;border-top:1px solid var(--bdr);background:var(--bg2);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+      <span style="font-size:10px;color:var(--txt3)">${hist40.length} interações</span>
+      <button onclick="_renderWaLeadPanel({revendaId:'${esc(rev.id)}'})" style="font-size:10px;color:var(--txt3);background:none;border:none;cursor:pointer">↻ atualizar</button>
     </div>`;
 }
 
@@ -6831,23 +6917,31 @@ function _buildBubbleHtml(m){
     const bigFile = m.media_base64.length > 3000000;
     if(m.media_mimetype.startsWith('image/')){
       mediaHtml = bigFile
-        ? `<a href="${src}" download="${esc(m.media_filename||'imagem')}" style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:rgba(0,0,0,.07);border-radius:6px;margin-bottom:4px;font-size:12px;color:inherit;text-decoration:none">🖼️ ${esc(m.media_filename||'Imagem')} (${(m.media_base64.length*.75/1048576).toFixed(1)} MB)</a>`
-        : `<img src="${src}" style="max-width:220px;width:100%;border-radius:8px;margin-bottom:4px;display:block;cursor:pointer" onclick="window.open(this.src,'_blank')">`;
+        ? `<a href="${src}" download="${esc(m.media_filename||'imagem')}" style="display:flex;align-items:center;gap:6px;color:var(--acc);font-size:12px;text-decoration:none">🖼️ ${esc(m.media_filename||'Imagem')} (${(m.media_base64.length*.75/1048576).toFixed(1)} MB)</a>`
+        : `<img src="${src}" style="max-width:220px;max-height:200px;border-radius:12px;display:block;cursor:pointer;margin-bottom:4px" onclick="window.open(this.src,'_blank')">`;
     } else if(m.media_mimetype.startsWith('audio/')){
-      mediaHtml = `<audio controls style="width:220px;max-width:100%;margin-bottom:4px"><source src="${src}" type="${m.media_mimetype}"></audio>`;
+      mediaHtml = `<audio controls style="width:220px;max-width:100%;margin-bottom:4px;border-radius:8px"><source src="${src}" type="${m.media_mimetype}"></audio>`;
     } else if(m.media_mimetype.startsWith('video/')){
-      mediaHtml = `<video controls style="max-width:220px;width:100%;border-radius:8px;margin-bottom:4px"><source src="${src}" type="${m.media_mimetype}"></video>`;
+      mediaHtml = `<video controls style="max-width:220px;border-radius:12px;display:block;margin-bottom:4px"><source src="${src}" type="${m.media_mimetype}"></video>`;
     } else {
-      mediaHtml = `<a href="${src}" download="${esc(m.media_filename||'arquivo')}" style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:rgba(0,0,0,.07);border-radius:6px;margin-bottom:4px;font-size:12px;color:inherit;text-decoration:none">${_waMediaIcon(m.media_mimetype)} ${esc(m.media_filename||'Arquivo')}</a>`;
+      mediaHtml = `<a href="${src}" download="${esc(m.media_filename||'arquivo')}" style="display:flex;align-items:center;gap:6px;color:var(--acc);font-size:12px;text-decoration:none;padding:8px 10px;background:rgba(255,107,0,.08);border-radius:8px;border:1px solid rgba(255,107,0,.2)">${_waMediaIcon(m.media_mimetype)} ${esc(m.media_filename||'Arquivo')}</a>`;
     }
   } else if(m.media_mimetype){
-    mediaHtml = `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;margin-bottom:4px;font-size:12px;color:var(--txt3)">${_waMediaIcon(m.media_mimetype)} ${esc(m.media_filename||m.media_mimetype)}</div>`;
+    mediaHtml = `<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--txt3);padding:6px 8px;background:var(--card2);border-radius:8px;margin-bottom:4px">${_waMediaIcon(m.media_mimetype)} ${esc(m.media_filename||m.media_mimetype)}</div>`;
   }
-  const bodyHtml = (m.body||'').trim() ? `<div style="font-size:13px;line-height:1.5">${esc(m.body)}</div>` : '';
-  const tick = sent ? (m._opt ? ' ⏳' : ' ✓✓') : '';
-  return `<div style="max-width:72%;background:${sent?'rgba(37,211,102,.15)':'var(--bg)'};border-radius:${sent?'12px 12px 2px 12px':'12px 12px 12px 2px'};padding:8px 12px;border:1px solid var(--bdr)${m._opt?';opacity:.65':''}">
+  const bodyHtml = (m.body||'').trim() ? `<div style="font-size:13.5px;line-height:1.55;color:var(--txt);word-break:break-word">${esc(m.body)}</div>` : '';
+  const tick = sent ? (m._opt ? '<span style="opacity:.5"> ⏳</span>' : '<span style="color:var(--acc)"> ✓✓</span>') : '';
+
+  const bgSent = 'linear-gradient(135deg,rgba(46,26,71,.55),rgba(124,58,237,.3))';
+  const bgRecv = 'var(--card)';
+  const borderSent = '1px solid rgba(124,58,237,.3)';
+  const borderRecv = '1px solid var(--bdr)';
+  const radiusSent = '18px 18px 4px 18px';
+  const radiusRecv = '18px 18px 18px 4px';
+
+  return `<div style="max-width:74%;background:${sent?bgSent:bgRecv};border-radius:${sent?radiusSent:radiusRecv};padding:10px 14px;border:${sent?borderSent:borderRecv};backdrop-filter:blur(4px)${m._opt?';opacity:.65':''}">
     ${mediaHtml}${bodyHtml}
-    <div style="font-size:10px;color:var(--txt3);margin-top:3px;text-align:right">${hora}${tick}</div>
+    <div style="font-size:10px;color:${sent?'rgba(255,255,255,.5)':'var(--txt3)'};margin-top:4px;text-align:right;display:flex;align-items:center;justify-content:flex-end;gap:3px">${hora}${tick}</div>
   </div>`;
 }
 
