@@ -3631,12 +3631,13 @@ function renderCardProdutos(id){
 }
 
 async function toggleInativadoPortal(revId){
-  const rev = DB.revendas.find(r=>r.id===revId);
-  if(!rev) return;
-  const novoValor = !rev.inativado_portal;
-
   const revIdx = DB.revendas.findIndex(r=>r.id===revId);
-  if(revIdx > -1) DB.revendas[revIdx].inativado_portal = novoValor;
+  if(revIdx < 0) return;
+  const valorOriginal = DB.revendas[revIdx].inativado_portal || false;
+  const novoValor = !valorOriginal;
+
+  // Atualiza local imediatamente (optimistic UI)
+  DB.revendas[revIdx].inativado_portal = novoValor;
   renderCardInfo(revId);
 
   const {error} = await sb.from('revendas')
@@ -3644,14 +3645,17 @@ async function toggleInativadoPortal(revId){
     .eq('id', revId);
 
   if(error){
-    if(revIdx > -1) DB.revendas[revIdx].inativado_portal = rev.inativado_portal;
+    // Reverte com o valor original salvo antes da mudança
+    DB.revendas[revIdx].inativado_portal = valorOriginal;
     renderCardInfo(revId);
-    toast('Erro ao salvar: '+error.message, 'err');
+    toast('Erro ao salvar: '+error.message+' — Execute o SQL de migração no Supabase.', 'err');
+    renderDashboard();
     return;
   }
 
-  toast(novoValor ? 'Marcado como Inativado no portal' : 'Marcação removida', 'ok');
+  toast(novoValor ? '✅ Marcado como Inativado no portal' : 'Marcação removida', 'ok');
   renderDashboard();
+  if(document.getElementById('tv-dash')?.classList.contains('on')) renderTVDashboard();
 }
 
 async function toggleProdutoCard(revId, produto){
