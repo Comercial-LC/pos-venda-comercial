@@ -1897,7 +1897,7 @@ async function renderTVDashboard(){
       && r.status!==ultimaEtapa && r.status!==penultimaEtapa;
   }).length;
   const primCliente = rv.filter(r=>r.status===penultimaEtapa).length;
-  const handover    = rv.filter(r=>r.status===ultimaEtapa).length;
+  const handover    = rv.filter(r=>r.status===ultimaEtapa && !r.inativado_portal).length;
   const atrasadas   = task.filter(t=>t.status!=='Concluída'&&t.vencimento&&t.vencimento<today()).length;
 
   const tvInativos = rv.filter(r=>
@@ -2585,12 +2585,13 @@ function renderDashboard(){
   const etapaDecola    = _etDecola.id    || 'Decola Produtos';
 
   const emJornada = rv.filter(r=>{
+    if(r.inativado_portal) return false;
     const s = (r.status||'').toLowerCase();
     const isInativa = ['inativo','inativa','perdido','cancelado','churn'].some(n=>s.includes(n));
     return !isInativa && r.status !== ultimaEtapa && r.status !== penultimaEtapa;
   }).length;
   const primeiroCliente = rv.filter(r=>r.status===penultimaEtapa).length;
-  const handoverEtapa   = rv.filter(r=>r.status===ultimaEtapa).length;
+  const handoverEtapa   = rv.filter(r=>r.status===ultimaEtapa && !r.inativado_portal).length;
   const decolaProd      = rv.filter(r=>r.status===etapaDecola).length;
 
   const nomesInativos = ['inativo','inativa','perdido','cancelado','churn'];
