@@ -6413,6 +6413,19 @@ let _waRevendaSel  = null;
 let _waPendingOpen = null; // { phone, revendaId, nome } — abre conversa após carregarConversas
 let _waPollingTimer = null;
 
+// ── Controle de leitura por conversa (localStorage) ──────────────────
+const _WA_READ_KEY = 'wa_read_map';
+function _waGetReadMap(){ try{ return JSON.parse(localStorage.getItem(_WA_READ_KEY)||'{}'); }catch{ return {}; } }
+function _waMarkRead(key){ try{ const m=_waGetReadMap(); m[key]=new Date().toISOString(); localStorage.setItem(_WA_READ_KEY,JSON.stringify(m)); }catch{} }
+function _waIsUnread(conv){
+  const last = conv?.last;
+  if(!last || last.direction !== 'inbound') return false;
+  const m = _waGetReadMap();
+  const readAt = m[conv.phone || String(conv.rev?.id||'')];
+  if(!readAt) return true;
+  return new Date(last.created_at) > new Date(readAt);
+}
+
 // ── Polling de status (fallback para Realtime) ────────────────────────
 function _waStartPolling(){
   _waStopPolling();
@@ -6689,15 +6702,14 @@ function _renderWaList(convs){
     { id:'vip',        label:'VIP',                  color:'#7C3AED', items:[] },
   ];
   convs.forEach(c => {
-    const isGroup  = (c.phone||'').includes('@g.us');
-    const isLinked = (c.phone||'').includes('@lid');
-    const isRev    = !!c.rev?.id;
-    const lastIn   = c.last?.direction === 'inbound';
-    if(isGroup)              groups[3].items.push(c);
-    else if(!isRev && lastIn) groups[0].items.push(c);
-    else if(lastIn)          groups[1].items.push(c);
-    else if(isRev)           groups[2].items.push(c);
-    else                     groups[0].items.push(c);
+    const isGroup = (c.phone||'').includes('@g.us');
+    const isRev   = !!c.rev?.id;
+    const unread  = _waIsUnread(c);
+    if(isGroup)               groups[3].items.push(c);
+    else if(!isRev && unread) groups[0].items.push(c); // desconhecido + não lido → crítico
+    else if(isRev  && unread) groups[1].items.push(c); // revenda + não lido → aguardando
+    else if(!isRev)           groups[0].items.push(c); // desconhecido (já lido) → crítico
+    else                      groups[2].items.push(c); // revenda (já lido) → em andamento
   });
 
   const renderItem = c => {
@@ -6709,7 +6721,8 @@ function _renderWaList(convs){
     const key     = esc(c.phone || String(c.rev?.id||''));
     const isSel   = _waRevendaSel === (c.phone || String(c.rev?.id));
     const initials= (c.rev?.nome||'?').slice(0,2).toUpperCase();
-    const tag     = !isRev ? `<span style="font-size:9px;font-weight:700;color:var(--acc);background:var(--accl);padding:2px 6px;border-radius:10px;letter-spacing:.3px">novo</span>` : '';
+    const unread  = _waIsUnread(c);
+    const tag     = unread ? `<span style="font-size:9px;font-weight:700;color:#fff;background:#ef4444;padding:2px 6px;border-radius:10px;letter-spacing:.3px">novo</span>` : '';
     const selStyle = isSel
       ? 'background:var(--purl);border-left:3px solid var(--pur);'
       : 'border-left:3px solid transparent;';
@@ -6727,7 +6740,7 @@ function _renderWaList(convs){
 
   listEl.innerHTML = groups.filter(g=>g.items.length).map(g => {
     const open = _waAccordion.has(g.id);
-    const dot  = g.items.filter(c=>c.last?.direction==='inbound').length;
+    const dot  = g.items.filter(c=>_waIsUnread(c)).length;
     return `<div>
       <div onclick="_toggleWaAccordion('${g.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;cursor:pointer;background:var(--card2);border-bottom:1px solid var(--bdr);user-select:none;position:sticky;top:0;z-index:1">
         <div style="display:flex;align-items:center;gap:7px">
@@ -6751,6 +6764,7 @@ function filtrarWaList(){
 
 async function abrirWaThread(key){
   _waRevendaSel = key;
+  _waMarkRead(key); // marca como lido ao abrir a conversa
   const conv = window._waConvMap?.get(key);
   if(!conv) return;
 
