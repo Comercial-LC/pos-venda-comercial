@@ -112,10 +112,10 @@ async function getContactInfo(msg) {
       number = contact.number || null;
     } catch { /* fallback abaixo */ }
 
-    // Se getContact() não retornou número, extrai do JID quando for dígitos reais
-    if (!number) {
-      const raw = remoteJid.replace(/@c\.us$/, '').replace(/@lid$/, '');
-      number = /^\d{8,15}$/.test(raw) ? raw : null;
+    // Extrai número do JID apenas se for @c.us — dígitos de @lid NÃO são telefone
+    if (!number && !remoteJid.includes('@lid')) {
+      const raw = remoteJid.replace(/@c\.us$/, '');
+      number = /^\d{8,13}$/.test(raw) ? raw : null;
     }
     if (!name) name = number || remoteJid;
   }
@@ -287,7 +287,8 @@ client.on('message', async msg => {
   if (msg.isStatus || msg.from === 'status@broadcast') return;
 
   const { name: contactName, number, isGroup } = await getContactInfo(msg);
-  const phone = number || msg.from.replace(/@c\.us$/, '').replace(/@lid$/, '');
+  // Se não resolveu número real: preserva @lid como identificador válido para envio futuro
+  const phone = number || (msg.from.includes('@lid') ? msg.from : msg.from.replace(/@c\.us$/, ''));
 
   try {
     let mediaBase64 = null, mediaMimetype = null, mediaFilename = null;
@@ -316,7 +317,7 @@ client.on('message_create', async msg => {
   if (msg.isStatus || msg.to === 'status@broadcast') return;
 
   const { name: contactName, number, isGroup } = await getContactInfo(msg);
-  const phone = number || msg.to.replace(/@c\.us$/, '').replace(/@lid$/, '');
+  const phone = number || (msg.to.includes('@lid') ? msg.to : msg.to.replace(/@c\.us$/, ''));
 
   try {
     let mediaBase64 = null, mediaMimetype = null, mediaFilename = null;
