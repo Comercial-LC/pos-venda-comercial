@@ -6377,11 +6377,26 @@ function initApp(){
         async (payload)=>{
           if(!document.getElementById('p-whatsapp')?.classList.contains('on')) return;
           await _carregarConversasWa();
-          // Recarrega thread aberta comparando por phone OU revenda_id
-          const p = payload.new?.phone;
-          const r = payload.new?.revenda_id;
-          if(_waRevendaSel && (_waRevendaSel === p || _waRevendaSel === r)){
-            abrirWaThread(_waRevendaSel);
+          if(!_waRevendaSel || !window._waConvMap) return;
+          // Após reconstruir o convMap, encontra a conversa aberta com matching flexível
+          // (a chave pode ter mudado de @lid para número real)
+          const newPhone = (payload.new?.phone||'').replace(/@[a-z.]+$/,'').replace(/\D/g,'');
+          const newRev   = payload.new?.revenda_id;
+          let targetKey  = null;
+          if(window._waConvMap.has(_waRevendaSel)){
+            targetKey = _waRevendaSel; // chave ainda existe — usa diretamente
+          } else {
+            for(const [k,c] of window._waConvMap.entries()){
+              const cp = (c.phone||'').replace(/@[a-z.]+$/,'').replace(/\D/g,'');
+              if((newPhone && cp && (cp.endsWith(newPhone)||newPhone.endsWith(cp))) ||
+                 (newRev && c.revendaId === newRev)){
+                targetKey = k; break;
+              }
+            }
+          }
+          if(targetKey){
+            _waRevendaSel = targetKey; // sincroniza seleção com nova chave
+            abrirWaThread(targetKey);
           }
         }
       ).subscribe();
