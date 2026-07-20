@@ -64,7 +64,7 @@ async function buscarRevenda(phone) {
 
 // ── Persistência ─────────────────────────────────────────────────────
 
-async function salvarMensagem(revendaId, direction, body, phone, mediaBase64, mediaMimetype, mediaFilename) {
+async function salvarMensagem(revendaId, direction, body, phone, mediaBase64, mediaMimetype, mediaFilename, contactName) {
   const { error } = await sb.from('whatsapp_messages').insert({
     revenda_id:     revendaId,
     direction,
@@ -73,6 +73,7 @@ async function salvarMensagem(revendaId, direction, body, phone, mediaBase64, me
     media_base64:   mediaBase64   || null,
     media_mimetype: mediaMimetype || null,
     media_filename: mediaFilename || null,
+    contact_name:   contactName   || null,
   });
   if (error) console.error('[WhatsApp] Erro ao salvar msg:', error.message);
 }
@@ -242,7 +243,19 @@ client.on('disconnected', async reason => {
 client.on('message', async msg => {
   // Ignora status/stories do WhatsApp
   if (msg.isStatus || msg.from === 'status@broadcast') return;
-  const phone = msg.from.replace(/@c\.us$/, '');
+
+  // Resolve número real e nome — WhatsApp usa @lid em vez de telefone em muitos casos
+  let phone = msg.from.replace(/@c\.us$/, '');
+  let contactName = null;
+  const isGroup = msg.from.includes('@g.us');
+  if (!isGroup) {
+    try {
+      const contact = await msg.getContact();
+      if (contact?.number) phone = contact.number;
+      contactName = contact?.pushname || contact?.name || null;
+    } catch { /* fallback: usa msg.from */ }
+  }
+
   try {
     let mediaBase64 = null, mediaMimetype = null, mediaFilename = null;
     if (msg.hasMedia) {
@@ -257,9 +270,9 @@ client.on('message', async msg => {
     }
     const body = msg.body || (mediaFilename ? `[${mediaFilename}]` : (mediaMimetype ? '[mídia]' : ''));
     const rev = await buscarRevenda(phone);
-    await salvarMensagem(rev?.id || null, 'inbound', body, phone, mediaBase64, mediaMimetype, mediaFilename);
+    await salvarMensagem(rev?.id || null, 'inbound', body, phone, mediaBase64, mediaMimetype, mediaFilename, contactName);
     if (rev) await registrarHistorico(rev.id, '💬 WhatsApp', body);
-    console.log(`[WhatsApp] ← ${rev?.nome || phone}: ${body.slice(0, 80)}`);
+    console.log(`[WhatsApp] ← ${contactName || rev?.nome || phone}: ${body.slice(0, 80)}`);
   } catch (err) {
     console.error(`[WhatsApp] Erro (recebido de ${phone}):`, err.message);
   }
@@ -269,8 +282,19 @@ client.on('message_create', async msg => {
   if (!msg.fromMe) return;
   // Ignora status/stories do WhatsApp
   if (msg.isStatus || msg.to === 'status@broadcast') return;
-  // Remove apenas @c.us; preserva @lid e outros identificadores
-  const phone = msg.to.replace(/@c\.us$/, '');
+
+  // Resolve número real e nome (mesmo para mensagens enviadas)
+  let phone = msg.to.replace(/@c\.us$/, '');
+  let contactName = null;
+  const isGroup = msg.to.includes('@g.us');
+  if (!isGroup) {
+    try {
+      const contact = await msg.getContact();
+      if (contact?.number) phone = contact.number;
+      contactName = contact?.pushname || contact?.name || null;
+    } catch {}
+  }
+
   try {
     let mediaBase64 = null, mediaMimetype = null, mediaFilename = null;
     if (msg.hasMedia) {
@@ -285,9 +309,9 @@ client.on('message_create', async msg => {
     }
     const body = msg.body || (mediaFilename ? `[${mediaFilename}]` : (mediaMimetype ? '[mídia]' : ''));
     const rev = await buscarRevenda(phone);
-    await salvarMensagem(rev?.id || null, 'outbound', body, phone, mediaBase64, mediaMimetype, mediaFilename);
+    await salvarMensagem(rev?.id || null, 'outbound', body, phone, mediaBase64, mediaMimetype, mediaFilename, contactName);
     if (rev) await registrarHistorico(rev.id, '📤 WhatsApp enviado', body);
-    console.log(`[WhatsApp] → ${rev?.nome || phone}: ${body.slice(0, 80)}`);
+    console.log(`[WhatsApp] → ${contactName || rev?.nome || phone}: ${body.slice(0, 80)}`);
   } catch (err) {
     console.error(`[WhatsApp] Erro (enviado para ${phone}):`, err.message);
   }
