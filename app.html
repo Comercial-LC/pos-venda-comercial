@@ -7214,7 +7214,16 @@ async function enviarMsgWhatsapp(){
   const rawPhone = window._waThreadPhone||'';
   if(!rawPhone){ toast('Número não encontrado para esta conversa','warn'); return; }
   let phone;
-  if(rawPhone.includes('@')){
+  if(rawPhone.includes('@lid')){
+    // @lid é um ID opaco do WhatsApp, não um telefone — prefere o tel cadastrado da revenda
+    const conv = window._waConvMap?.get(_waRevendaSel);
+    const telRev = normalizarFoneJS(conv?.rev?.tel||'');
+    if(telRev){
+      phone = (telRev.length >= 12 && telRev.startsWith('55')) ? telRev : '55' + telRev;
+    } else {
+      phone = rawPhone; // sem alternativa, envia o @lid mesmo
+    }
+  } else if(rawPhone.includes('@')){
     phone = rawPhone;
   } else {
     const dig = rawPhone.replace(/\D/g,'');
