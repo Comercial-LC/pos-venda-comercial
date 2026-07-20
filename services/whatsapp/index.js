@@ -97,6 +97,32 @@ async function atualizarStatus(status, extra = {}) {
   if (error) console.error('[WhatsApp] Erro ao atualizar status:', error.message);
 }
 
+// ── Resolução de contato (nome + número limpo) ───────────────────────
+async function getContactInfo(msg) {
+  const remoteJid = msg.fromMe ? msg.to : msg.from;
+  const isGroup   = remoteJid.includes('@g.us');
+  let name   = null;
+  let number = null;
+
+  if (!isGroup) {
+    try {
+      const contact = await msg.getContact();
+      // Prioridade: agenda local > nome curto > pushname > nome verificado (business)
+      name   = contact.name || contact.shortName || contact.pushname || contact.verifiedName || null;
+      number = contact.number || null;
+    } catch { /* fallback abaixo */ }
+
+    // Se getContact() não retornou número, extrai do JID quando for dígitos reais
+    if (!number) {
+      const raw = remoteJid.replace(/@c\.us$/, '').replace(/@lid$/, '');
+      number = /^\d{8,15}$/.test(raw) ? raw : null;
+    }
+    if (!name) name = number || remoteJid;
+  }
+
+  return { name, number, isGroup };
+}
+
 // ── Envio de mensagens pendentes ──────────────────────────────────────
 
 const _processando = new Set(); // evita duplo envio (Realtime + polling simultâneos)
@@ -113,8 +139,24 @@ async function enviarPendente(msg) {
 
   _processando.add(msg.id);
 
-  const dig    = (msg.phone || '').replace(/\D/g, '');
-  const chatId = (msg.phone).includes('@') ? msg.phone : `${dig}@c.us`;
+  // Resolve chatId limpo em @c.us — @lid é resolvido via getContactById antes de enviar
+  let chatId;
+  if (msg.phone.includes('@lid')) {
+    try {
+      const contact = await client.getContactById(msg.phone);
+      const num = contact?.number;
+      if (num) {
+        chatId = `${num.startsWith('55') ? num : '55' + num}@c.us`;
+        console.log(`[WhatsApp] @lid resolvido → ${chatId}`);
+      }
+    } catch { /* fallback: usa @lid diretamente */ }
+  }
+  if (!chatId) {
+    const dig = msg.phone.replace(/\D/g, '');
+    chatId = msg.phone.includes('@')
+      ? msg.phone
+      : `${dig.startsWith('55') ? dig : '55' + dig}@c.us`;
+  }
 
   console.log(`[WhatsApp] → Enviando: ${chatId} | ${(msg.body||'').slice(0,60)}`);
 
@@ -137,24 +179,6 @@ async function enviarPendente(msg) {
     console.log(`[WhatsApp] ✓ ${chatId}`);
   } catch (err) {
     console.error(`[WhatsApp] ✗ (${chatId}): ${err.message}`);
-    // Fallback: se @lid falhou, resolve o número real via getContactById
-    if (msg.phone.includes('@lid')) {
-      try {
-        const contact = await client.getContactById(msg.phone);
-        const num = contact?.number;
-        if (num) {
-          const fallback = `${num.startsWith('55') ? num : '55' + num}@c.us`;
-          console.log(`[WhatsApp] @lid resolvido para ${fallback}, tentando novamente`);
-          await client.sendMessage(fallback, conteudo, sendOpts);
-          await sb.from('mensagens_pendentes').update({ status: 'sent' }).eq('id', msg.id);
-          console.log(`[WhatsApp] ✓ fallback @lid→${fallback}`);
-          _processando.delete(msg.id);
-          return;
-        }
-      } catch (err2) {
-        console.error(`[WhatsApp] ✗ fallback @lid: ${err2.message}`);
-      }
-    }
     await sb.from('mensagens_pendentes').update({ status: 'error' }).eq('id', msg.id);
   } finally {
     _processando.delete(msg.id);
@@ -180,8 +204,18 @@ const client = new Client({
   },
   puppeteer: {
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     protocolTimeout: 60000,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--disable-gpu',
+      '--disable-extensions',
+      '--disable-component-update',
+    ],
   },
 });
 
@@ -250,20 +284,10 @@ client.on('disconnected', async reason => {
 // ── Eventos de mensagem ───────────────────────────────────────────────
 
 client.on('message', async msg => {
-  // Ignora status/stories do WhatsApp
   if (msg.isStatus || msg.from === 'status@broadcast') return;
 
-  // Resolve número real e nome — WhatsApp usa @lid em vez de telefone em muitos casos
-  let phone = msg.from.replace(/@c\.us$/, '');
-  let contactName = null;
-  const isGroup = msg.from.includes('@g.us');
-  if (!isGroup) {
-    try {
-      const contact = await msg.getContact();
-      if (contact?.number) phone = contact.number;
-      contactName = contact?.pushname || contact?.name || null;
-    } catch { /* fallback: usa msg.from */ }
-  }
+  const { name: contactName, number, isGroup } = await getContactInfo(msg);
+  const phone = number || msg.from.replace(/@c\.us$/, '').replace(/@lid$/, '');
 
   try {
     let mediaBase64 = null, mediaMimetype = null, mediaFilename = null;
@@ -278,7 +302,7 @@ client.on('message', async msg => {
       }
     }
     const body = msg.body || (mediaFilename ? `[${mediaFilename}]` : (mediaMimetype ? '[mídia]' : ''));
-    const rev = await buscarRevenda(phone);
+    const rev  = isGroup ? null : await buscarRevenda(phone);
     await salvarMensagem(rev?.id || null, 'inbound', body, phone, mediaBase64, mediaMimetype, mediaFilename, contactName);
     if (rev) await registrarHistorico(rev.id, '💬 WhatsApp', body);
     console.log(`[WhatsApp] ← ${contactName || rev?.nome || phone}: ${body.slice(0, 80)}`);
@@ -289,20 +313,10 @@ client.on('message', async msg => {
 
 client.on('message_create', async msg => {
   if (!msg.fromMe) return;
-  // Ignora status/stories do WhatsApp
   if (msg.isStatus || msg.to === 'status@broadcast') return;
 
-  // Resolve número real e nome (mesmo para mensagens enviadas)
-  let phone = msg.to.replace(/@c\.us$/, '');
-  let contactName = null;
-  const isGroup = msg.to.includes('@g.us');
-  if (!isGroup) {
-    try {
-      const contact = await msg.getContact();
-      if (contact?.number) phone = contact.number;
-      contactName = contact?.pushname || contact?.name || null;
-    } catch {}
-  }
+  const { name: contactName, number, isGroup } = await getContactInfo(msg);
+  const phone = number || msg.to.replace(/@c\.us$/, '').replace(/@lid$/, '');
 
   try {
     let mediaBase64 = null, mediaMimetype = null, mediaFilename = null;
@@ -317,7 +331,7 @@ client.on('message_create', async msg => {
       }
     }
     const body = msg.body || (mediaFilename ? `[${mediaFilename}]` : (mediaMimetype ? '[mídia]' : ''));
-    const rev = await buscarRevenda(phone);
+    const rev  = isGroup ? null : await buscarRevenda(phone);
     await salvarMensagem(rev?.id || null, 'outbound', body, phone, mediaBase64, mediaMimetype, mediaFilename, contactName);
     if (rev) await registrarHistorico(rev.id, '📤 WhatsApp enviado', body);
     console.log(`[WhatsApp] → ${contactName || rev?.nome || phone}: ${body.slice(0, 80)}`);
