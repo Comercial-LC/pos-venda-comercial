@@ -6594,7 +6594,7 @@ async function _carregarConversasWa(){
   if(!listEl) return;
 
   const { data: msgs, error: msgsErr } = await sb.from('whatsapp_messages')
-    .select('id, revenda_id, direction, body, phone, created_at, media_mimetype, media_filename')
+    .select('id, revenda_id, direction, body, phone, contact_name, created_at, media_mimetype, media_filename')
     .order('created_at', { ascending: false })
     .limit(2000);
 
@@ -6631,7 +6631,7 @@ async function _carregarConversasWa(){
       const revById = !revDB && m.revenda_id
         ? (window.DB?.revendas||[]).find(r => r.id === m.revenda_id)
         : null;
-      const rev = revDB || revById || { id: null, nome: _fmtFone(m.phone), tel: m.phone };
+      const rev = revDB || revById || { id: null, nome: m.contact_name || _fmtFone(m.phone), tel: m.phone };
       convMap.set(key, { phone: m.phone, rev, revendaId: m.revenda_id, msgs: [], last: m });
     }
     convMap.get(key).msgs.push(m);
