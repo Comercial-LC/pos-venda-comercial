@@ -1,4 +1,5 @@
-require('dotenv').config();
+// Carrega .env do diretório do próprio script (independente do cwd do PM2)
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const { createClient }      = require('@supabase/supabase-js');
 const QRCode                = require('qrcode');
@@ -85,10 +86,16 @@ async function enviarPendente(msg) {
   if (_processando.has(msg.id)) return; // já está sendo processada
   if (!_clientReady) return;
 
+  if (!msg.phone) {
+    console.warn(`[WhatsApp] Mensagem ${msg.id} sem phone — marcando como erro`);
+    await sb.from('mensagens_pendentes').update({ status: 'error' }).eq('id', msg.id);
+    return;
+  }
+
   _processando.add(msg.id);
 
   const dig    = (msg.phone || '').replace(/\D/g, '');
-  const chatId = msg.phone.includes('@') ? msg.phone : `${dig}@c.us`;
+  const chatId = (msg.phone).includes('@') ? msg.phone : `${dig}@c.us`;
 
   console.log(`[WhatsApp] → Enviando: ${chatId} | ${(msg.body||'').slice(0,60)}`);
 
@@ -148,6 +155,12 @@ const client = new Client({
     remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1023204675.html',
   },
   puppeteer: { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] },
+});
+
+client.on('auth_failure', async msg => {
+  console.error('[WhatsApp] Falha de autenticação — sessão inválida, gerando novo QR:', msg);
+  _clientReady = false;
+  await atualizarStatus('aguardando_qr', { qr_code: null, numero: null });
 });
 
 client.on('qr', async qr => {
@@ -299,4 +312,10 @@ process.on('SIGTERM', () => { atualizarStatus('desconectado', { qr_code: null, n
 
 limparLockChrome();
 atualizarStatus('iniciando').catch(() => {});
-client.initialize();
+try {
+  client.initialize();
+} catch (err) {
+  console.error('[WhatsApp] Erro crítico ao inicializar:', err.message);
+  atualizarStatus('desconectado', { qr_code: null, numero: null }).catch(() => {});
+  process.exit(1);
+}
