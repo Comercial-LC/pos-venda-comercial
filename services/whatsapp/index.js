@@ -5,13 +5,31 @@ const { createClient }      = require('@supabase/supabase-js');
 const QRCode                = require('qrcode');
 const path                  = require('path');
 const fs                    = require('fs');
+const { spawnSync }         = require('child_process');
 
-// Remove locks do Chrome que ficam presos após crashes/reinicializações do PM2
+// Mata Chrome Puppeteer órfão e remove lockfiles — necessário após crashes do PM2 no Windows
 function limparLockChrome() {
+  // Encerra processos Chrome que referenciam a sessão do wwebjs (via PowerShell — wmic removido no Win11)
+  try {
+    const r = spawnSync('powershell', [
+      '-NonInteractive', '-NoProfile', '-Command',
+      "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'chrome.exe' -and $_.CommandLine -like '*wwebjs_auth*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+    ], { timeout: 10000 });
+    if (r.status === 0) {
+      console.log('[WhatsApp] Chrome Puppeteer anterior encerrado');
+      // Aguarda Chrome liberar os handles do sistema de arquivos (2s)
+      spawnSync('ping', ['-n', '1', '-w', '2000', '127.0.0.1'], { stdio: 'ignore' });
+    }
+  } catch { /* ignora */ }
+
+  // Remove arquivos de lock com retry (Chrome pode demorar a liberar)
   const sessionDir = path.join(__dirname, '.wwebjs_auth', 'session');
   ['lockfile', 'SingletonLock', 'SingletonSocket', 'SingletonCookie'].forEach(f => {
     const p = path.join(sessionDir, f);
-    try { if (fs.existsSync(p)) { fs.unlinkSync(p); console.log(`[WhatsApp] Lock removido: ${f}`); } } catch {}
+    for (let i = 0; i < 6 && fs.existsSync(p); i++) {
+      try { fs.unlinkSync(p); console.log(`[WhatsApp] Lock removido: ${f}`); break; }
+      catch { spawnSync('ping', ['-n', '1', '-w', '500', '127.0.0.1'], { stdio: 'ignore' }); }
+    }
   });
 }
 
@@ -174,7 +192,8 @@ client.on('qr', async qr => {
 });
 
 client.on('ready', async () => {
-  _clientReady = true;
+  _clientReady    = true;
+  _isInitializing = false;
   const numero = client.info?.wid?.user || '';
   console.log(`[WhatsApp] Conectado. Número: ${numero || '(não disponível)'}`);
   await atualizarStatus('conectado', { qr_code: null, numero });
@@ -212,7 +231,8 @@ client.on('ready', async () => {
 });
 
 client.on('disconnected', async reason => {
-  _clientReady = false;
+  _clientReady    = false;
+  _isInitializing = false;
   console.warn('[WhatsApp] Desconectado:', reason);
   await atualizarStatus('desconectado', { qr_code: null, numero: null });
 });
@@ -274,7 +294,8 @@ client.on('message_create', async msg => {
 });
 
 // ── Comandos do portal (disconnect / reconnect) ───────────────────────
-let _clientReady = false;
+let _clientReady     = false;
+let _isInitializing  = false; // impede dupla inicialização simultânea
 
 sb.channel('commands-ch')
   .on('postgres_changes',
@@ -287,35 +308,48 @@ sb.channel('commands-ch')
       if(action === 'disconnect'){
         console.log('[WhatsApp] Desconexão solicitada pelo portal');
         try { await client.logout(); } catch(e) { console.error('[WhatsApp] Erro ao desconectar:', e.message); }
-        _clientReady = false;
+        _clientReady    = false;
+        _isInitializing = false;
         await atualizarStatus('iniciando', { qr_code: null, numero: null });
-        setTimeout(() => { limparLockChrome(); try { client.initialize(); } catch(e) {} }, 2000);
+        setTimeout(() => { limparLockChrome(); _inicializar(); }, 2000);
 
       } else if(action === 'reconnect'){
         if(_clientReady){
           console.log('[WhatsApp] Já conectado, ignorando reconexão');
-          // Garante que o status no banco reflita a conexão ativa
           await atualizarStatus('conectado', { qr_code: null, numero: client.info?.wid?.user || '' });
+          return;
+        }
+        if(_isInitializing){
+          console.log('[WhatsApp] Já inicializando (aguardando QR), ignorando reconexão duplicada');
           return;
         }
         console.log('[WhatsApp] Reconexão solicitada pelo portal');
         await atualizarStatus('iniciando', { qr_code: null, numero: null });
         limparLockChrome();
-        setTimeout(() => { try { client.initialize(); } catch(e) { console.error('[WhatsApp] Erro ao reinicializar:', e.message); } }, 500);
+        setTimeout(() => _inicializar(), 500);
       }
     }
   ).subscribe();
 
-// Encerramento limpo: marca como desconectado ao parar o PM2
-process.on('SIGINT',  () => { atualizarStatus('desconectado', { qr_code: null, numero: null }).catch(()=>{}).finally(() => process.exit(0)); });
-process.on('SIGTERM', () => { atualizarStatus('desconectado', { qr_code: null, numero: null }).catch(()=>{}).finally(() => process.exit(0)); });
+// Encerramento limpo: fecha Chrome e marca desconectado ao parar o PM2
+async function _encerrar() {
+  try { await client.destroy(); } catch {}
+  await atualizarStatus('desconectado', { qr_code: null, numero: null }).catch(() => {});
+  process.exit(0);
+}
+process.on('SIGINT',  _encerrar);
+process.on('SIGTERM', _encerrar);
+
+function _inicializar() {
+  if(_isInitializing || _clientReady) return;
+  _isInitializing = true;
+  client.initialize().catch(err => {
+    console.error('[WhatsApp] Erro ao inicializar:', err.message);
+    _isInitializing = false;
+    atualizarStatus('desconectado', { qr_code: null, numero: null }).catch(() => {});
+  });
+}
 
 limparLockChrome();
 atualizarStatus('iniciando').catch(() => {});
-try {
-  client.initialize();
-} catch (err) {
-  console.error('[WhatsApp] Erro crítico ao inicializar:', err.message);
-  atualizarStatus('desconectado', { qr_code: null, numero: null }).catch(() => {});
-  process.exit(1);
-}
+_inicializar();

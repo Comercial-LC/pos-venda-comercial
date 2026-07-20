@@ -30,6 +30,13 @@ Thumbs.db
 *.log
 npm-debug.log*
 
+# Sessão do WhatsApp (Chrome Puppeteer) — dados locais, não commitar
+services/whatsapp/.wwebjs_auth/
+services/whatsapp/.wwebjs_cache/
+
+# Worktrees temporários do Claude Code
+.claude/worktrees/
+
 # Arquivos temporários de patch (manter apenas o SQL de segurança)
 *.patch
 *.zip
