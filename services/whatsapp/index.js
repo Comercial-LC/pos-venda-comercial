@@ -137,17 +137,22 @@ async function enviarPendente(msg) {
     console.log(`[WhatsApp] ✓ ${chatId}`);
   } catch (err) {
     console.error(`[WhatsApp] ✗ (${chatId}): ${err.message}`);
-    // Fallback: se @lid falhou, tenta com número + @c.us
-    if (msg.phone.includes('@lid') && dig.length >= 10) {
-      const fallback = `${dig.startsWith('55') ? dig : '55' + dig}@c.us`;
+    // Fallback: se @lid falhou, resolve o número real via getContactById
+    if (msg.phone.includes('@lid')) {
       try {
-        await client.sendMessage(fallback, conteudo, sendOpts);
-        await sb.from('mensagens_pendentes').update({ status: 'sent' }).eq('id', msg.id);
-        console.log(`[WhatsApp] ✓ fallback ${fallback}`);
-        _processando.delete(msg.id);
-        return;
+        const contact = await client.getContactById(msg.phone);
+        const num = contact?.number;
+        if (num) {
+          const fallback = `${num.startsWith('55') ? num : '55' + num}@c.us`;
+          console.log(`[WhatsApp] @lid resolvido para ${fallback}, tentando novamente`);
+          await client.sendMessage(fallback, conteudo, sendOpts);
+          await sb.from('mensagens_pendentes').update({ status: 'sent' }).eq('id', msg.id);
+          console.log(`[WhatsApp] ✓ fallback @lid→${fallback}`);
+          _processando.delete(msg.id);
+          return;
+        }
       } catch (err2) {
-        console.error(`[WhatsApp] ✗ fallback: ${err2.message}`);
+        console.error(`[WhatsApp] ✗ fallback @lid: ${err2.message}`);
       }
     }
     await sb.from('mensagens_pendentes').update({ status: 'error' }).eq('id', msg.id);
@@ -173,7 +178,11 @@ const client = new Client({
     type: 'remote',
     remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1023204675.html',
   },
-  puppeteer: { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] },
+  puppeteer: {
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    protocolTimeout: 60000,
+  },
 });
 
 client.on('auth_failure', async msg => {
