@@ -1949,7 +1949,7 @@ async function renderTVDashboard(){
   const nomesInatTv = ['inativo','inativa','perdido','cancelado','churn'];
   const todosKpis = [];
 
-  if(tvCfg.kpiTotal)   todosKpis.push({icon:'🏢', label:'Total de Revendas', val:rv.length-tvInativos, cor:'var(--acc)'});
+  if(tvCfg.kpiTotal)   todosKpis.push({icon:'🏢', label:'Total de Revendas', val:rv.length-tvInativos-rv.filter(r=>r.inativado_portal).length, cor:'var(--acc)'});
   if(tvCfg.kpiJornada) todosKpis.push({icon:'🚀', label:'Em Jornada',        val:emJornada,  cor:'var(--ok)'});
 
   // Etapas selecionadas individualmente
@@ -2600,10 +2600,11 @@ function renderDashboard(){
   const inativos = rv.filter(r=>
     !r.inativado_portal && nomesInativos.some(n=>(r.status||'').toLowerCase().includes(n))
   ).length;
+  const inativadosPortal = rv.filter(r=>r.inativado_portal).length;
 
   const ultimaEhInativa = nomesInativos.some(n => ultimaEtapa.toLowerCase().includes(n));
   const kpis=[
-    {label:'Total de Revendas',  val:rv.length-inativos, cls:'bl', icon:'🏢'},
+    {label:'Total de Revendas',  val:rv.length-inativos-inativadosPortal, cls:'bl', icon:'🏢'},
     {label:'Em Jornada',         val:emJornada,        cls:'gn', icon:'🚀'},
     {label: etapaDecola,         val:decolaProd,       cls:'yw', icon: _etDecola.icon || '📦'},
     {label: penultimaEtapa,      val:primeiroCliente,  cls:'tl', icon: _etPenult.icon || '👤'},
