@@ -139,23 +139,13 @@ async function enviarPendente(msg) {
 
   _processando.add(msg.id);
 
-  // Resolve chatId limpo em @c.us — @lid é resolvido via getContactById antes de enviar
+  // @lid e outros JIDs são usados diretamente; números puros são formatados com @c.us
   let chatId;
-  if (msg.phone.includes('@lid')) {
-    try {
-      const contact = await client.getContactById(msg.phone);
-      const num = contact?.number;
-      if (num) {
-        chatId = `${num.startsWith('55') ? num : '55' + num}@c.us`;
-        console.log(`[WhatsApp] @lid resolvido → ${chatId}`);
-      }
-    } catch { /* fallback: usa @lid diretamente */ }
-  }
-  if (!chatId) {
+  if (msg.phone.includes('@')) {
+    chatId = msg.phone;
+  } else {
     const dig = msg.phone.replace(/\D/g, '');
-    chatId = msg.phone.includes('@')
-      ? msg.phone
-      : `${dig.startsWith('55') ? dig : '55' + dig}@c.us`;
+    chatId = `${dig.startsWith('55') ? dig : '55' + dig}@c.us`;
   }
 
   console.log(`[WhatsApp] → Enviando: ${chatId} | ${(msg.body||'').slice(0,60)}`);

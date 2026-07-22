@@ -6651,6 +6651,23 @@ async function _carregarConversasWa(){
     }
     convMap.get(key).msgs.push(m);
   }
+
+  // Mescla conversas do mesmo revenda_id (corrige histórico de phone inconsistente)
+  const _ridIdx = new Map();
+  for(const [k, c] of [...convMap.entries()]){
+    const rid = c.revendaId;
+    if(!rid) continue;
+    if(_ridIdx.has(rid)){
+      const mainKey = _ridIdx.get(rid);
+      const main = convMap.get(mainKey);
+      main.msgs.push(...c.msgs);
+      main.last = main.msgs.reduce((a,b)=>new Date(a.created_at)>=new Date(b.created_at)?a:b, main.last);
+      convMap.delete(k);
+    } else {
+      _ridIdx.set(rid, k);
+    }
+  }
+
   window._waConvMap = convMap;
   _renderWaList([...convMap.values()]);
 
@@ -6819,7 +6836,9 @@ async function abrirWaThread(key){
     .select('id, direction, body, phone, created_at, media_base64, media_mimetype, media_filename')
     .order('created_at', { ascending: true })
     .limit(100);
-  const { data: _dbMsgs } = await (_isUuid ? _q.eq('revenda_id', key) : _q.eq('phone', key));
+  const { data: _dbMsgs } = await (
+    conv.revendaId ? _q.eq('revenda_id', conv.revendaId) : _q.eq('phone', key)
+  );
   const _threadMsgs = _dbMsgs?.length
     ? _dbMsgs
     : [...(conv.msgs||[])].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
@@ -7229,17 +7248,8 @@ async function enviarMsgWhatsapp(){
   const rawPhone = window._waThreadPhone||'';
   if(!rawPhone){ toast('Número não encontrado para esta conversa','warn'); return; }
   let phone;
-  if(rawPhone.includes('@lid')){
-    // @lid é um ID opaco do WhatsApp, não um telefone — prefere o tel cadastrado da revenda
-    const conv = window._waConvMap?.get(_waRevendaSel);
-    const telRev = normalizarFoneJS(conv?.rev?.tel||'');
-    if(telRev){
-      phone = (telRev.length >= 12 && telRev.startsWith('55')) ? telRev : '55' + telRev;
-    } else {
-      phone = rawPhone; // sem alternativa, envia o @lid mesmo
-    }
-  } else if(rawPhone.includes('@')){
-    phone = rawPhone;
+  if(rawPhone.includes('@')){
+    phone = rawPhone; // @lid ou @c.us — JID válido; preserva para manter thread unificada
   } else {
     const dig = rawPhone.replace(/\D/g,'');
     phone = (dig.length >= 12 && dig.startsWith('55')) ? dig : '55' + dig;
