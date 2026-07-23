@@ -125,7 +125,9 @@ async function getContactInfo(msg) {
 
 // ── Envio de mensagens pendentes ──────────────────────────────────────
 
-const _processando = new Set(); // evita duplo envio (Realtime + polling simultâneos)
+const _processando    = new Set(); // evita duplo envio (Realtime + polling simultâneos)
+// Mapeia fingerprint de corpo → phone do portal para que message_create use o mesmo JID
+const _pendingPortalMsgs = new Map(); // bodyFp → { phone, at }
 
 async function enviarPendente(msg) {
   if (_processando.has(msg.id)) return; // já está sendo processada
@@ -163,6 +165,11 @@ async function enviarPendente(msg) {
     console.log(`[WhatsApp] → ${msg.media_as_sticker ? 'Figurinha' : 'Mídia'}: ${msg.media_mimetype} (${msg.media_filename || 'sem nome'})`);
   }
 
+  // Registra phone antes de enviar para que message_create use o JID correto (evita split)
+  const _bodyFp = (msg.body || msg.media_filename || '').slice(0, 80);
+  const _fpAt   = Date.now();
+  if (_bodyFp) _pendingPortalMsgs.set(_bodyFp, { phone: msg.phone, at: _fpAt });
+
   try {
     await client.sendMessage(chatId, conteudo, sendOpts);
     await sb.from('mensagens_pendentes').update({ status: 'sent' }).eq('id', msg.id);
@@ -170,8 +177,23 @@ async function enviarPendente(msg) {
   } catch (err) {
     console.error(`[WhatsApp] ✗ (${chatId}): ${err.message}`);
     await sb.from('mensagens_pendentes').update({ status: 'error' }).eq('id', msg.id);
+    // Chrome perdeu conexão — reinicializa automaticamente
+    if (/detached|closed|timed out|Session/i.test(err.message)) {
+      console.warn('[WhatsApp] Puppeteer perdido — reinicializando em 5s...');
+      _clientReady    = false;
+      _isInitializing = false;
+      setTimeout(async () => {
+        try { await client.destroy(); } catch {}
+        limparLockChrome();
+        setTimeout(() => _inicializar(), 1000);
+      }, 5000);
+    }
   } finally {
     _processando.delete(msg.id);
+    if (_bodyFp) setTimeout(() => {
+      const e = _pendingPortalMsgs.get(_bodyFp);
+      if (e && e.at === _fpAt) _pendingPortalMsgs.delete(_bodyFp);
+    }, 12000);
   }
 }
 
@@ -306,8 +328,17 @@ client.on('message_create', async msg => {
   if (!msg.fromMe) return;
   if (msg.isStatus || msg.to === 'status@broadcast') return;
 
+  // Verifica se foi enviado pelo portal — usa o JID original para manter thread unificada
+  const _bodyFp   = (msg.body || '').slice(0, 80);
+  const _tracked  = _bodyFp ? _pendingPortalMsgs.get(_bodyFp) : null;
+  const _useTrack = _tracked && (Date.now() - _tracked.at < 12000);
+  if (_useTrack) _pendingPortalMsgs.delete(_bodyFp);
+
   const { name: contactName, number, isGroup } = await getContactInfo(msg);
-  const phone = number || (msg.to.includes('@lid') ? msg.to : msg.to.replace(/@c\.us$/, ''));
+  // phone do portal tem prioridade — evita que msg.to resolvido quebre a thread
+  const phone = _useTrack
+    ? _tracked.phone
+    : (number || (msg.to.includes('@lid') ? msg.to : msg.to.replace(/@c\.us$/, '')));
 
   try {
     let mediaBase64 = null, mediaMimetype = null, mediaFilename = null;
