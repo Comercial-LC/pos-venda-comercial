@@ -6370,34 +6370,52 @@ function initApp(){
         }
       ).subscribe();
 
-    // Realtime: nova mensagem WhatsApp → recarrega lista e thread atual
+    // Realtime: nova mensagem WhatsApp
     sb.channel('wa_msgs_live')
       .on('postgres_changes',
         {event:'INSERT', schema:'public', table:'whatsapp_messages'},
         async (payload)=>{
           if(!document.getElementById('p-whatsapp')?.classList.contains('on')) return;
-          await _carregarConversasWa();
-          if(!_waRevendaSel || !window._waConvMap) return;
-          // Após reconstruir o convMap, encontra a conversa aberta com matching flexível
-          // (a chave pode ter mudado de @lid para número real)
-          const newPhone = (payload.new?.phone||'').replace(/@[a-z.]+$/,'').replace(/\D/g,'');
-          const newRev   = payload.new?.revenda_id;
-          let targetKey  = null;
-          if(window._waConvMap.has(_waRevendaSel)){
-            targetKey = _waRevendaSel; // chave ainda existe — usa diretamente
-          } else {
-            for(const [k,c] of window._waConvMap.entries()){
-              const cp = (c.phone||'').replace(/@[a-z.]+$/,'').replace(/\D/g,'');
-              if((newPhone && cp && (cp.endsWith(newPhone)||newPhone.endsWith(cp))) ||
-                 (newRev && c.revendaId === newRev)){
-                targetKey = k; break;
-              }
+          const m = payload.new;
+          if(!m) return;
+
+          // Verifica se pertence à thread aberta (phone exato, revenda_id ou dígitos)
+          let isCurrentThread = false;
+          if(_waRevendaSel && window._waConvMap){
+            const conv = window._waConvMap.get(_waRevendaSel);
+            if(conv){
+              const mD = (m.phone||'').replace(/@[a-z.]+$/i,'').replace(/\D/g,'');
+              const cD = (conv.phone||'').replace(/@[a-z.]+$/i,'').replace(/\D/g,'');
+              isCurrentThread = m.phone === conv.phone
+                || (m.revenda_id && m.revenda_id === conv.revendaId)
+                || (mD && cD && (mD.endsWith(cD)||cD.endsWith(mD)));
             }
           }
-          if(targetKey){
-            _waRevendaSel = targetKey; // sincroniza seleção com nova chave
-            abrirWaThread(targetKey);
+
+          if(isCurrentThread){
+            // Adiciona bolha diretamente — sem recarregar a thread inteira
+            const msgsEl = document.getElementById('wa-thread-msgs');
+            if(msgsEl){
+              // Remove bolha otimista com mesmo corpo (evita duplicata visual)
+              for(const el of msgsEl.querySelectorAll('[data-optimistic]')){
+                if(m.body && el.textContent.includes(m.body.slice(0,20))){ el.remove(); break; }
+              }
+              // Busca media_base64 separado se necessário (Realtime pode truncar payloads grandes)
+              if(m.media_mimetype && !m.media_base64){
+                const { data: md } = await sb.from('whatsapp_messages')
+                  .select('media_base64').eq('id', m.id).maybeSingle();
+                if(md) m.media_base64 = md.media_base64;
+              }
+              const div = document.createElement('div');
+              div.style.cssText = `display:flex;justify-content:${m.direction==='outbound'?'flex-end':'flex-start'}`;
+              div.innerHTML = _buildBubbleHtml(m);
+              msgsEl.appendChild(div);
+              msgsEl.scrollTop = msgsEl.scrollHeight;
+            }
           }
+
+          // Sempre atualiza sidebar (preview, ordem, badge não-lido)
+          await _carregarConversasWa();
         }
       ).subscribe();
 
