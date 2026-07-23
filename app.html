@@ -7270,6 +7270,11 @@ async function enviarMsgWhatsapp(){
     phone = rawPhone; // @lid ou @c.us — JID válido; preserva para manter thread unificada
   } else {
     const dig = rawPhone.replace(/\D/g,'');
+    // Dígitos de @lid antigos (> 13 dígitos sem @) são inválidos como telefone
+    if(dig.length > 13){
+      toast('Este contato usa ID interno do WhatsApp sem telefone cadastrado. Não é possível enviar.','error');
+      return;
+    }
     phone = (dig.length >= 12 && dig.startsWith('55')) ? dig : '55' + dig;
   }
 

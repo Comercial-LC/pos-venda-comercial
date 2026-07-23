@@ -247,6 +247,8 @@ client.on('qr', async qr => {
   }
 });
 
+let _pendentesSubUp = false; // canal Realtime só sobe uma vez (persiste entre reconexões)
+
 client.on('ready', async () => {
   _clientReady    = true;
   _isInitializing = false;
@@ -254,10 +256,13 @@ client.on('ready', async () => {
   console.log(`[WhatsApp] Conectado. Número: ${numero || '(não disponível)'}`);
   await atualizarStatus('conectado', { qr_code: null, numero });
 
-  // Envia mensagens que ficaram na fila durante offline
+  // Drena fila a cada reconexão (mensagens que chegaram offline)
   await processarPendentes();
 
-  // Monitora novas mensagens pendentes em tempo real
+  // Canal Realtime e polling são criados só uma vez — sobrevivem a reconexões do Chrome
+  if (_pendentesSubUp) return;
+  _pendentesSubUp = true;
+
   sb.channel('pendentes-ch')
     .on('postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'mensagens_pendentes' },
