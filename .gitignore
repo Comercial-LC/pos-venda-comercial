@@ -31,6 +31,8 @@ Thumbs.db
 npm-debug.log*
 
 # Sessão do WhatsApp (Chrome Puppeteer) — dados locais, não commitar
+.wwebjs_auth/
+.wwebjs_cache/
 services/whatsapp/.wwebjs_auth/
 services/whatsapp/.wwebjs_cache/
 
