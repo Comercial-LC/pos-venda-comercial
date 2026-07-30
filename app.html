@@ -13,7 +13,7 @@
   --bg:#121824;--bg2:#1A2234;--card:#1E293B;--card2:#243047;
   --inp:#0F1729;--bdr:#2D3748;--bdr2:#3D4F6A;
   --txt:#F3F4F6;--txt2:#9CA3AF;--txt3:#6B7280;
-  --acc:#FF6B00;--acc2:#FFA800;--accl:rgba(255,107,0,.13);
+  --acc:#8B5CF6;--acc2:#C4B5FD;--accl:rgba(139,92,246,.15);
   --prim:#2E1A47;--priml:rgba(46,26,71,.3);
   --ok:#22C55E;--okl:rgba(34,197,94,.13);
   --warn:#F59E0B;--warnl:rgba(245,158,11,.13);
@@ -28,7 +28,7 @@
   --bg:#F8F9FA;--bg2:#FFFFFF;--card:#FFFFFF;--card2:#F1F5F9;
   --inp:#F1F5F9;--bdr:#E2E8F0;--bdr2:#CBD5E1;
   --txt:#1F2937;--txt2:#4B5563;--txt3:#9CA3AF;
-  --acc:#FF6B00;--acc2:#FFA800;--accl:rgba(255,107,0,.08);
+  --acc:#5B21B6;--acc2:#7C3AED;--accl:rgba(91,33,182,.09);
   --prim:#2E1A47;--priml:rgba(46,26,71,.07);
   --ok:#16A34A;--okl:rgba(22,163,74,.1);
   --warn:#D97706;--warnl:rgba(217,119,6,.1);
@@ -6604,7 +6604,7 @@ function _renderWaChatHub(st){
               onkeydown="if(event.key==='Enter'&&!event.shiftKey){enviarMsgWhatsapp();event.preventDefault()}"
               oninput="_waUpdateSendBtn()"
               style="flex:1;background:none;border:none;outline:none;color:var(--txt);font-size:13.5px;font-family:var(--font);padding:4px 0">
-            <button id="wa-send-btn" onclick="enviarMsgWhatsapp()" style="display:none;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--acc2));border:none;cursor:pointer;font-size:14px;flex-shrink:0;color:#fff;box-shadow:0 2px 8px rgba(255,107,0,.35)">➤</button>
+            <button id="wa-send-btn" onclick="enviarMsgWhatsapp()" style="display:none;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--acc2));border:none;cursor:pointer;font-size:14px;flex-shrink:0;color:#fff;box-shadow:0 2px 8px rgba(139,92,246,.45)">➤</button>
             <button id="wa-rec-btn" onclick="toggleGravacaoWa()" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:var(--card2);border:1px solid var(--bdr2);cursor:pointer;font-size:15px;flex-shrink:0">🎤</button>
           </div>
         </div>
@@ -6748,7 +6748,7 @@ function _renderWaList(convs){
   // Classify into groups
   const groups = [
     { id:'critico',    label:'Crítico',             color:'#EF4444', items:[] },
-    { id:'aguardando', label:'Aguardando Resposta',  color:'#FF6B00', items:[] },
+    { id:'aguardando', label:'Aguardando Resposta',  color:'#8B5CF6', items:[] },
     { id:'andamento',  label:'Em Andamento',         color:'#22C55E', items:[] },
     { id:'vip',        label:'VIP',                  color:'#7C3AED', items:[] },
   ];
@@ -6995,7 +6995,7 @@ async function _renderWaLeadPanel(conv){
     <div style="padding:14px 16px;border-bottom:1px solid var(--bdr);flex-shrink:0">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <span style="font-size:10px;font-weight:700;color:var(--txt3);letter-spacing:.8px;text-transform:uppercase">Customer Intelligence Panel</span>
-        <button onclick="openCardModal('${esc(rev.id)}')" style="font-size:10px;padding:3px 10px;background:var(--accl);color:var(--acc);border:1px solid rgba(255,107,0,.3);border-radius:20px;cursor:pointer;font-weight:600">Ver card ↗</button>
+        <button onclick="openCardModal('${esc(rev.id)}')" style="font-size:10px;padding:3px 10px;background:var(--accl);color:var(--acc);border:1px solid rgba(139,92,246,.3);border-radius:20px;cursor:pointer;font-weight:600">Ver card ↗</button>
       </div>
       <div style="display:flex;align-items:center;gap:10px">
         <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--prim),var(--pur));display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0">${esc((rev.nome||'?').slice(0,2).toUpperCase())}</div>
@@ -7075,7 +7075,7 @@ function _buildBubbleHtml(m){
     } else if(m.media_mimetype.startsWith('video/')){
       mediaHtml = `<video controls style="max-width:220px;border-radius:12px;display:block;margin-bottom:4px"><source src="${src}" type="${m.media_mimetype}"></video>`;
     } else {
-      mediaHtml = `<a href="${src}" download="${esc(m.media_filename||'arquivo')}" style="display:flex;align-items:center;gap:6px;color:var(--acc);font-size:12px;text-decoration:none;padding:8px 10px;background:rgba(255,107,0,.08);border-radius:8px;border:1px solid rgba(255,107,0,.2)">${_waMediaIcon(m.media_mimetype)} ${esc(m.media_filename||'Arquivo')}</a>`;
+      mediaHtml = `<a href="${src}" download="${esc(m.media_filename||'arquivo')}" style="display:flex;align-items:center;gap:6px;color:var(--acc);font-size:12px;text-decoration:none;padding:8px 10px;background:rgba(139,92,246,.08);border-radius:8px;border:1px solid rgba(139,92,246,.2)">${_waMediaIcon(m.media_mimetype)} ${esc(m.media_filename||'Arquivo')}</a>`;
     }
   } else if(m.media_mimetype){
     mediaHtml = `<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--txt3);padding:6px 8px;background:var(--card2);border-radius:8px;margin-bottom:4px">${_waMediaIcon(m.media_mimetype)} ${esc(m.media_filename||m.media_mimetype)}</div>`;

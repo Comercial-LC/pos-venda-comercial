@@ -13,10 +13,11 @@ function limparLockChrome() {
   try {
     const r = spawnSync('powershell', [
       '-NonInteractive', '-NoProfile', '-Command',
-      "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'chrome.exe' -and $_.CommandLine -like '*wwebjs_auth*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+      "$p = Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'chrome.exe' -and $_.CommandLine -like '*wwebjs_auth*' }; $p | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; $p.Count"
     ], { timeout: 10000 });
-    if (r.status === 0) {
-      console.log('[WhatsApp] Chrome Puppeteer anterior encerrado');
+    const mortos = parseInt((r.stdout || '').toString().trim(), 10) || 0;
+    if (mortos > 0) {
+      console.log(`[WhatsApp] Chrome Puppeteer anterior encerrado (${mortos} processo(s))`);
       // Aguarda Chrome liberar os handles do sistema de arquivos (2s)
       spawnSync('ping', ['-n', '1', '-w', '2000', '127.0.0.1'], { stdio: 'ignore' });
     }
@@ -137,6 +138,16 @@ async function enviarPendente(msg) {
     console.warn(`[WhatsApp] Mensagem ${msg.id} sem phone — marcando como erro`);
     await sb.from('mensagens_pendentes').update({ status: 'error' }).eq('id', msg.id);
     return;
+  }
+
+  // Números puros com > 13 dígitos são @lid sem sufixo (bug antigo) — não tentar enviar
+  if (!msg.phone.includes('@')) {
+    const _dig = msg.phone.replace(/\D/g, '');
+    if (_dig.length > 13) {
+      console.warn(`[WhatsApp] ✗ Telefone inválido ignorado (${msg.phone}) — marcando como erro`);
+      await sb.from('mensagens_pendentes').update({ status: 'error' }).eq('id', msg.id);
+      return;
+    }
   }
 
   _processando.add(msg.id);
@@ -421,8 +432,22 @@ function _inicializar() {
     console.error('[WhatsApp] Erro ao inicializar:', err.message);
     _isInitializing = false;
     atualizarStatus('desconectado', { qr_code: null, numero: null }).catch(() => {});
+    // Chrome ainda estava vivo ao tentar subir — limpa e tenta de novo em 12s
+    if (/already running/i.test(err.message)) {
+      console.warn('[WhatsApp] Chrome ainda ativo — aguardando 12s e reinicializando...');
+      setTimeout(() => { limparLockChrome(); setTimeout(_inicializar, 1000); }, 12000);
+    }
   });
 }
+
+// Health check: se Chrome não está rodando nem inicializando por > 45s, força reinício
+setInterval(() => {
+  if (!_clientReady && !_isInitializing) {
+    console.warn('[WhatsApp] Health check: desconectado — forçando reconexão...');
+    limparLockChrome();
+    setTimeout(_inicializar, 1000);
+  }
+}, 45000);
 
 limparLockChrome();
 atualizarStatus('iniciando').catch(() => {});
