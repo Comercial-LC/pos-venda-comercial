@@ -52,7 +52,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--txt);min-height:10
 .nav-group.open .nav-arrow{transform:rotate(90deg)}
 .sidebar.col .nav-sub,.sidebar.col .nav-arrow{display:none !important}
 .s-logo{padding:18px 16px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:10px}
-.logo-ic{width:32px;height:32px;background:linear-gradient(135deg,#F5C518,#6B2FA0);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#fff;flex-shrink:0}
+.logo-ic{width:32px;height:32px;background:linear-gradient(135deg,#7C3AED,#5B21B6);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#fff;flex-shrink:0}
 .logo-t{font-weight:700;font-size:13px;line-height:1.2}.logo-s{font-size:10px;color:var(--txt3)}
 .s-nav{flex:1;padding:8px 0}
 .nav-sec{padding:8px 16px 4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--txt3)}
@@ -62,7 +62,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--txt);min-height:10
 .nav-ic{font-size:16px;flex-shrink:0}
 .s-foot{padding:14px;border-top:1px solid var(--bdr)}
 .u-card{display:flex;align-items:center;gap:10px;padding:10px;background:var(--card);border-radius:var(--r);cursor:pointer}
-.u-av{width:32px;height:32px;background:linear-gradient(135deg,#F5C518,#6B2FA0);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;color:#fff;flex-shrink:0}
+.u-av{width:32px;height:32px;background:linear-gradient(135deg,#7C3AED,#5B21B6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;color:#fff;flex-shrink:0}
 .u-name{font-size:12px;font-weight:500}.u-role{font-size:11px;color:var(--txt3)}
 .main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
 .topbar{background:var(--bg2);border-bottom:1px solid var(--bdr);padding:0 20px;height:58px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:50}
@@ -215,7 +215,7 @@ select option{background:var(--bg2)}
 }
 
 /* Modal de parabéns */
-.modal-celebracao{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10000;background:linear-gradient(135deg,#6B2FA0,#F5C518);border-radius:20px;padding:40px;max-width:500px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.8);animation:aparecer 0.5s ease-out forwards}
+.modal-celebracao{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10000;background:linear-gradient(135deg,#5B21B6,#7C3AED);border-radius:20px;padding:40px;max-width:500px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.8);animation:aparecer 0.5s ease-out forwards}
 
 .modal-celebracao h2{font-size:36px;color:#fff;margin-bottom:15px;font-weight:800}
 
@@ -835,11 +835,11 @@ select option{background:var(--bg2)}
               <div>
                 <label>Cor principal (botões, destaques)</label>
                 <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
-                  <input type="color" id="cor-acc" value="#F5C518"
+                  <input type="color" id="cor-acc" value="#8B5CF6"
                     style="width:50px;height:36px;padding:2px;cursor:pointer;border-radius:var(--r)">
-                  <input type="text" id="cor-acc-hex" value="#F5C518"
+                  <input type="text" id="cor-acc-hex" value="#8B5CF6"
                     style="width:100px" oninput="document.getElementById('cor-acc').value=this.value">
-                  <span style="font-size:11px;color:var(--txt3)">Amarelo LC padrão</span>
+                  <span style="font-size:11px;color:var(--txt3)">Roxo LC padrão</span>
                 </div>
               </div>
               <div>
@@ -1041,7 +1041,7 @@ select option{background:var(--bg2)}
               <div class="fg">
                 <label>Cor de destaque</label>
                 <div style="display:flex;gap:8px;align-items:center">
-                  <input type="color" id="tv-cor-destaque" value="#F5C518"
+                  <input type="color" id="tv-cor-destaque" value="#8B5CF6"
                     style="width:44px;height:36px;padding:2px;cursor:pointer;border-radius:var(--r)">
                   <span style="font-size:12px;color:var(--txt3)">Linha de separação e contadores</span>
                 </div>
@@ -1744,7 +1744,7 @@ function ativarModoTV(){
       <!-- Header TV -->
       <div class="tv-borda" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid var(--acc)">
         <div style="display:flex;align-items:center;gap:14px">
-          <div style="width:48px;height:48px;background:linear-gradient(135deg,#F5C518,#6B2FA0);border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#000">LC</div>
+          <div style="width:48px;height:48px;background:linear-gradient(135deg,#7C3AED,#5B21B6);border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#000">LC</div>
           <div>
             <div class="tv-titulo" style="font-size:22px;font-weight:800;color:var(--txt)">Portal Sucesso da Revenda</div>
             <div style="font-size:13px;color:var(--txt3);display:flex;gap:6px;align-items:center">
@@ -5404,7 +5404,7 @@ function resetEtapas(){
 // ── APARÊNCIA: Cores ────────────────────────────────────────
 function carregarCoresAtuais(){
   const cfg = getCfg();
-  const acc = cfg.corAcc || '#F5C518';
+  const acc = cfg.corAcc || '#8B5CF6';
   const pur = cfg.corPur || '#6B2FA0';
   const bg  = cfg.corBg  || '#0A0A0F';
   ['cor-acc','cor-pur','cor-bg'].forEach(id=>{
@@ -5449,7 +5449,7 @@ async function salvarCores(){
 }
 
 function resetCores(){
-  const acc='#F5C518', pur='#6B2FA0', bg='#0A0A0F';
+  const acc='#8B5CF6', pur='#7C3AED', bg='#0A0A0F';
   saveCfg({corAcc:acc, corPur:pur, corBg:bg});
   aplicarCores(acc, pur, bg);
   carregarCoresAtuais();
@@ -5468,6 +5468,12 @@ function aplicarCores(acc, pur, bg){
 
 function carregarCoresDoStorage(){
   const cfg = getCfg();
+  // Migração: troca cor padrão antiga (amarelo) pelo novo padrão roxo
+  const oldDefaults = ['#F5C518','#f5c518','#FF6B00','#ff6b00','#FFA800','#ffa800'];
+  if(cfg.corAcc && oldDefaults.includes(cfg.corAcc)){
+    cfg.corAcc = '#8B5CF6';
+    saveCfg({corAcc:'#8B5CF6'});
+  }
   if(cfg.corAcc||cfg.corPur||cfg.corBg)
     aplicarCores(cfg.corAcc, cfg.corPur, cfg.corBg);
 }
@@ -6116,7 +6122,7 @@ function getTVCfg(){
     etapasKpi:      cfg.tvEtapasKpi      || todasEtapas,
     titulo:         cfg.tvTitulo         || 'Portal Sucesso da Revenda',
     subtitulo:      cfg.tvSubtitulo      || 'LC Sistemas',
-    corDestaque:    cfg.tvCorDestaque    || '#F5C518',
+    corDestaque:    cfg.tvCorDestaque    || '#8B5CF6',
     kpisColunas:    cfg.tvKpisColunas    || 4,
     tvLayout:       cfg.tvLayout        || 'layout1',
   };
@@ -6214,7 +6220,7 @@ async function salvarCfgTV(){
     tvShowAtividades: g('tv-show-atividades')?.checked !== false,
     tvTitulo:         g('tv-titulo')?.value            || 'Portal Sucesso da Revenda',
     tvSubtitulo:      g('tv-subtitulo')?.value         || 'LC Sistemas',
-    tvCorDestaque:    g('tv-cor-destaque')?.value      || '#F5C518',
+    tvCorDestaque:    g('tv-cor-destaque')?.value      || '#8B5CF6',
     tvKpisColunas:    parseInt(g('tv-kpis-colunas')?.value)||4,
     tvLayout:         g('tv-layout')?.value || 'layout1',
   });
