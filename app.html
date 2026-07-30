@@ -3,10 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' https://*.supabase.co https://api.anthropic.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; object-src 'none'; frame-ancestors 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://accounts.google.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://www.googleapis.com https://oauth2.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; object-src 'none'; frame-src https://accounts.google.com; frame-ancestors 'none';">
 <title>Portal Sucesso da Revenda — LC Sistemas</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 :root{
@@ -1160,6 +1161,7 @@ select option{background:var(--bg2)}
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn btn-s btn-sm" onclick="toggleCardProdutos()">📦 Produtos</button>
+        <button class="btn btn-s btn-sm" id="btn-agendar-meet" onclick="abrirModalMeet()" style="color:var(--acc);border-color:rgba(139,92,246,.3)">📅 Meet</button>
         <button class="btn btn-s btn-sm" id="mo-card-edit-btn" onclick="openCardEdit()">✏️ Editar</button>
         <button class="btn btn-s btn-sm" onclick="closeMo('mo-card')">✕</button>
       </div>
@@ -3411,7 +3413,7 @@ async function renderCardHistorico(id){
             <div style="font-size:10px;font-weight:800;color:${ic.cor};text-transform:uppercase;letter-spacing:.4px">${num}º — ${esc(h.tipo||'')}</div>
             <div style="font-size:9px;color:var(--txt3);white-space:nowrap;flex-shrink:0">${dt}</div>
           </div>
-          ${h.desc?`<div style="font-size:12px;color:var(--txt2);line-height:1.5;margin-bottom:5px">${esc(h.desc)}</div>`:''}
+          ${h.desc?`<div style="font-size:12px;color:var(--txt2);line-height:1.5;margin-bottom:5px">${_renderDescHistorico(h)}</div>`:''}
           <div style="display:flex;align-items:center;justify-content:space-between">
             <div>${badge}</div>
             ${isManual?`<button onclick="deletarNotaCard('${id}','${h.id}')" style="background:none;border:none;color:var(--txt3);cursor:pointer;font-size:12px;padding:0" title="Excluir">🗑</button>`:'<div></div>'}
@@ -7803,7 +7805,258 @@ async function adicionarPontoMeta(metaId, nomeMeta) {
 
 
 
+// ── Renderiza descrição do histórico (Meet recebe link clicável) ──
+function _renderDescHistorico(h){
+  if(h.tipo === '🎯 Google Meet'){
+    const meetLink = (h.desc||'').match(/🔗\s*(https:\/\/meet\.google\.com\/\S+)/)?.[1];
+    const linhas = (h.desc||'').split('\n').map(l=>{
+      if(l.startsWith('🔗') && meetLink)
+        return `🔗 <a href="${meetLink}" target="_blank" rel="noopener" style="color:var(--acc);font-weight:600;word-break:break-all">${meetLink}</a>`;
+      if(l.startsWith('**') && l.endsWith('**'))
+        return `<strong>${esc(l.slice(2,-2))}</strong>`;
+      return esc(l);
+    });
+    return linhas.join('<br>') +
+      `<div style="margin-top:8px"><a href="${meetLink}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.3);color:var(--acc);border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;text-decoration:none">📹 Entrar no Meet</a></div>`;
+  }
+  return esc(h.desc||'').replace(/\n/g,'<br>');
+}
+
+// ══════════════════════════════════════════════════════════════
+// GOOGLE CALENDAR + MEET INTEGRATION
+// ══════════════════════════════════════════════════════════════
+const GCAL_CLIENT_ID = '246726442755-n1d0mctc4kn05q5f7k94omot629ma3kd.apps.googleusercontent.com';
+const GCAL_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+let _gcalTokenClient = null;
+let _gcalToken = null;
+let _gcalUserEmail = null;
+
+function inicializarGoogleCalendar(){
+  // GIS carrega de forma assíncrona; tenta quando disponível
+  const tentativa = (n) => {
+    if(window.google?.accounts?.oauth2){
+      _gcalTokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: GCAL_CLIENT_ID,
+        scope: GCAL_SCOPE,
+        callback: (resp) => {
+          if(resp.error){ toast('Erro Google: '+resp.error,'err'); return; }
+          _gcalToken = resp.access_token;
+          _gcalUserEmail = resp.email || '';
+          atualizarUIMeetAuth();
+          _criarEventoMeet();
+        }
+      });
+    } else if(n < 30) {
+      setTimeout(()=>tentativa(n+1), 300);
+    }
+  };
+  tentativa(0);
+}
+
+function abrirModalMeet(){
+  if(!currentCardId) return;
+  const rev = DB.revendas.find(r=>r.id===currentCardId);
+  document.getElementById('mo-meet-sub').textContent = rev?.nome || '—';
+
+  // Data padrão = amanhã
+  const amanha = new Date(); amanha.setDate(amanha.getDate()+1);
+  document.getElementById('meet-data').value = amanha.toISOString().slice(0,10);
+  document.getElementById('meet-titulo').value = rev ? `Reunião — ${rev.nome}` : '';
+  document.getElementById('meet-email').value = rev?.email || '';
+  document.getElementById('meet-desc').value = '';
+
+  atualizarUIMeetAuth();
+  openMo('mo-meet');
+}
+
+function atualizarUIMeetAuth(){
+  const aviso = document.getElementById('mo-meet-auth-aviso');
+  const ok    = document.getElementById('mo-meet-auth-ok');
+  const btn   = document.getElementById('btn-criar-meet');
+  if(!aviso||!ok) return;
+  if(_gcalToken){
+    aviso.style.display = 'none';
+    ok.style.display    = 'flex';
+    document.getElementById('mo-meet-email-conectado').textContent = _gcalUserEmail || 'Conta Google conectada';
+    if(btn) btn.disabled = false;
+  } else {
+    aviso.style.display = 'block';
+    ok.style.display    = 'none';
+    if(btn) btn.disabled = true;
+  }
+}
+
+function conectarGoogle(){
+  if(!_gcalTokenClient){ toast('Google ainda carregando, aguarde...','warn'); return; }
+  // Armazena intenção de criar evento após autenticar
+  window._gcalPendente = true;
+  _gcalTokenClient.requestAccessToken({prompt:'consent'});
+}
+
+function desconectarGoogle(){
+  if(_gcalToken) google.accounts.oauth2.revoke(_gcalToken, ()=>{});
+  _gcalToken = null; _gcalUserEmail = null;
+  atualizarUIMeetAuth();
+  toast('Conta Google desconectada');
+}
+
+async function criarMeet(){
+  if(!_gcalToken){ conectarGoogle(); return; }
+  _criarEventoMeet();
+}
+
+async function _criarEventoMeet(){
+  if(!_gcalToken || !currentCardId) return;
+  if(!window._gcalPendente && document.getElementById('mo-meet')?.style.display==='none') return;
+  window._gcalPendente = false;
+
+  const titulo   = document.getElementById('meet-titulo')?.value.trim() || 'Reunião';
+  const dataStr  = document.getElementById('meet-data')?.value;
+  const horaStr  = document.getElementById('meet-hora')?.value || '10:00';
+  const durMin   = parseInt(document.getElementById('meet-duracao')?.value) || 60;
+  const email    = document.getElementById('meet-email')?.value.trim();
+  const desc     = document.getElementById('meet-desc')?.value.trim();
+
+  if(!dataStr){ toast('Informe a data da reunião','warn'); return; }
+
+  const [h, m] = horaStr.split(':').map(Number);
+  const inicio = new Date(`${dataStr}T${horaStr}:00`);
+  const fim    = new Date(inicio.getTime() + durMin * 60000);
+
+  const evento = {
+    summary: titulo,
+    description: desc || undefined,
+    start: { dateTime: inicio.toISOString(), timeZone: 'America/Sao_Paulo' },
+    end:   { dateTime: fim.toISOString(),    timeZone: 'America/Sao_Paulo' },
+    conferenceData: {
+      createRequest: {
+        requestId: `lc-${currentCardId}-${Date.now()}`,
+        conferenceSolutionKey: { type: 'hangoutsMeet' }
+      }
+    },
+    attendees: email ? [{ email }] : undefined,
+  };
+
+  const btn = document.getElementById('btn-criar-meet');
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ Criando...'; }
+
+  try {
+    const resp = await fetch(
+      'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1&sendUpdates=all',
+      {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer '+_gcalToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify(evento)
+      }
+    );
+
+    if(resp.status === 401){
+      _gcalToken = null; atualizarUIMeetAuth();
+      toast('Sessão Google expirada — faça login novamente','warn');
+      return;
+    }
+
+    const data = await resp.json();
+    if(!resp.ok) throw new Error(data.error?.message || resp.statusText);
+
+    const meetLink = data.hangoutLink || data.conferenceData?.entryPoints?.find(e=>e.entryPointType==='video')?.uri;
+    if(!meetLink) throw new Error('Link do Meet não retornado pelo Google');
+
+    // Formata data para exibição
+    const dtFmt = inicio.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
+
+    // Salva no histórico do card
+    await sb.from('historico_cards').insert({
+      revenda_id:  currentCardId,
+      tipo:        '🎯 Google Meet',
+      descricao:   `**${titulo}**\n📅 ${dtFmt} · ⏱ ${durMin}min\n🔗 ${meetLink}${email?'\n👤 Convidado: '+email:''}`,
+      manual:      true,
+      usuario_id:  sessaoAtual?.user?.id,
+      usuario_nome: perfilAtual?.nome || 'Você',
+    });
+
+    closeMo('mo-meet');
+    toast('✅ Meet criado! Link salvo no histórico.');
+    setTimeout(()=>renderCardHistorico(currentCardId), 300);
+
+  } catch(e){
+    console.error('Erro Google Calendar:', e);
+    toast('Erro ao criar Meet: '+e.message, 'err');
+  } finally {
+    if(btn){ btn.disabled = false; btn.textContent = '📅 Criar evento e gerar link Meet'; }
+  }
+}
+
 initApp();
+inicializarGoogleCalendar();
 </script>
+
+<!-- ── MODAL GOOGLE MEET ───────────────────────────────────── -->
+<div class="mo-ov" id="mo-meet" onclick="if(event.target===this)closeMo('mo-meet')">
+  <div class="mo" style="width:min(480px,95vw);padding:0;overflow:hidden">
+    <div class="moh" style="padding:14px 18px">
+      <div>
+        <div class="mot">📅 Agendar Google Meet</div>
+        <div id="mo-meet-sub" style="font-size:12px;color:var(--txt3);margin-top:2px">—</div>
+      </div>
+      <button class="btn btn-s btn-sm" onclick="closeMo('mo-meet')">✕</button>
+    </div>
+    <div style="padding:20px 22px;display:flex;flex-direction:column;gap:14px">
+
+      <!-- Aviso Google não conectado -->
+      <div id="mo-meet-auth-aviso" style="display:none;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.2);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--txt2);line-height:1.5">
+        🔐 <strong>Conecte sua conta Google</strong> para criar o evento com link do Meet.<br>
+        <button onclick="conectarGoogle()" style="margin-top:8px;background:var(--acc);color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;width:100%">
+          Entrar com Google
+        </button>
+      </div>
+
+      <!-- Badge conta conectada -->
+      <div id="mo-meet-auth-ok" style="display:none;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--ok);display:none;align-items:center;gap:8px">
+        ✅ <span id="mo-meet-email-conectado"></span>
+        <button onclick="desconectarGoogle()" style="margin-left:auto;background:none;border:none;color:var(--txt3);cursor:pointer;font-size:11px;text-decoration:underline">sair</button>
+      </div>
+
+      <div class="fg">
+        <label>Título da reunião</label>
+        <input type="text" id="meet-titulo" placeholder="Ex: Reunião de acompanhamento" style="font-size:13px">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="fg" style="margin:0">
+          <label>Data</label>
+          <input type="date" id="meet-data" style="font-size:13px">
+        </div>
+        <div class="fg" style="margin:0">
+          <label>Horário</label>
+          <input type="time" id="meet-hora" value="10:00" style="font-size:13px">
+        </div>
+      </div>
+      <div class="fg">
+        <label>Duração</label>
+        <select id="meet-duracao" style="font-size:13px;padding:10px 12px;border-radius:var(--r);border:1px solid var(--bdr);background:var(--bg2);color:var(--txt);width:100%">
+          <option value="30">30 minutos</option>
+          <option value="60" selected>1 hora</option>
+          <option value="90">1h30</option>
+          <option value="120">2 horas</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>E-mail do convidado (opcional)</label>
+        <input type="email" id="meet-email" placeholder="email@dominio.com" style="font-size:13px">
+      </div>
+      <div class="fg">
+        <label>Descrição (opcional)</label>
+        <textarea id="meet-desc" rows="2" placeholder="Pauta da reunião..." style="font-size:13px;width:100%;box-sizing:border-box"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <button id="btn-criar-meet" onclick="criarMeet()" class="btn btn-p" style="flex:1;font-size:13px">
+          📅 Criar evento e gerar link Meet
+        </button>
+        <button onclick="closeMo('mo-meet')" class="btn btn-s" style="font-size:13px">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
