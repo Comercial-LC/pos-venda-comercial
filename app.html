@@ -2393,7 +2393,7 @@ function renderPanel(name){
 // ─── Modals ────────────────────────────────────────────────────────
 function openMo(id){
   // Não chama populateSelects para modais de sistema (motivo, limpar, confirmar)
-  const modaisSistema = ['mo-motivo-inativo','mo-limpar','mo-confirm','mo-convite'];
+  const modaisSistema = ['mo-motivo-inativo','mo-limpar','mo-confirm','mo-convite','mo-participantes'];
   if(!modaisSistema.includes(id)){
     try { populateSelects(); } catch(e){ console.warn('populateSelects:', e.message); }
   }
@@ -3899,7 +3899,15 @@ async function carregarParticipantes(){
   if(!list) return;
   list.innerHTML='<div style="padding:20px;text-align:center;font-size:12px;color:var(--txt3)">⏳ Carregando...</div>';
   const {data,error}=await sb.from('participantes').select('*').eq('task_id',id).order('criado_em',{ascending:false});
-  if(error){ list.innerHTML=`<div style="padding:16px;font-size:12px;color:var(--err)">Erro ao carregar: ${esc(error.message)}</div>`; return; }
+  if(error){
+    const semColuna=error.message?.includes('task_id');
+    list.innerHTML=`<div style="padding:20px;text-align:center">
+      <div style="font-size:24px;margin-bottom:8px">${semColuna?'⚙️':'⚠️'}</div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:6px">${semColuna?'Migração pendente':'Erro ao carregar'}</div>
+      <div style="font-size:12px;color:var(--txt3);line-height:1.6">${semColuna?'Execute o arquivo <b>participantes_task_id.sql</b> no Supabase SQL Editor para ativar esta funcionalidade.':esc(error.message)}</div>
+    </div>`;
+    return;
+  }
   _partData=data||[];
   if(cnt) cnt.textContent=_partData.length?`${_partData.length} participante(s) confirmado(s)`:'Nenhum participante ainda';
   if(!_partData.length){
@@ -3996,14 +4004,15 @@ function renderTasks(){
   const stC={Pendente:'st-tr','Em andamento':'st-on',Concluída:'st-dn'};
   const atb=document.getElementById('all-tasks-body');
   if(atb)atb.innerHTML=all.length?all.map(task=>`<tr>
-    <td class="tdp">${_extrairMeetLink(task.desc)?`<span onclick="abrirParticipantes('${task.id}')" style="cursor:pointer;color:var(--acc);text-decoration:underline dotted;text-underline-offset:3px" title="Ver participantes">${safe(task.titulo)}</span>`:safe(task.titulo)}</td>
+    <td class="tdp">${safe(task.titulo)}</td>
     <td>${safe(task.revenda||'—')}</td>
     <td>${safe(task.responsavel||'—')}</td>
     <td><span class="badge ${prioC[task.prioridade]||'bg-acc'} bg-sm">${safe(task.prioridade||'—')}</span></td>
     <td style="font-size:12px">${fmtDate(task.vencimento)}</td>
     <td><span class="st ${stC[task.status]||'st-on'}">${safe(task.status||'Pendente')}</span></td>
     <td><div style="display:flex;gap:4px">
-      ${_extrairMeetLink(task.desc)?`<button class="btn btn-sm" onclick="copiarLinkConfirmacao('${task.id}')" title="Copiar link de confirmação do Meet" style="background:var(--accl);color:var(--acc);border:1px solid rgba(139,92,246,.3)">🔗</button>`:''}
+      ${_extrairMeetLink(task.desc)?`<button class="btn btn-sm" onclick="abrirParticipantes('${task.id}')" title="Ver participantes" style="background:var(--accl);color:var(--acc);border:1px solid rgba(139,92,246,.3)">👥</button>`:''}
+      ${_extrairMeetLink(task.desc)?`<button class="btn btn-sm" onclick="copiarLinkConfirmacao('${task.id}')" title="Copiar link de confirmação" style="background:var(--accl);color:var(--acc);border:1px solid rgba(139,92,246,.3)">🔗</button>`:''}
       <button class="btn btn-s btn-sm" onclick="editTask('${task.id}')">✏️</button>
       ${task.status!=='Concluída'?`<button class="btn btn-ok btn-sm" onclick="concludeTask('${task.id}')">✓</button>`:''}
       <button class="btn btn-d btn-sm" onclick="deleteTask('${task.id}')">🗑</button>
