@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Confirmar Participação — LC Sistemas</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0b0b12;--card:#161622;--bdr:#2a2a3a;--bdr2:#3a3a4e;
+  --txt:#f5f5ff;--txt2:#9999bb;--txt3:#555566;
+  --acc:#8b5cf6;--acc-h:#7c3aed;--accl:rgba(139,92,246,.12);
+  --ok:#22c55e;--okl:rgba(34,197,94,.1);
+  --err:#ef4444;--errl:rgba(239,68,68,.1);
+  --inp-bg:#eef2ff;--inp-tx:#1e293b;
+  --r:8px;--rl:16px;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+body{
+  font-family:var(--font);background:var(--bg);color:var(--txt);
+  min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:24px 16px;
+}
+.card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--bdr);border-radius:var(--rl);overflow:hidden}
+.card-stripe{height:4px;background:linear-gradient(90deg,var(--acc),#7c3aed)}
+.card-body{padding:32px 28px 28px}
+.logo-area{text-align:center;margin-bottom:24px}
+.logo-ic{width:56px;height:56px;background:linear-gradient(135deg,#7c3aed,#5b21b6);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:#fff;box-shadow:0 4px 16px rgba(139,92,246,.35);margin-bottom:14px}
+.logo-t{font-size:19px;font-weight:700;letter-spacing:-.3px}
+.logo-s{font-size:12px;color:var(--txt3);margin-top:3px}
+.meet-info{background:rgba(139,92,246,.07);border:1px solid rgba(139,92,246,.2);border-radius:10px;padding:10px 14px;margin-bottom:20px;display:flex;align-items:center;gap:10px;font-size:12px;color:var(--txt2)}
+.meet-info span{font-size:18px;flex-shrink:0}
+.meet-info b{display:block;color:var(--txt);font-size:13px;font-weight:600;margin-bottom:1px}
+hr.divider{border:none;border-top:1px solid var(--bdr);margin:0 0 20px}
+.fg{margin-bottom:14px}
+.fg:last-of-type{margin-bottom:0}
+label{display:block;font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+label .req{color:var(--acc);margin-left:2px}
+input{width:100%;padding:11px 13px;background:var(--inp-bg);border:1.5px solid transparent;border-radius:var(--r);color:var(--inp-tx);font-size:13px;font-family:var(--font);transition:border-color .18s,box-shadow .18s;outline:none}
+input::placeholder{color:#94a3b8}
+input:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(139,92,246,.18)}
+.btn-submit{width:100%;margin-top:20px;padding:13px;background:var(--acc);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:700;font-family:var(--font);cursor:pointer;letter-spacing:.2px;transition:background .18s,transform .1s,box-shadow .18s;box-shadow:0 2px 10px rgba(139,92,246,.4);display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-submit:hover:not(:disabled){background:var(--acc-h);box-shadow:0 4px 16px rgba(139,92,246,.5)}
+.btn-submit:active:not(:disabled){transform:scale(.98)}
+.btn-submit:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
+.msg{display:none;padding:11px 14px;border-radius:var(--r);font-size:13px;margin-top:14px;line-height:1.5;gap:8px;align-items:flex-start}
+.msg.visible{display:flex}
+.msg-ok{background:var(--okl);border:1px solid rgba(34,197,94,.25);color:var(--ok)}
+.msg-err{background:var(--errl);border:1px solid rgba(239,68,68,.25);color:var(--err)}
+footer{margin-top:24px;font-size:11px;color:var(--txt3);text-align:center;line-height:1.6}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.redirect-overlay{display:none;position:fixed;inset:0;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:100}
+.redirect-overlay.visible{display:flex}
+.redirect-overlay .check{width:64px;height:64px;border-radius:50%;background:var(--okl);border:2px solid var(--ok);display:flex;align-items:center;justify-content:center;font-size:28px;animation:popIn .4s cubic-bezier(.34,1.56,.64,1) both}
+.redirect-overlay p{font-size:15px;font-weight:600;color:var(--txt)}
+.redirect-overlay small{font-size:12px;color:var(--txt3)}
+@keyframes popIn{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+/* Tela de erro (Meet ausente) */
+.erro-meet{text-align:center;padding:8px 0 4px}
+.erro-meet .ic{font-size:40px;margin-bottom:12px}
+.erro-meet h2{font-size:16px;font-weight:700;margin-bottom:6px}
+.erro-meet p{font-size:13px;color:var(--txt2);line-height:1.6}
+</style>
+</head>
+<body>
+
+<div class="redirect-overlay" id="overlay">
+  <div class="check">✓</div>
+  <p>Participação confirmada!</p>
+  <small>Entrando na reunião em instantes…</small>
+</div>
+
+<div class="card">
+  <div class="card-stripe"></div>
+  <div class="card-body" id="card-body">
+
+    <div class="logo-area">
+      <div class="logo-ic">LC</div>
+      <div class="logo-t">Confirmar Participação</div>
+      <div class="logo-s">LC Sistemas</div>
+    </div>
+
+    <!-- Conteúdo preenchido via JS -->
+    <div id="conteudo"></div>
+
+  </div>
+</div>
+
+<footer>
+  Portal Sucesso da Revenda © 2026 · Dados protegidos conforme LGPD
+</footer>
+
+<script>
+// ════════════════════════════════════════════════════════
+// Configuração — preenchida automaticamente pelo portal
+// ════════════════════════════════════════════════════════
+const SUPABASE_URL  = 'https://vykhskaayukmodnglujc.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ5a2hza2FheXVrbW9kbmdsdWpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTY3MjksImV4cCI6MjA5NjU5MjcyOX0.Wlw_PW6aUrgvCRwolB1x8td4PWJaBxsXWfhiZH-Dl6E';
+const PORTAL_API_ENDPOINT = `${SUPABASE_URL}/rest/v1/participantes`;
+// ════════════════════════════════════════════════════════
+
+// Lê parâmetros da URL
+const params  = new URLSearchParams(window.location.search);
+const meetUrl = params.get('meet');   // link do Google Meet
+const titulo  = params.get('titulo') || 'Reunião via Google Meet';
+const data    = params.get('data');   // opcional: data formatada
+
+const conteudo = document.getElementById('conteudo');
+
+// Sem parâmetro meet → exibe aviso
+if (!meetUrl || !meetUrl.startsWith('https://meet.google.com/')) {
+  conteudo.innerHTML = `
+    <div class="erro-meet">
+      <div class="ic">🔗</div>
+      <h2>Link inválido ou ausente</h2>
+      <p>Este link de confirmação não possui uma reunião associada.<br>
+      Solicite um novo link ao responsável pela reunião.</p>
+    </div>`;
+} else {
+  // Renderiza formulário normalmente
+  conteudo.innerHTML = `
+    <div class="meet-info">
+      <span>📹</span>
+      <div>
+        <b>${escHtml(titulo)}</b>
+        ${data ? `<span>${escHtml(data)}</span>` : '<span>Google Meet</span>'}
+      </div>
+    </div>
+    <hr class="divider">
+    <form id="form-confirmacao" novalidate>
+      <div class="fg">
+        <label>Nome completo <span class="req">*</span></label>
+        <input type="text" id="nome" placeholder="Seu nome completo" autocomplete="name" required>
+      </div>
+      <div class="fg">
+        <label>Empresa <span class="req">*</span></label>
+        <input type="text" id="empresa" placeholder="Nome da empresa" autocomplete="organization" required>
+      </div>
+      <div class="fg">
+        <label>Cargo / Função <span class="req">*</span></label>
+        <input type="text" id="cargo" placeholder="Ex: Gerente Comercial" required>
+      </div>
+      <button type="submit" class="btn-submit" id="btn-submit">
+        📹 Entrar na Reunião
+      </button>
+      <div class="msg msg-ok" id="msg-ok">✅ <span>Participação registrada!</span></div>
+      <div class="msg msg-err" id="msg-err">⚠️ <span id="msg-err-txt">Ocorreu um erro.</span></div>
+    </form>`;
+
+  document.getElementById('form-confirmacao').addEventListener('submit', enviar);
+}
+
+async function enviar(e) {
+  e.preventDefault();
+
+  const nome    = document.getElementById('nome').value.trim();
+  const empresa = document.getElementById('empresa').value.trim();
+  const cargo   = document.getElementById('cargo').value.trim();
+  const btn     = document.getElementById('btn-submit');
+
+  if (!nome || !empresa || !cargo) {
+    mostrarErro('Preencha todos os campos obrigatórios.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Registrando…';
+
+  const payload = {
+    nome_completo: nome,
+    empresa:       empresa,
+    cargo_funcao:  cargo,
+    data_hora:     new Date().toISOString(),
+    origem:        `Confirmação de Acesso - ${escHtml(titulo)}`,
+  };
+
+  try {
+    const resp = await fetch(PORTAL_API_ENDPOINT, {
+      method:  'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON}`,
+        'apikey':        SUPABASE_ANON,
+        'Prefer':        'return=minimal',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok && resp.status !== 201) throw new Error(`status ${resp.status}`);
+
+    // Sucesso
+    document.getElementById('overlay').classList.add('visible');
+    setTimeout(() => { window.location.href = meetUrl; }, 1800);
+
+  } catch (err) {
+    console.error('Erro ao registrar:', err);
+    // Mesmo com erro no registro, redireciona — não bloqueia a entrada
+    document.getElementById('overlay').classList.add('visible');
+    setTimeout(() => { window.location.href = meetUrl; }, 1800);
+  }
+}
+
+function mostrarErro(txt) {
+  const el = document.getElementById('msg-err-txt');
+  if (el) el.textContent = txt;
+  document.getElementById('msg-err')?.classList.add('visible');
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
