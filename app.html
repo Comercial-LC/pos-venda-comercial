@@ -1942,11 +1942,11 @@ async function renderTVDashboard(){
   console.log('📺 TV revendas:', rv.length, '| penúltima:', penultimaEtapa, '| última:', ultimaEtapa);
   console.log('📺 TV contagem penúltima:', rv.filter(r=>r.status===penultimaEtapa).length);
 
+  const _tvNomesForaJornada = ['inativo','inativa','perdido','cancelado','churn','handover','pausad'];
   const emJornada   = rv.filter(r=>{
     if(r.inativado_portal) return false;
     const s=(r.status||'').toLowerCase();
-    return !['inativo','inativa','perdido','cancelado','churn'].some(n=>s.includes(n))
-      && r.status!==ultimaEtapa && r.status!==penultimaEtapa;
+    return !_tvNomesForaJornada.some(n=>s.includes(n));
   }).length;
   const primCliente = rv.filter(r=>r.status===penultimaEtapa).length;
   const handover    = rv.filter(r=>r.status===ultimaEtapa && !r.inativado_portal).length;
@@ -1996,22 +1996,33 @@ async function renderTVDashboard(){
   if(tvKpisGrid) tvKpisGrid.style.gridTemplateColumns = 'repeat('+tvCfg.kpisColunas+',1fr)';
 
   const kpisEl = document.getElementById('tv-kpis');
-  // Monta KPIs conforme configuração — fixos + etapas selecionadas
+  // Monta KPIs na ordem: Total → Handover → Em Jornada → Pausados → Inativos
   const nomesInatTv = ['inativo','inativa','perdido','cancelado','churn'];
   const todosKpis = [];
-
-  if(tvCfg.kpiTotal)   todosKpis.push({icon:'🏢', label:'Total de Revendas', val:rv.length-tvInativos-rv.filter(r=>r.inativado_portal).length, cor:'var(--acc)'});
-  if(tvCfg.kpiJornada) todosKpis.push({icon:'🚀', label:'Em Jornada',        val:emJornada,  cor:'var(--ok)'});
-
-  // Etapas selecionadas individualmente
   const etapasCfgTv = getEtapas();
+
+  if(tvCfg.kpiTotal) todosKpis.push({icon:'🏢', label:'Total de Revendas', val:rv.length-tvInativos-rv.filter(r=>r.inativado_portal).length, cor:'var(--acc)'});
+
+  // 1º: etapas intermediárias (ex: Handover) — não são pausadas nem inativas
   tvCfg.etapasKpi.forEach(etapaId=>{
     const etapa = etapasCfgTv.find(e=>e.id===etapaId);
     if(!etapa) return;
-    const isInativa = nomesInatTv.some(n=>etapaId.toLowerCase().includes(n));
-    const cor = isInativa ? 'var(--err)' : (etapa.cor||'var(--acc)');
-    const cnt = rv.filter(r=>r.status===etapaId).length;
-    todosKpis.push({icon:etapa.icon, label:etapaId, val:cnt, cor});
+    const isInat = nomesInatTv.some(n=>etapaId.toLowerCase().includes(n));
+    const isPaus = etapaId.toLowerCase().includes('pausad');
+    if(!isInat && !isPaus)
+      todosKpis.push({icon:etapa.icon, label:etapaId, val:rv.filter(r=>r.status===etapaId).length, cor:etapa.cor||'var(--acc)'});
+  });
+
+  if(tvCfg.kpiJornada) todosKpis.push({icon:'🚀', label:'Em Jornada', val:emJornada, cor:'var(--ok)'});
+
+  // 2º: etapas pausadas — depois de Em Jornada
+  tvCfg.etapasKpi.forEach(etapaId=>{
+    const etapa = etapasCfgTv.find(e=>e.id===etapaId);
+    if(!etapa) return;
+    const isInat = nomesInatTv.some(n=>etapaId.toLowerCase().includes(n));
+    const isPaus = etapaId.toLowerCase().includes('pausad');
+    if(!isInat && isPaus)
+      todosKpis.push({icon:etapa.icon, label:etapaId, val:rv.filter(r=>r.status===etapaId).length, cor:etapa.cor||'var(--acc)'});
   });
 
   if(tvCfg.kpiInativas) todosKpis.push({icon:'🚫', label:'Inativas', val:tvInativos, cor:'var(--err)'});
@@ -2046,6 +2057,10 @@ async function renderTVDashboard(){
     metasEl.innerHTML = (metas||[]).length ? (metas||[]).map(m=>{
       const s = calcMetaStatus(m);
       const barEsp = s.mesAtual ? Math.round((s.esperado/Math.max(m.valor_meta,1))*100) : 100;
+      const barFill = Math.min(s.pct, 100);
+      const barGrad = s.pct >= 100
+        ? 'linear-gradient(90deg,#22c55e 55%,#fbbf24)'
+        : 'linear-gradient(90deg,var(--acc),var(--acc2))';
       const deltaStr = s.delta >= 0
         ? '+'+s.delta+' acima'
         : s.delta+' abaixo';
@@ -2064,7 +2079,7 @@ async function renderTVDashboard(){
         // Barra dupla
         +'<div style="position:relative;background:rgba(255,255,255,0.08);border-radius:4px;height:8px;overflow:hidden;margin-bottom:4px">'
           +(s.mesAtual ? '<div style="position:absolute;left:0;top:0;height:100%;background:rgba(255,255,255,0.06);width:'+barEsp+'%;border-radius:6px"></div>' : '')
-          +'<div style="position:absolute;left:0;top:0;height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));width:'+s.pct+'%;border-radius:6px;transition:width .6s"></div>'
+          +'<div style="position:absolute;left:0;top:0;height:100%;background:'+barGrad+';width:'+barFill+'%;border-radius:6px;transition:width .6s"></div>'
           +(s.mesAtual && barEsp<100 ? '<div style="position:absolute;top:0;height:100%;width:2px;background:rgba(255,255,255,0.35);left:'+barEsp+'%"></div>' : '')
         +'</div>'
         // Ritmo
