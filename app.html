@@ -11,6 +11,7 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 :root{
+  color-scheme:dark;
   --bg:#121824;--bg2:#1A2234;--card:#1E293B;--card2:#243047;
   --inp:#0F1729;--bdr:#2D3748;--bdr2:#3D4F6A;
   --txt:#F3F4F6;--txt2:#9CA3AF;--txt3:#6B7280;
@@ -26,7 +27,8 @@
   --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif
 }
 [data-theme=light]{
-  --bg:#F8F9FA;--bg2:#FFFFFF;--card:#FFFFFF;--card2:#F1F5F9;
+  color-scheme:light;
+  --bg:#EEF2F7;--bg2:#FFFFFF;--card:#FFFFFF;--card2:#F1F5F9;
   --inp:#F1F5F9;--bdr:#E2E8F0;--bdr2:#CBD5E1;
   --txt:#1F2937;--txt2:#4B5563;--txt3:#9CA3AF;
   --acc:#5B21B6;--acc2:#7C3AED;--accl:rgba(91,33,182,.09);
@@ -37,6 +39,24 @@
   --pur:#6D28D9;--purl:rgba(109,40,217,.1);
   --sh:0 2px 12px rgba(0,0,0,.07);--sh2:0 4px 24px rgba(0,0,0,.11)
 }
+/* Overrides explícitos para sidebar/topbar — garante modo claro mesmo em browsers com auto-dark */
+[data-theme=light] .sidebar{background:#FFFFFF;border-right-color:#E2E8F0}
+[data-theme=light] .topbar{background:#FFFFFF;border-bottom-color:#E2E8F0}
+[data-theme=light] .s-logo{border-bottom-color:#E2E8F0}
+[data-theme=light] .s-foot{border-top-color:#E2E8F0;background:#FFFFFF}
+[data-theme=light] .u-card{background:#F1F5F9}
+[data-theme=light] .nav-it{color:#4B5563}
+[data-theme=light] .nav-it:hover{background:#F1F5F9;color:#1F2937}
+[data-theme=light] .nav-it.on{background:rgba(91,33,182,.09);color:#5B21B6;border-left-color:#5B21B6}
+[data-theme=light] .nav-sec{color:#9CA3AF}
+[data-theme=light] .logo-t{color:#1F2937}
+[data-theme=light] .logo-s{color:#9CA3AF}
+[data-theme=light] .tb-search{background:#F1F5F9;border-color:#E2E8F0}
+[data-theme=light] .tb-title{color:#1F2937}
+[data-theme=light] .u-name{color:#1F2937}
+[data-theme=light] .u-role{color:#6B7280}
+[data-theme=light] .ic-btn{color:#4B5563}
+[data-theme=light] .ic-btn:hover{background:#F1F5F9;border-color:#E2E8F0;color:#1F2937}
 /* TV AO VIVO sempre escuro — independente do tema do app */
 #tv-dash{
   --bg:#121824;--bg2:#1A2234;--card:#1E293B;--card2:#243047;
@@ -2378,7 +2398,13 @@ let revPage=0, revPageSize=10, revFilterStatus='';
 
 // ─── Theme ─────────────────────────────────────────────────────────
 let isDark=(localStorage.getItem('lc_theme')||'dark')==='dark';
-function applyTheme(){document.documentElement.setAttribute('data-theme',isDark?'':'light');document.getElementById('thBtn').textContent=isDark?'🌙':'☀️'}
+function applyTheme(){
+  const h=document.documentElement;
+  if(isDark){h.setAttribute('data-theme','');h.style.colorScheme='dark'}
+  else{h.setAttribute('data-theme','light');h.style.colorScheme='light'}
+  const btn=document.getElementById('thBtn');
+  if(btn)btn.textContent=isDark?'🌙':'☀️';
+}
 function toggleTheme(){isDark=!isDark;localStorage.setItem('lc_theme',isDark?'dark':'light');applyTheme()}
 applyTheme();
 
