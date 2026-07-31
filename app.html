@@ -2782,6 +2782,7 @@ function drawPipelineChart(){
 // ─── KANBAN ────────────────────────────────────────────────────────
 let dragId=null;
 let kbSelected=new Set(); // IDs selecionados para ação em lote
+let _kbInatFiltro='pendentes'; // 'pendentes' = só não marcados | 'todos' = todos
 
 function getKbFilters(){
   return {
@@ -2998,10 +2999,16 @@ function renderKanban(){
   const f = getKbFilters();
 
   board.innerHTML = COLS.map(col => {
-    const cards = DB.revendas.filter(r => r.status === col.id && matchesKbFilter(r, f));
-    const totalCol = DB.revendas.filter(r => r.status === col.id).length;
     const _nomesInat = ['inativo','inativa','perdido','cancelado','churn'];
     const ehColInativa = _nomesInat.some(n => col.id.toLowerCase().includes(n));
+    const totalCol = DB.revendas.filter(r => r.status === col.id).length;
+    const pendentesCol = ehColInativa ? DB.revendas.filter(r => r.status === col.id && !r.inativado_portal).length : 0;
+    const cards = DB.revendas.filter(r => {
+      if(r.status !== col.id) return false;
+      if(!matchesKbFilter(r, f)) return false;
+      if(ehColInativa && _kbInatFiltro === 'pendentes' && r.inativado_portal) return false;
+      return true;
+    });
 
     const cardsHTML = cards.length
       ? cards.map(r => {
@@ -3087,14 +3094,18 @@ function renderKanban(){
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:14px">${safe(col.icon)}</span>
             <span style="font-size:12px;font-weight:700;color:${col.color}">${safe(col.id)}</span>
-            <span class="kcc">${totalCol}</span>
-            ${cards.length !== totalCol ? `<span style="font-size:10px;color:var(--warn)">(${cards.length} filtradas)</span>` : ''}
+            <span class="kcc">${ehColInativa && _kbInatFiltro==='pendentes' ? pendentesCol : totalCol}</span>
+            ${cards.length !== totalCol && !(ehColInativa && _kbInatFiltro==='pendentes') ? `<span style="font-size:10px;color:var(--warn)">(${cards.length} filtradas)</span>` : ''}
+            ${ehColInativa && _kbInatFiltro==='pendentes' && totalCol !== pendentesCol ? `<span style="font-size:10px;color:var(--txt3)">(${totalCol} total)</span>` : ''}
             ${ehColInativa ? `<span class="kc-hint" style="font-size:10px;color:var(--txt3)">▶ clique para ver</span>` : ''}
           </div>
           ${!ehColInativa ? `<label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--txt3);cursor:pointer">
             <input type="checkbox" style="width:13px;height:13px;accent-color:var(--acc)"
               onchange="selectAllInCol(decodeURIComponent('${encodeURIComponent(col.id)}'),this.checked)"> todos
-          </label>` : ''}
+          </label>` : `<label onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:5px;font-size:10px;cursor:pointer;padding:3px 7px;border-radius:20px;border:1px solid var(--bdr);background:${_kbInatFiltro==='pendentes'?'rgba(139,92,246,.12)':'var(--bg2)'};color:${_kbInatFiltro==='pendentes'?'var(--acc)':'var(--txt3)'};" title="Mostrar somente os não marcados no portal">
+            <input type="checkbox" style="width:12px;height:12px;accent-color:var(--acc)" ${_kbInatFiltro==='pendentes'?'checked':''} onchange="toggleFiltroInativo(this.checked)">
+            <span>${_kbInatFiltro==='pendentes'?`⏳ pendentes (${pendentesCol})`:'👁 todos'}</span>
+          </label>`}
         </div>
         <div class="pbar" style="margin-top:6px;height:3px">
           <div class="pfill" style="width:${totalCol>0?100:0}%;background:${col.color};opacity:0.4"></div>
@@ -3109,6 +3120,11 @@ function renderKanban(){
         onclick="openMo('mo-rev')">+ Adicionar</button>` : ''}
     </div>`;
   }).join('');
+}
+
+function toggleFiltroInativo(somentePendentes){
+  _kbInatFiltro = somentePendentes ? 'pendentes' : 'todos';
+  renderKanban();
 }
 
 function toggleKanbanCol(kc){
