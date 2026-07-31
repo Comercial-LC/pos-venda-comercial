@@ -105,6 +105,7 @@ const params  = new URLSearchParams(window.location.search);
 const meetUrl = params.get('meet');   // link do Google Meet
 const titulo  = params.get('titulo') || 'Reunião via Google Meet';
 const data    = params.get('data');   // opcional: data formatada
+const taskId  = params.get('task');   // UUID da tarefa no portal
 
 const conteudo = document.getElementById('conteudo');
 
@@ -173,6 +174,7 @@ async function enviar(e) {
     cargo_funcao:  cargo,
     data_hora:     new Date().toISOString(),
     origem:        `Confirmação de Acesso - ${escHtml(titulo)}`,
+    ...(taskId ? { task_id: taskId } : {}),
   };
 
   try {
