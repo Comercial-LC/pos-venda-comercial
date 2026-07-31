@@ -3094,22 +3094,24 @@ function renderKanban(){
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:14px">${safe(col.icon)}</span>
             <span style="font-size:12px;font-weight:700;color:${col.color}">${safe(col.id)}</span>
-            <span class="kcc">${ehColInativa && _kbInatFiltro==='pendentes' ? pendentesCol : totalCol}</span>
-            ${cards.length !== totalCol && !(ehColInativa && _kbInatFiltro==='pendentes') ? `<span style="font-size:10px;color:var(--warn)">(${cards.length} filtradas)</span>` : ''}
-            ${ehColInativa && _kbInatFiltro==='pendentes' && totalCol !== pendentesCol ? `<span style="font-size:10px;color:var(--txt3)">(${totalCol} total)</span>` : ''}
+            <span class="kcc">${totalCol}</span>
+            ${cards.length !== totalCol && !ehColInativa ? `<span style="font-size:10px;color:var(--warn)">(${cards.length} filtradas)</span>` : ''}
             ${ehColInativa ? `<span class="kc-hint" style="font-size:10px;color:var(--txt3)">▶ clique para ver</span>` : ''}
           </div>
           ${!ehColInativa ? `<label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--txt3);cursor:pointer">
             <input type="checkbox" style="width:13px;height:13px;accent-color:var(--acc)"
               onchange="selectAllInCol(decodeURIComponent('${encodeURIComponent(col.id)}'),this.checked)"> todos
-          </label>` : `<label onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:5px;font-size:10px;cursor:pointer;padding:3px 7px;border-radius:20px;border:1px solid var(--bdr);background:${_kbInatFiltro==='pendentes'?'rgba(139,92,246,.12)':'var(--bg2)'};color:${_kbInatFiltro==='pendentes'?'var(--acc)':'var(--txt3)'};" title="Mostrar somente os não marcados no portal">
-            <input type="checkbox" style="width:12px;height:12px;accent-color:var(--acc)" ${_kbInatFiltro==='pendentes'?'checked':''} onchange="toggleFiltroInativo(this.checked)">
-            <span>${_kbInatFiltro==='pendentes'?`⏳ pendentes (${pendentesCol})`:'👁 todos'}</span>
-          </label>`}
+          </label>` : ''}
         </div>
         <div class="pbar" style="margin-top:6px;height:3px">
           <div class="pfill" style="width:${totalCol>0?100:0}%;background:${col.color};opacity:0.4"></div>
         </div>
+        ${ehColInativa ? `<div onclick="event.stopPropagation()" style="margin-top:5px">
+          <button onclick="toggleFiltroInativo()" style="width:100%;padding:4px 8px;border-radius:6px;border:1px solid ${_kbInatFiltro==='pendentes'?'rgba(139,92,246,.3)':'var(--bdr)'};background:${_kbInatFiltro==='pendentes'?'rgba(139,92,246,.1)':'transparent'};color:${_kbInatFiltro==='pendentes'?'var(--acc)':'var(--txt3)'};font-size:10px;font-weight:600;cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center">
+            <span>${_kbInatFiltro==='pendentes'?'⏳ Pendentes':'👁 Todos'}</span>
+            <span style="font-weight:700">${_kbInatFiltro==='pendentes'?pendentesCol:totalCol}</span>
+          </button>
+        </div>` : ''}
       </div>
       <div class="k-cards" data-col="${safe(col.id)}"
         style="display:${ehColInativa?'none':'flex'};flex-direction:column;gap:8px;flex:1;min-height:60px;overflow-y:auto;overflow-x:hidden;padding:0 2px 4px;scrollbar-width:thin;scrollbar-color:var(--bdr2) transparent">
@@ -3122,8 +3124,8 @@ function renderKanban(){
   }).join('');
 }
 
-function toggleFiltroInativo(somentePendentes){
-  _kbInatFiltro = somentePendentes ? 'pendentes' : 'todos';
+function toggleFiltroInativo(){
+  _kbInatFiltro = _kbInatFiltro === 'pendentes' ? 'todos' : 'pendentes';
   renderKanban();
 }
 
