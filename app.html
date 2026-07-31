@@ -57,6 +57,19 @@
 [data-theme=light] .u-role{color:#6B7280}
 [data-theme=light] .ic-btn{color:#4B5563}
 [data-theme=light] .ic-btn:hover{background:#F1F5F9;border-color:#E2E8F0;color:#1F2937}
+[data-theme=light] body{background:#EEF2F7;color:#1F2937}
+[data-theme=light] .content{background:#EEF2F7}
+[data-theme=light] .main{background:#EEF2F7}
+[data-theme=light] .pbar{background:#DDE3EC}
+[data-theme=light] .kc{background:#F0F4F8}
+[data-theme=light] .kcc{background:#E2E8F0;color:#4B5563}
+[data-theme=light] .card{background:#FFFFFF;border-color:#E2E8F0}
+[data-theme=light] .mc{background:#FFFFFF;border-color:#E2E8F0}
+[data-theme=light] th{color:#6B7280}
+[data-theme=light] td{color:#4B5563}
+[data-theme=light] tr:hover td{background:#F8FAFC}
+[data-theme=light] .toast{background:#FFFFFF;border-color:#E2E8F0;color:#1F2937}
+[data-theme=light] .mo{background:#FFFFFF;border-color:#E2E8F0}
 /* TV AO VIVO sempre escuro — independente do tema do app */
 #tv-dash{
   --bg:#121824;--bg2:#1A2234;--card:#1E293B;--card2:#243047;
@@ -2763,7 +2776,7 @@ function renderDashboard(){
             const cor = colors[i % colors.length];
             return `<div style="display:grid;grid-template-columns:180px 1fr 30px;align-items:center;gap:10px">
               <div style="font-size:12px;color:var(--txt2);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${label}">${label}</div>
-              <div style="background:var(--bg2);border-radius:6px;height:20px;position:relative;overflow:hidden">
+              <div style="background:var(--card2);border-radius:6px;height:20px;position:relative;overflow:hidden">
                 <div style="position:absolute;left:0;top:0;height:100%;width:${pct}%;background:linear-gradient(90deg,var(--acc),var(--acc2));border-radius:6px"></div>
               </div>
               <div style="font-size:12px;font-weight:700;color:${cor}">${val}</div>
