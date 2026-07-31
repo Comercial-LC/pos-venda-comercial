@@ -2637,11 +2637,12 @@ function renderDashboard(){
   const penultimaEtapa = _etPenult.id    || 'Primeiro Cliente';
   const etapaDecola    = _etDecola.id    || 'Decola Produtos';
 
+  // Em Jornada = apenas etapas de onboarding (Nova Revenda → Decola 1 Cliente, sem Handover/Pausados/Inativo)
+  const _nomesForaJornada = ['inativo','inativa','perdido','cancelado','churn','handover','pausad'];
   const emJornada = rv.filter(r=>{
     if(r.inativado_portal) return false;
     const s = (r.status||'').toLowerCase();
-    const isInativa = ['inativo','inativa','perdido','cancelado','churn'].some(n=>s.includes(n));
-    return !isInativa && r.status !== ultimaEtapa && r.status !== penultimaEtapa;
+    return !_nomesForaJornada.some(n=>s.includes(n));
   }).length;
   const primeiroCliente = rv.filter(r=>r.status===penultimaEtapa).length;
   const handoverEtapa   = rv.filter(r=>r.status===ultimaEtapa && !r.inativado_portal).length;
@@ -2653,16 +2654,13 @@ function renderDashboard(){
   ).length;
   const inativadosPortal = rv.filter(r=>r.inativado_portal).length;
 
-  const ultimaEhInativa = nomesInativos.some(n => ultimaEtapa.toLowerCase().includes(n));
+  // Ordem: Total → Handover → Em Jornada → Pausados → Inativos
   const kpis=[
-    {label:'Total de Revendas',  val:rv.length-inativos-inativadosPortal, cls:'bl', icon:'🏢'},
-    {label:'Em Jornada',         val:emJornada,        cls:'gn', icon:'🚀'},
-    {label: etapaDecola,         val:decolaProd,       cls:'yw', icon: _etDecola.icon || '📦'},
-    {label: penultimaEtapa,      val:primeiroCliente,  cls:'tl', icon: _etPenult.icon || '👤'},
-    {label: ultimaEtapa,         val:handoverEtapa,    cls: ultimaEhInativa ? 'rd' : 'pu',
-                                                       icon: _etUltima.icon || (ultimaEhInativa ? '🚫' : '🤝')},
-    ...(!ultimaEhInativa ? [{label:'Inativas', val:inativos, cls:'rd', icon:'🚫'}] : []),
-    {label:'Tarefas Atrasadas',  val:tAtras,           cls:'rd', icon:'⚠️'},
+    {label:'Total de Revendas',           val:rv.length-inativos-inativadosPortal, cls:'bl', icon:'🏢'},
+    {label: etapaDecola||'Handover',      val:decolaProd,      cls:'pu', icon: _etDecola.icon||'🤝'},
+    {label:'Em Jornada',                  val:emJornada,       cls:'gn', icon:'🚀'},
+    {label: penultimaEtapa||'Pausados',   val:primeiroCliente, cls:'yw', icon: _etPenult.icon||'⏸️'},
+    {label:'Inativos',                    val:inativos,        cls:'rd', icon:'🚫'},
   ];
   const kEl=document.getElementById('dash-kpis');
   if(kEl)kEl.innerHTML=kpis.map(k=>`<div class="mc ${k.cls}"><div style="font-size:24px;margin-bottom:8px">${safe(k.icon)}</div><div class="mv">${k.val}</div><div class="ml">${safe(k.label)}</div></div>`).join('');
@@ -5977,7 +5975,7 @@ async function renderMetas(){
   const diasUteis= diaHoje; // simplificado — pode refinar para dias úteis
 
   cardsEl.innerHTML = data.map(m => {
-    const pct    = m.valor_meta > 0 ? Math.min(Math.round((m.valor_atual/m.valor_meta)*100),100) : 0;
+    const pct    = m.valor_meta > 0 ? Math.round((m.valor_atual/m.valor_meta)*100) : 0;
     const faltam = Math.max(0, m.valor_meta - m.valor_atual);
 
     // Ritmo esperado: quanto deveria ter no dia de hoje
@@ -6002,6 +6000,10 @@ async function renderMetas(){
 
     // Barra dupla: realizado (cor) + esperado (cinza)
     const barEsperado = mesAtual ? Math.round((esperado/m.valor_meta)*100) : 100;
+    const barW        = Math.min(pct, 100); // barra visual limitada a 100% de largura
+    const barCor      = pct >= 100
+      ? 'linear-gradient(90deg,#22c55e 60%,#fbbf24)'  // dourado quando supera 100%
+      : cfg.cor;
     const deltaStr    = deltaRitmo >= 0
       ? `<span style="color:#22c55e;font-size:11px">+${deltaRitmo} acima do esperado</span>`
       : `<span style="color:#ef4444;font-size:11px">${deltaRitmo} abaixo do esperado</span>`;
@@ -6043,8 +6045,8 @@ async function renderMetas(){
         <div style="position:absolute;left:0;top:0;height:100%;background:rgba(255,255,255,0.1);
           width:${barEsperado}%;border-radius:6px"></div>
         <!-- Barra realizado -->
-        <div style="position:absolute;left:0;top:0;height:100%;background:${cfg.cor};
-          width:${pct}%;border-radius:6px;transition:width .6s"></div>
+        <div style="position:absolute;left:0;top:0;height:100%;background:${barCor};
+          width:${barW}%;border-radius:6px;transition:width .6s"></div>
         <!-- Marcador do esperado -->
         ${mesAtual && barEsperado < 100 ? `<div style="position:absolute;top:0;height:100%;width:2px;
           background:rgba(255,255,255,0.5);left:${barEsperado}%"></div>` : ''}
@@ -6234,7 +6236,7 @@ function calcMetaStatus(m){
   const mesAtual = hoje.getMonth()+1 === m.mes && hoje.getFullYear() === m.ano;
   const diasMes  = new Date(m.ano, m.mes, 0).getDate();
   const diaHoje  = mesAtual ? hoje.getDate() : diasMes;
-  const pct      = m.valor_meta>0 ? Math.min(Math.round((m.valor_atual/m.valor_meta)*100),100) : 0;
+  const pct      = m.valor_meta>0 ? Math.round((m.valor_atual/m.valor_meta)*100) : 0;
   const esperado = m.valor_meta>0 ? Math.round((diaHoje/diasMes)*m.valor_meta) : 0;
   const ritmoPct = esperado>0 ? Math.round((m.valor_atual/esperado)*100) : (m.valor_atual>0?100:0);
   const delta    = m.valor_atual - esperado;
