@@ -1284,19 +1284,32 @@ select option{background:var(--bg2)}
         </div>
       </div>
 
-      <!-- Participantes confirmados (só aparece se a tarefa tem Meet) -->
-      <div id="task-part-sec" style="display:none;margin-top:4px;border:1px solid var(--bdr);border-radius:10px;overflow:hidden">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;background:var(--bg2);border-bottom:1px solid var(--bdr)">
-          <div style="font-size:12px;font-weight:700;color:var(--acc)">👥 Participantes confirmados</div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span id="task-part-count" style="font-size:11px;color:var(--txt3)"></span>
-            <button onclick="carregarParticipantes()" class="btn btn-s btn-sm" style="font-size:11px;padding:3px 8px">↺</button>
-          </div>
-        </div>
-        <div id="task-part-list" style="padding:0 14px;max-height:220px;overflow-y:auto"></div>
-      </div>
     </div>
     <div class="mof"><button class="btn btn-s" onclick="closeMo('mo-task')">Cancelar</button><button class="btn btn-p" onclick="saveTask()">✅ Salvar Tarefa</button></div>
+  </div>
+</div>
+
+<!-- Modal Participantes -->
+<div class="mo-ov" id="mo-participantes">
+  <div class="mo" style="max-width:600px;width:96%">
+    <div class="moh">
+      <div>
+        <div class="mot">👥 Participantes confirmados</div>
+        <div id="part-mo-subtitulo" style="font-size:12px;color:var(--txt3);margin-top:2px"></div>
+      </div>
+      <button class="mob" onclick="closeMo('mo-participantes')">✕</button>
+    </div>
+    <div style="padding:0 20px 8px;display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--bdr)">
+      <span id="part-mo-count" style="font-size:13px;color:var(--txt3)"></span>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-s btn-sm" onclick="carregarParticipantes()" title="Atualizar lista">↺ Atualizar</button>
+        <button class="btn btn-sm" onclick="exportarParticipantesCSV()" title="Exportar CSV" style="background:var(--accl);color:var(--acc);border:1px solid rgba(139,92,246,.3)">⬇ Exportar CSV</button>
+      </div>
+    </div>
+    <div id="part-mo-list" style="padding:8px 20px 4px;max-height:420px;overflow-y:auto;min-height:80px"></div>
+    <div class="mof" style="justify-content:flex-end">
+      <button class="btn btn-s" onclick="closeMo('mo-participantes')">Fechar</button>
+    </div>
   </div>
 </div>
 
@@ -3861,37 +3874,76 @@ function editTask(id){
   toggleMeetTask(false);
   document.getElementById('mo-task').querySelector('.mot').textContent='Editar Tarefa';
   openMo('mo-task');
-  // Carrega participantes se a tarefa tem Meet
-  setTimeout(()=>carregarParticipantes(id), 100);
 }
 
-async function carregarParticipantes(taskId){
-  const id = taskId || document.getElementById('task-edit-id')?.value;
-  if(!id) return;
-  const task = DB.tarefas.find(t=>t.id===id);
-  const sec  = document.getElementById('task-part-sec');
-  const list = document.getElementById('task-part-list');
-  const cnt  = document.getElementById('task-part-count');
-  if(!sec||!list) return;
-  if(!_extrairMeetLink(task?.desc)){ sec.style.display='none'; return; }
-  sec.style.display='block';
-  list.innerHTML='<div style="padding:14px;text-align:center;font-size:12px;color:var(--txt3)">⏳ Carregando...</div>';
+// ── Participantes ──────────────────────────────────────────────────────
+let _partTaskId=null, _partData=[];
+
+function abrirParticipantes(taskId){
+  const task=DB.tarefas.find(t=>t.id===taskId);
+  if(!task||!_extrairMeetLink(task.desc)){toast('Tarefa sem Meet vinculado','warn');return;}
+  _partTaskId=taskId;
+  _partData=[];
+  const sub=document.getElementById('part-mo-subtitulo');
+  if(sub) sub.textContent=task.titulo||'';
+  document.getElementById('part-mo-count').textContent='';
+  document.getElementById('part-mo-list').innerHTML='<div style="padding:20px;text-align:center;font-size:12px;color:var(--txt3)">⏳ Carregando...</div>';
+  openMo('mo-participantes');
+  carregarParticipantes();
+}
+
+async function carregarParticipantes(){
+  const id=_partTaskId; if(!id) return;
+  const list=document.getElementById('part-mo-list');
+  const cnt =document.getElementById('part-mo-count');
+  if(!list) return;
+  list.innerHTML='<div style="padding:20px;text-align:center;font-size:12px;color:var(--txt3)">⏳ Carregando...</div>';
   const {data,error}=await sb.from('participantes').select('*').eq('task_id',id).order('criado_em',{ascending:false});
-  if(error){ list.innerHTML=`<div style="padding:12px;font-size:12px;color:var(--err)">Erro ao carregar: ${error.message}</div>`; return; }
-  if(cnt) cnt.textContent=data?.length ? `${data.length} participante(s)` : '';
-  if(!data?.length){
-    list.innerHTML='<div style="padding:14px;text-align:center;font-size:12px;color:var(--txt3)">Nenhum participante confirmado ainda.</div>';
+  if(error){ list.innerHTML=`<div style="padding:16px;font-size:12px;color:var(--err)">Erro ao carregar: ${esc(error.message)}</div>`; return; }
+  _partData=data||[];
+  if(cnt) cnt.textContent=_partData.length?`${_partData.length} participante(s) confirmado(s)`:'Nenhum participante ainda';
+  if(!_partData.length){
+    list.innerHTML='<div style="padding:32px;text-align:center;font-size:13px;color:var(--txt3)">Nenhum participante confirmou presença ainda.</div>';
     return;
   }
-  list.innerHTML=data.map(p=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bdr)">
-      <div style="width:34px;height:34px;border-radius:50%;background:var(--accl);border:1px solid rgba(139,92,246,.2);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--acc);flex-shrink:0">${esc(p.nome_completo[0].toUpperCase())}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:600">${esc(p.nome_completo)}</div>
-        <div style="font-size:11px;color:var(--txt3)">${esc(p.empresa)} · ${esc(p.cargo_funcao)}</div>
-      </div>
-      <div style="font-size:10px;color:var(--txt3);white-space:nowrap;flex-shrink:0">${new Date(p.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
-    </div>`).join('');
+  list.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="border-bottom:2px solid var(--bdr)">
+      <th style="padding:8px 4px;text-align:left;font-size:11px;color:var(--txt3);font-weight:600;text-transform:uppercase;letter-spacing:.4px">Nome</th>
+      <th style="padding:8px 4px;text-align:left;font-size:11px;color:var(--txt3);font-weight:600;text-transform:uppercase;letter-spacing:.4px">Empresa</th>
+      <th style="padding:8px 4px;text-align:left;font-size:11px;color:var(--txt3);font-weight:600;text-transform:uppercase;letter-spacing:.4px">Cargo</th>
+      <th style="padding:8px 4px;text-align:right;font-size:11px;color:var(--txt3);font-weight:600;text-transform:uppercase;letter-spacing:.4px">Confirmado em</th>
+    </tr></thead>
+    <tbody>${_partData.map(p=>`<tr style="border-bottom:1px solid var(--bdr)">
+      <td style="padding:10px 4px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--accl);border:1px solid rgba(139,92,246,.25);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--acc);flex-shrink:0">${esc((p.nome_completo||'?')[0].toUpperCase())}</div>
+          <span style="font-weight:500">${esc(p.nome_completo)}</span>
+        </div>
+      </td>
+      <td style="padding:10px 4px;color:var(--txt2)">${esc(p.empresa||'—')}</td>
+      <td style="padding:10px 4px;color:var(--txt2)">${esc(p.cargo_funcao||'—')}</td>
+      <td style="padding:10px 4px;text-align:right;color:var(--txt3);white-space:nowrap">${new Date(p.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function exportarParticipantesCSV(){
+  if(!_partData.length){toast('Nenhum dado para exportar','warn');return;}
+  const task=DB.tarefas.find(t=>t.id===_partTaskId);
+  const header=['Nome Completo','Empresa','Cargo/Função','Data de Confirmação'];
+  const rows=_partData.map(p=>[
+    `"${(p.nome_completo||'').replace(/"/g,'""')}"`,
+    `"${(p.empresa||'').replace(/"/g,'""')}"`,
+    `"${(p.cargo_funcao||'').replace(/"/g,'""')}"`,
+    `"${new Date(p.criado_em).toLocaleString('pt-BR')}"`
+  ].join(','));
+  const csv='﻿'+[header.join(','),...rows].join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`participantes_${(task?.titulo||'tarefa').replace(/[^a-z0-9]/gi,'_')}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  toast('CSV exportado!');
 }
 
 async function concludeTask(id){
@@ -3944,7 +3996,7 @@ function renderTasks(){
   const stC={Pendente:'st-tr','Em andamento':'st-on',Concluída:'st-dn'};
   const atb=document.getElementById('all-tasks-body');
   if(atb)atb.innerHTML=all.length?all.map(task=>`<tr>
-    <td class="tdp">${safe(task.titulo)}</td>
+    <td class="tdp">${_extrairMeetLink(task.desc)?`<span onclick="abrirParticipantes('${task.id}')" style="cursor:pointer;color:var(--acc);text-decoration:underline dotted;text-underline-offset:3px" title="Ver participantes">${safe(task.titulo)}</span>`:safe(task.titulo)}</td>
     <td>${safe(task.revenda||'—')}</td>
     <td>${safe(task.responsavel||'—')}</td>
     <td><span class="badge ${prioC[task.prioridade]||'bg-acc'} bg-sm">${safe(task.prioridade||'—')}</span></td>
