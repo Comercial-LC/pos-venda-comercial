@@ -3785,9 +3785,9 @@ async function saveTask(){
     const hora=document.getElementById('t-meet-hora')?.value||'10:00';
     const dur=parseInt(document.getElementById('t-meet-dur')?.value)||60;
     const emailConv=document.getElementById('t-meet-email-conv')?.value.trim();
-    const meetLink=await _criarMeetParaTarefa(titulo,venc,hora,dur,emailConv);
-    if(!meetLink) return; // erro já exibido dentro da função
-    descricao=(descricao?descricao+'\n\n':'')+'🔗 Google Meet: '+meetLink;
+    const resultado=await _criarMeetParaTarefa(titulo,venc,hora,dur,emailConv);
+    if(!resultado) return; // erro já exibido dentro da função
+    descricao=(descricao?descricao+'\n\n':'')+'🔗 Google Meet: '+resultado.meetLink+' [gcal:'+resultado.eventId+']';
   }
 
   const payload={
@@ -3825,7 +3825,7 @@ function editTask(id){
   document.getElementById('t-venc').value=t.vencimento||'';
   document.getElementById('t-tipo').value=t.tipo||'Treinamento';
   document.getElementById('t-status').value=t.status||'Pendente';
-  document.getElementById('t-desc').value=t.desc||'';
+  document.getElementById('t-desc').value=(t.desc||'').replace(/\s*\[gcal:[^\]]+\]/g,'').trim();
   openMo('mo-task');
 }
 
@@ -3837,10 +3837,18 @@ async function concludeTask(id){
 }
 
 function deleteTask(id){
-  confirmAction('Excluir esta tarefa?',async()=>{
+  const task = DB.tarefas.find(t=>t.id===id);
+  const eventId = _extrairGcalEventId(task?.descricao);
+  const msg = eventId
+    ? 'Excluir esta tarefa e o evento do Google Calendar?'
+    : 'Excluir esta tarefa?';
+  confirmAction(msg, async()=>{
+    // Remove do Google Calendar se possível
+    if(eventId && _gcalToken) await _deletarEventoGcal(eventId);
+    else if(eventId && !_gcalToken) toast('⚠️ Evento do Google Calendar não foi excluído (sessão expirada). Remova manualmente.','warn');
     const {error}=await sb.from('tarefas').delete().eq('id',id);
     if(error){toast('Erro: '+error.message,'err');return}
-    toast('Tarefa excluída','warn');
+    toast(eventId&&_gcalToken ? 'Tarefa e evento do Meet excluídos' : 'Tarefa excluída','warn');
     await loadFromSupabase();renderTasks();
   });
 }
@@ -7987,10 +7995,28 @@ async function _criarMeetParaTarefa(titulo, dataStr, horaStr, durMin, emailConv)
     if(resp.status===401){ _gcalToken=null; atualizarUIMeetTask(); toast('Sessão Google expirada — faça login novamente','warn'); return null; }
     const data = await resp.json();
     if(!resp.ok) throw new Error(data.error?.message||resp.statusText);
-    return data.hangoutLink || data.conferenceData?.entryPoints?.find(e=>e.entryPointType==='video')?.uri || null;
+    const meetLink = data.hangoutLink || data.conferenceData?.entryPoints?.find(e=>e.entryPointType==='video')?.uri;
+    return meetLink ? { meetLink, eventId: data.id } : null;
   } catch(e){
     toast('Erro ao criar Meet: '+e.message,'err'); return null;
   }
+}
+
+function _extrairGcalEventId(descricao){
+  const m = (descricao||'').match(/\[gcal:([^\]]+)\]/);
+  return m ? m[1] : null;
+}
+
+async function _deletarEventoGcal(eventId){
+  if(!eventId) return;
+  try {
+    const resp = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`,
+      { method:'DELETE', headers:{'Authorization':'Bearer '+_gcalToken} }
+    );
+    if(resp.status===401){ _gcalToken=null; return; }
+    // 204 = sucesso, 404 = já não existe — ambos OK
+  } catch(e){ console.warn('Não foi possível excluir evento do Google Calendar:', e.message); }
 }
 
 function conectarGoogle(){
