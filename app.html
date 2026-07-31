@@ -3904,6 +3904,7 @@ function renderTasks(){
     <td style="font-size:12px">${fmtDate(task.vencimento)}</td>
     <td><span class="st ${stC[task.status]||'st-on'}">${safe(task.status||'Pendente')}</span></td>
     <td><div style="display:flex;gap:4px">
+      ${_extrairMeetLink(task.desc)?`<button class="btn btn-sm" onclick="copiarLinkConfirmacao('${task.id}')" title="Copiar link de confirmação do Meet" style="background:var(--accl);color:var(--acc);border:1px solid rgba(139,92,246,.3)">🔗</button>`:''}
       <button class="btn btn-s btn-sm" onclick="editTask('${task.id}')">✏️</button>
       ${task.status!=='Concluída'?`<button class="btn btn-ok btn-sm" onclick="concludeTask('${task.id}')">✓</button>`:''}
       <button class="btn btn-d btn-sm" onclick="deleteTask('${task.id}')">🗑</button>
@@ -8018,6 +8019,23 @@ async function _criarMeetParaTarefa(titulo, dataStr, horaStr, durMin, emailConv)
   } catch(e){
     toast('Erro ao criar Meet: '+e.message,'err'); return null;
   }
+}
+
+function _extrairMeetLink(descricao){
+  const m = (descricao||'').match(/🔗 Google Meet:\s*(https:\/\/meet\.google\.com\/[^\s\[]+)/);
+  return m ? m[1].trim() : null;
+}
+
+function copiarLinkConfirmacao(taskId){
+  const task = DB.tarefas.find(t=>t.id===taskId);
+  if(!task) return;
+  const meetLink = _extrairMeetLink(task.desc);
+  if(!meetLink){ toast('Esta tarefa não tem link do Meet','warn'); return; }
+  const base = 'https://comercial-lc.github.io/pos-venda-comercial/confirmacao.html';
+  const url  = `${base}?meet=${encodeURIComponent(meetLink)}&titulo=${encodeURIComponent(task.titulo||'Reunião')}`;
+  navigator.clipboard.writeText(url)
+    .then(()=> toast('🔗 Link de confirmação copiado!'))
+    .catch(()=>{ window.open(url,'_blank'); toast('Link aberto em nova aba'); });
 }
 
 function _extrairGcalEventId(descricao){
