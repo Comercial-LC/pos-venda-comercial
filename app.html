@@ -440,7 +440,7 @@ select option{background:var(--bg2)}
     <div class="panel" id="p-tarefas">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
         <div><div style="font-size:19px;font-weight:700">Gestão de Tarefas</div><div style="font-size:12px;color:var(--txt3)" id="task-count-label">0 tarefas</div></div>
-        <button class="btn btn-p" onclick="openMo('mo-task')">+ Nova Tarefa</button>
+        <button class="btn btn-p" onclick="abrirNovaTarefa()">+ Nova Tarefa</button>
       </div>
       <div class="g2" style="margin-bottom:18px">
         <div class="card"><div class="ch"><div class="ct">🔴 Urgentes / Atrasadas</div><span class="badge bg-err" id="urgent-count">0</span></div><div id="urgent-tasks"></div></div>
@@ -1161,7 +1161,6 @@ select option{background:var(--bg2)}
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn btn-s btn-sm" onclick="toggleCardProdutos()">📦 Produtos</button>
-        <button class="btn btn-s btn-sm" id="btn-agendar-meet" onclick="abrirModalMeet()" style="color:var(--acc);border-color:rgba(139,92,246,.3)">📅 Meet</button>
         <button class="btn btn-s btn-sm" id="mo-card-edit-btn" onclick="openCardEdit()">✏️ Editar</button>
         <button class="btn btn-s btn-sm" onclick="closeMo('mo-card')">✕</button>
       </div>
@@ -1259,6 +1258,31 @@ select option{background:var(--bg2)}
       <div class="fr"><div class="fg"><label>Prioridade</label><select id="t-prio"><option>Alta</option><option>Média</option><option>Baixa</option></select></div><div class="fg"><label>Vencimento</label><input id="t-venc" type="date"></div></div>
       <div class="fr"><div class="fg"><label>Tipo</label><select id="t-tipo"><option>Treinamento</option><option>Handover</option><option>Revisão SLA</option><option>Contato</option><option>Documentação</option><option>Follow-up</option></select></div><div class="fg"><label>Status</label><select id="t-status"><option>Pendente</option><option>Em andamento</option><option>Concluída</option></select></div></div>
       <div class="fg"><label>Descrição</label><textarea id="t-desc" rows="3" placeholder="Detalhes da tarefa..."></textarea></div>
+
+      <!-- Google Meet opcional -->
+      <div style="border:1px solid var(--bdr);border-radius:10px;overflow:hidden">
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;background:var(--bg2);margin:0">
+          <input type="checkbox" id="t-meet-ativo" onchange="toggleMeetTask(this.checked)" style="width:15px;height:15px;accent-color:var(--acc)">
+          <span style="font-size:13px;font-weight:600">📅 Criar Google Meet para esta tarefa</span>
+        </label>
+        <div id="t-meet-form" style="display:none;padding:14px;border-top:1px solid var(--bdr);display:none;flex-direction:column;gap:10px">
+          <div id="t-meet-auth-aviso" style="background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.2);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--txt2)">
+            🔐 <strong>Conta Google não conectada.</strong>
+            <button onclick="conectarGoogleTask()" style="margin-top:6px;display:block;width:100%;background:var(--acc);color:#fff;border:none;border-radius:6px;padding:6px;font-size:12px;font-weight:600;cursor:pointer">Entrar com Google</button>
+          </div>
+          <div id="t-meet-auth-ok" style="display:none;font-size:12px;color:var(--ok)">✅ <span id="t-meet-email"></span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="fg" style="margin:0"><label>Horário</label><input type="time" id="t-meet-hora" value="10:00" style="font-size:13px"></div>
+            <div class="fg" style="margin:0"><label>Duração</label>
+              <select id="t-meet-dur" style="font-size:13px;padding:10px 12px;border-radius:var(--r);border:1px solid var(--bdr);background:var(--bg2);color:var(--txt);width:100%">
+                <option value="30">30 min</option><option value="60" selected>1 hora</option><option value="90">1h30</option><option value="120">2 horas</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg" style="margin:0"><label>E-mail do convidado (opcional)</label><input type="email" id="t-meet-email-conv" placeholder="email@dominio.com" style="font-size:13px"></div>
+          <div style="font-size:11px;color:var(--txt3)">📌 A data será a mesma do vencimento da tarefa. O link do Meet será salvo na descrição.</div>
+        </div>
+      </div>
     </div>
     <div class="mof"><button class="btn btn-s" onclick="closeMo('mo-task')">Cancelar</button><button class="btn btn-p" onclick="saveTask()">✅ Salvar Tarefa</button></div>
   </div>
@@ -3750,8 +3774,24 @@ async function saveTask(){
   if(!titulo){toast('Título obrigatório','err');return}
   const revNome=document.getElementById('t-revenda').value;
   const revObj=DB.revendas.find(r=>r.nome===revNome);
+  let descricao=document.getElementById('t-desc').value.trim()||null;
+
+  // Cria Meet se solicitado
+  const meetAtivo=document.getElementById('t-meet-ativo')?.checked;
+  if(meetAtivo){
+    if(!_gcalToken){toast('Faça login no Google antes de salvar','warn');return}
+    const venc=document.getElementById('t-venc').value;
+    if(!venc){toast('Informe o vencimento para agendar o Meet','warn');return}
+    const hora=document.getElementById('t-meet-hora')?.value||'10:00';
+    const dur=parseInt(document.getElementById('t-meet-dur')?.value)||60;
+    const emailConv=document.getElementById('t-meet-email-conv')?.value.trim();
+    const meetLink=await _criarMeetParaTarefa(titulo,venc,hora,dur,emailConv);
+    if(!meetLink) return; // erro já exibido dentro da função
+    descricao=(descricao?descricao+'\n\n':'')+'🔗 Google Meet: '+meetLink;
+  }
+
   const payload={
-    titulo, descricao:document.getElementById('t-desc').value.trim()||null,
+    titulo, descricao,
     revenda_id:revObj?.id||null, revenda_nome:revNome||null,
     responsavel:document.getElementById('t-resp').value||null,
     prioridade:document.getElementById('t-prio').value,
@@ -3770,7 +3810,7 @@ async function saveTask(){
     error=e;
   }
   if(error){toast('Erro: '+error.message,'err');return}
-  closeMo('mo-task');toast(editId?'Tarefa atualizada!':'Tarefa criada!');
+  closeMo('mo-task');toast(editId?'Tarefa atualizada!':'Tarefa criada!'+(meetAtivo?' + Meet criado! 📅':''));
   await loadFromSupabase();renderTasks();
 }
 
@@ -7843,7 +7883,8 @@ function inicializarGoogleCalendar(){
           _gcalToken = resp.access_token;
           _gcalUserEmail = resp.email || '';
           atualizarUIMeetAuth();
-          _criarEventoMeet();
+          atualizarUIMeetTask();
+          if(window._gcalPendente) _criarEventoMeet();
         }
       });
     } else if(n < 30) {
@@ -7883,6 +7924,72 @@ function atualizarUIMeetAuth(){
     aviso.style.display = 'block';
     ok.style.display    = 'none';
     if(btn) btn.disabled = true;
+  }
+}
+
+function abrirNovaTarefa(){
+  populateSelects();
+  document.getElementById('task-edit-id').value = '';
+  ['t-titulo','t-desc'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['t-revenda','t-resp'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  const prio=document.getElementById('t-prio'); if(prio) prio.value='Alta';
+  const tipo=document.getElementById('t-tipo'); if(tipo) tipo.value='Treinamento';
+  const st=document.getElementById('t-status'); if(st) st.value='Pendente';
+  const venc=document.getElementById('t-venc'); if(venc) venc.value='';
+  // Resetar seção Meet
+  const cb=document.getElementById('t-meet-ativo'); if(cb) cb.checked=false;
+  toggleMeetTask(false);
+  document.getElementById('mo-task').querySelector('.mot').textContent='Nova Tarefa';
+  openMo('mo-task');
+}
+
+function toggleMeetTask(ativo){
+  const form = document.getElementById('t-meet-form');
+  if(!form) return;
+  form.style.display = ativo ? 'flex' : 'none';
+  if(ativo) atualizarUIMeetTask();
+}
+
+function atualizarUIMeetTask(){
+  const aviso = document.getElementById('t-meet-auth-aviso');
+  const ok    = document.getElementById('t-meet-auth-ok');
+  if(!aviso||!ok) return;
+  if(_gcalToken){
+    aviso.style.display = 'none'; ok.style.display = 'block';
+    const el = document.getElementById('t-meet-email');
+    if(el) el.textContent = _gcalUserEmail || 'Conta Google conectada';
+  } else {
+    aviso.style.display = 'block'; ok.style.display = 'none';
+  }
+}
+
+function conectarGoogleTask(){
+  if(!_gcalTokenClient){ toast('Google ainda carregando, aguarde...','warn'); return; }
+  window._gcalPendente = false;
+  _gcalTokenClient.requestAccessToken({prompt:'consent'});
+}
+
+async function _criarMeetParaTarefa(titulo, dataStr, horaStr, durMin, emailConv){
+  try {
+    const inicio = new Date(`${dataStr}T${horaStr}:00`);
+    const fim    = new Date(inicio.getTime() + durMin * 60000);
+    const evento = {
+      summary: titulo,
+      start: { dateTime: inicio.toISOString(), timeZone: 'America/Sao_Paulo' },
+      end:   { dateTime: fim.toISOString(),    timeZone: 'America/Sao_Paulo' },
+      conferenceData: { createRequest: { requestId: `lc-task-${Date.now()}`, conferenceSolutionKey: { type: 'hangoutsMeet' } } },
+      attendees: emailConv ? [{ email: emailConv }] : undefined,
+    };
+    const resp = await fetch(
+      'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1&sendUpdates=all',
+      { method:'POST', headers:{'Authorization':'Bearer '+_gcalToken,'Content-Type':'application/json'}, body:JSON.stringify(evento) }
+    );
+    if(resp.status===401){ _gcalToken=null; atualizarUIMeetTask(); toast('Sessão Google expirada — faça login novamente','warn'); return null; }
+    const data = await resp.json();
+    if(!resp.ok) throw new Error(data.error?.message||resp.statusText);
+    return data.hangoutLink || data.conferenceData?.entryPoints?.find(e=>e.entryPointType==='video')?.uri || null;
+  } catch(e){
+    toast('Erro ao criar Meet: '+e.message,'err'); return null;
   }
 }
 
