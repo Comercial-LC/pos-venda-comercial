@@ -8200,16 +8200,28 @@ function _extrairMeetLink(descricao){
   return m ? m[1].trim() : null;
 }
 
-function copiarLinkConfirmacao(taskId){
+async function copiarLinkConfirmacao(taskId){
   const task = DB.tarefas.find(t=>t.id===taskId);
   if(!task) return;
   const meetLink = _extrairMeetLink(task.desc);
   if(!meetLink){ toast('Esta tarefa não tem link do Meet','warn'); return; }
-  const base = 'https://comercial-lc.github.io/pos-venda-comercial/confirmacao.html';
-  const url  = `${base}?meet=${encodeURIComponent(meetLink)}&titulo=${encodeURIComponent(task.titulo||'Reunião')}&task=${encodeURIComponent(taskId)}`;
-  navigator.clipboard.writeText(url)
-    .then(()=> toast('🔗 Link de confirmação copiado!'))
-    .catch(()=>{ window.open(url,'_blank'); toast('Link aberto em nova aba'); });
+
+  const PORTAL = 'https://comercial-lc.github.io/pos-venda-comercial/';
+  const urlLonga = `${PORTAL}confirmacao.html?meet=${encodeURIComponent(meetLink)}&titulo=${encodeURIComponent(task.titulo||'Reunião')}&task=${encodeURIComponent(taskId)}`;
+
+  // Tenta salvar no encurtador de links (tabela convites)
+  let urlFinal = urlLonga;
+  try {
+    const {error} = await sb.from('convites').upsert(
+      {task_id:taskId, meet_url:meetLink, titulo:task.titulo||'Reunião', atualizado_em:new Date().toISOString()},
+      {onConflict:'task_id'}
+    );
+    if(!error) urlFinal = `${PORTAL}r.html?t=${taskId}`;
+  } catch(e){ /* fallback para URL longa */ }
+
+  navigator.clipboard.writeText(urlFinal)
+    .then(()=> toast(urlFinal===urlLonga ? '🔗 Link copiado!' : '🔗 Link curto copiado!'))
+    .catch(()=>{ window.open(urlFinal,'_blank'); toast('Link aberto em nova aba'); });
 }
 
 function _extrairGcalEventId(descricao){
