@@ -70,6 +70,7 @@ const SUPABASE_URL  = 'https://vykhskaayukmodnglujc.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ5a2hza2FheXVrbW9kbmdsdWpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTY3MjksImV4cCI6MjA5NjU5MjcyOX0.Wlw_PW6aUrgvCRwolB1x8td4PWJaBxsXWfhiZH-Dl6E';
 
 const params = new URLSearchParams(window.location.search);
+const code   = params.get('c');
 const taskId = params.get('t');
 
 function erro(msg){
@@ -80,29 +81,38 @@ function erro(msg){
 }
 
 async function redirecionar(){
-  if(!taskId){ erro('Link inválido.'); return; }
+  if(!code && !taskId){ erro('Link inválido.'); return; }
 
   document.getElementById('status-txt').textContent = 'Buscando informações…';
 
-  const resp = await fetch(
-    `${SUPABASE_URL}/rest/v1/convites?task_id=eq.${encodeURIComponent(taskId)}&select=meet_url,titulo`,
-    { headers:{ 'Authorization':'Bearer '+SUPABASE_ANON, 'apikey':SUPABASE_ANON } }
-  );
+  let url, resp;
+
+  if(code){
+    // Busca pelo código curto (?c=CODE)
+    url = `${SUPABASE_URL}/rest/v1/convites?code=eq.${encodeURIComponent(code)}&select=meet_url,titulo,task_id`;
+  } else {
+    // Fallback: busca pelo UUID da tarefa (?t=UUID)
+    url = `${SUPABASE_URL}/rest/v1/convites?task_id=eq.${encodeURIComponent(taskId)}&select=meet_url,titulo,task_id`;
+  }
+
+  resp = await fetch(url, {
+    headers:{ 'Authorization':'Bearer '+SUPABASE_ANON, 'apikey':SUPABASE_ANON }
+  });
 
   if(!resp.ok){ erro('Erro ao carregar link.'); return; }
 
   const data = await resp.json();
   if(!data.length){ erro('Link inválido ou expirado.'); return; }
 
-  const { meet_url, titulo } = data[0];
+  const { meet_url, titulo, task_id } = data[0];
   if(!meet_url){ erro('Link de reunião não encontrado.'); return; }
 
   document.getElementById('status-txt').textContent = 'Redirecionando…';
 
   const base = new URL('confirmacao.html', window.location.href).href;
-  const url  = `${base}?meet=${encodeURIComponent(meet_url)}&titulo=${encodeURIComponent(titulo||'Reunião')}&task=${encodeURIComponent(taskId)}`;
+  const dest = `${base}?meet=${encodeURIComponent(meet_url)}&titulo=${encodeURIComponent(titulo||'Reunião')}&task=${encodeURIComponent(task_id||taskId||'')}`;
 
-  window.location.replace(url);
+  window.location.replace(dest);
 }
 
 redirecionar().catch(()=> erro('Erro inesperado. Tente novamente.'));
