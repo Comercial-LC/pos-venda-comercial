@@ -288,6 +288,11 @@ select option{background:var(--bg2)}
   100%{opacity:1}
 }
 
+@keyframes pulse-dot{
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:.5;transform:scale(1.4)}
+}
+
 @media(max-width:900px){.g2,.g31,.fr{grid-template-columns:1fr}.tb-search{display:none}.mg{grid-template-columns:1fr 1fr}}
 </style>
 </head>
@@ -1329,6 +1334,31 @@ select option{background:var(--bg2)}
 
     </div>
     <div class="mof"><button class="btn btn-s" onclick="closeMo('mo-task')">Cancelar</button><button class="btn btn-p" onclick="saveTask()">✅ Salvar Tarefa</button></div>
+  </div>
+</div>
+
+<!-- Suporte Remoto -->
+<div class="mo-ov" id="mo-suporte">
+  <div class="mo" style="max-width:420px;width:96%">
+    <div class="moh">
+      <div class="mot" id="mo-suporte-titulo">Suporte Remoto</div>
+      <button class="btn btn-s btn-sm" onclick="closeMo('mo-suporte')">✕</button>
+    </div>
+    <div class="mob" style="text-align:center;padding:24px 20px;gap:14px;display:flex;flex-direction:column;align-items:center">
+      <div id="mo-suporte-icon" style="font-size:44px;line-height:1">🖥️</div>
+      <div>
+        <div id="mo-suporte-tarefa" style="font-size:14px;font-weight:600;color:var(--txt)"></div>
+        <div id="mo-suporte-revenda" style="font-size:12px;color:var(--txt3);margin-top:4px"></div>
+      </div>
+      <div id="mo-suporte-status" style="font-size:13px;color:var(--txt2);line-height:1.5"></div>
+      <div id="mo-suporte-aviso" style="display:none;background:var(--warnl);border:1px solid var(--warn);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--warn);width:100%;text-align:left">
+        ⚠️ Esta tarefa não está vinculada a uma revenda. A sessão <strong>não será registrada</strong> no histórico.
+      </div>
+    </div>
+    <div class="mof">
+      <button class="btn btn-s" onclick="closeMo('mo-suporte')">Cancelar</button>
+      <button class="btn btn-p" id="mo-suporte-btn">🖥️ Confirmar Início</button>
+    </div>
   </div>
 </div>
 
@@ -4075,6 +4105,8 @@ function renderTasks(){
     <td><div style="display:flex;gap:4px">
       ${_extrairMeetLink(task.desc)?`<button class="btn btn-sm" onclick="abrirParticipantes('${task.id}')" title="Ver participantes" style="background:var(--accl);color:var(--acc);border:1px solid rgba(139,92,246,.3)">👥</button>`:''}
       ${_extrairMeetLink(task.desc)?`<button class="btn btn-sm" onclick="copiarLinkConfirmacao('${task.id}')" title="Copiar link de confirmação" style="background:var(--accl);color:var(--acc);border:1px solid rgba(139,92,246,.3)">🔗</button>`:''}
+      <button class="btn btn-sm" onclick="abrirModalSuporte('${task.id}','TeamViewer')" title="Iniciar TeamViewer" style="background:rgba(0,114,206,.12);color:#0072CE;border:1px solid rgba(0,114,206,.3)">TV</button>
+      <button class="btn btn-sm" onclick="abrirModalSuporte('${task.id}','AnyDesk')" title="Iniciar AnyDesk" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3)">AD</button>
       <button class="btn btn-s btn-sm" onclick="editTask('${task.id}')">✏️</button>
       ${task.status!=='Concluída'?`<button class="btn btn-ok btn-sm" onclick="concludeTask('${task.id}')">✓</button>`:''}
       <button class="btn btn-d btn-sm" onclick="deleteTask('${task.id}')">🗑</button>
@@ -8231,6 +8263,113 @@ async function copiarLinkConfirmacao(taskId){
     .catch(()=>{ window.open(urlFinal,'_blank'); toast('Link aberto em nova aba'); });
 }
 
+// ── Suporte Remoto (TeamViewer / AnyDesk) ──────────────────────────────────
+let _suportePendente = null;
+let _suporteAtivo    = null; // {taskId, tool, revendaId, revendaNome, inicio, timerId}
+
+function abrirModalSuporte(taskId, tool){
+  const task = DB.tarefas.find(t=>t.id===taskId);
+  if(!task) return;
+
+  _suportePendente = {taskId, tool, revendaId: task.revenda_id||null, revendaNome: task.revenda||''};
+
+  const icons = {TeamViewer:'🖥️', AnyDesk:'💻'};
+  document.getElementById('mo-suporte-titulo').textContent  = `Suporte Remoto · ${tool}`;
+  document.getElementById('mo-suporte-icon').textContent    = icons[tool]||'🖥️';
+  document.getElementById('mo-suporte-tarefa').textContent  = task.titulo;
+  document.getElementById('mo-suporte-revenda').textContent = task.revenda ? `Revenda: ${task.revenda}` : '';
+  document.getElementById('mo-suporte-status').textContent  = `Abrir ${tool} e iniciar a sessão de suporte remoto?`;
+  document.getElementById('mo-suporte-aviso').style.display = task.revenda_id ? 'none' : 'block';
+
+  const btn = document.getElementById('mo-suporte-btn');
+  btn.textContent = `${icons[tool]||'🖥️'} Confirmar Início`;
+  btn.onclick = confirmarInicioSuporte;
+
+  openMo('mo-suporte');
+}
+
+async function confirmarInicioSuporte(){
+  if(!_suportePendente) return;
+  const {taskId, tool, revendaId, revendaNome} = _suportePendente;
+  const agora = new Date();
+
+  // Abre o aplicativo via URL scheme
+  const schemes = {TeamViewer:'teamviewer10://', AnyDesk:'anydesk:'};
+  try { window.location.href = schemes[tool]; } catch(e){}
+
+  // Registra início no histórico da revenda (se vinculada)
+  if(revendaId){
+    await inserirHistorico(
+      revendaId,
+      '🖥️ Suporte remoto',
+      `Sessão ${tool} iniciada`,
+      perfilAtual?.nome || 'Sistema'
+    );
+  }
+
+  _suporteAtivo = {taskId, tool, revendaId, revendaNome, inicio: agora, timerId: null};
+  _iniciarPillSuporte();
+  closeMo('mo-suporte');
+  toast(`🖥️ ${tool} aberto — clique em "Encerrar" quando terminar`);
+}
+
+function _iniciarPillSuporte(){
+  if(!_suporteAtivo) return;
+  const task   = DB.tarefas.find(t=>t.id===_suporteAtivo.taskId);
+  const label  = `${_suporteAtivo.tool} · ${_suporteAtivo.revendaNome || task?.titulo || 'Sessão ativa'}`;
+  document.getElementById('pill-titulo').textContent = label;
+  document.getElementById('pill-timer').textContent  = 'Iniciado agora';
+  document.getElementById('sessao-ativa-pill').style.display = 'flex';
+
+  _suporteAtivo.timerId = setInterval(()=>{
+    const mins = Math.floor((Date.now() - _suporteAtivo.inicio) / 60000);
+    document.getElementById('pill-timer').textContent =
+      mins < 1 ? 'Iniciado há menos de 1 min' : `Em andamento · ${mins} min`;
+  }, 30000);
+}
+
+function abrirEncerrarSuporte(){
+  if(!_suporteAtivo) return;
+  const task = DB.tarefas.find(t=>t.id===_suporteAtivo.taskId);
+  const mins = Math.floor((Date.now() - _suporteAtivo.inicio) / 60000);
+  const durStr = mins < 1 ? 'menos de 1 minuto' : `${mins} minuto(s)`;
+
+  document.getElementById('mo-suporte-titulo').textContent  = `Encerrar Sessão · ${_suporteAtivo.tool}`;
+  document.getElementById('mo-suporte-icon').textContent    = '🔴';
+  document.getElementById('mo-suporte-tarefa').textContent  = task?.titulo || '';
+  document.getElementById('mo-suporte-revenda').textContent = _suporteAtivo.revendaNome ? `Revenda: ${_suporteAtivo.revendaNome}` : '';
+  document.getElementById('mo-suporte-status').textContent  = `Duração: ${durStr}. Confirmar encerramento?`;
+  document.getElementById('mo-suporte-aviso').style.display = 'none';
+
+  const btn = document.getElementById('mo-suporte-btn');
+  btn.textContent = '🔴 Registrar Encerramento';
+  btn.onclick = confirmarEncerramentoSuporte;
+
+  openMo('mo-suporte');
+}
+
+async function confirmarEncerramentoSuporte(){
+  if(!_suporteAtivo) return;
+  const {tool, revendaId, inicio} = _suporteAtivo;
+  const mins   = Math.floor((Date.now() - inicio) / 60000);
+  const durStr = mins < 1 ? 'menos de 1 minuto' : `${mins} minuto(s)`;
+
+  if(revendaId){
+    await inserirHistorico(
+      revendaId,
+      '🖥️ Suporte remoto',
+      `Sessão ${tool} encerrada — duração: ${durStr}`,
+      perfilAtual?.nome || 'Sistema'
+    );
+  }
+
+  if(_suporteAtivo.timerId) clearInterval(_suporteAtivo.timerId);
+  _suporteAtivo = null;
+  document.getElementById('sessao-ativa-pill').style.display = 'none';
+  closeMo('mo-suporte');
+  toast(`✅ Sessão ${tool} encerrada — duração: ${durStr}`);
+}
+
 function _extrairGcalEventId(descricao){
   const m = (descricao||'').match(/\[gcal:([^\]]+)\]/);
   return m ? m[1] : null;
@@ -8418,6 +8557,20 @@ inicializarGoogleCalendar();
       </div>
     </div>
   </div>
+</div>
+
+<!-- Pill sessão remota ativa -->
+<div id="sessao-ativa-pill" style="display:none;position:fixed;bottom:24px;right:24px;z-index:9000;
+     background:var(--card);border:1px solid var(--bdr);border-radius:14px;
+     padding:12px 16px;box-shadow:var(--sh2);
+     align-items:center;gap:12px;max-width:320px;min-width:220px">
+  <div style="width:10px;height:10px;border-radius:50%;background:var(--ok);flex-shrink:0;
+              animation:pulse-dot 1.5s ease-in-out infinite"></div>
+  <div style="flex:1;min-width:0">
+    <div id="pill-titulo" style="font-size:12px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+    <div id="pill-timer" style="font-size:11px;color:var(--txt3);margin-top:2px"></div>
+  </div>
+  <button class="btn btn-d btn-sm" onclick="abrirEncerrarSuporte()" style="flex-shrink:0;white-space:nowrap">Encerrar</button>
 </div>
 
 </body>
