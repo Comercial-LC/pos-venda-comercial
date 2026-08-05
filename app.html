@@ -338,6 +338,7 @@ select option{background:var(--bg2)}
         <div class="u-name" id="currentUserName">Carregando...</div>
         <div class="u-role" id="currentUserRole">—</div>
       </div>
+      <div onclick="exportarBackupLocal()" title="Exportar backup local" style="cursor:pointer;color:var(--txt3);font-size:15px;padding:4px;flex-shrink:0" onmouseenter="this.style.color='var(--acc)'" onmouseleave="this.style.color='var(--txt3)'">💾</div>
       <div onclick="fazerLogout()" title="Sair" style="cursor:pointer;color:var(--txt3);font-size:16px;padding:4px;flex-shrink:0" onmouseenter="this.style.color='var(--err)'" onmouseleave="this.style.color='var(--txt3)'">⏻</div>
     </div>
   </div>
@@ -1647,6 +1648,29 @@ function iniciarControleSession(perfil, userId, session){
 function _lerCachePerfil(){
   try{ return JSON.parse(localStorage.getItem('lc_perfil_cache')||'null'); }catch{ return null; }
 }
+function exportarBackupLocal(){
+  if(!DB._carregado || !DB.revendas.length){
+    toast('Aguarde os dados carregarem para exportar o backup.','warn'); return;
+  }
+  const data = {
+    revendas:    DB.revendas,
+    tarefas:     DB.tarefas,
+    usuarios:    DB.usuarios,
+    atividades:  DB.atividades,
+    handovers:   DB.handovers,
+    treinamentos:DB.treinamentos,
+    perfil:      perfilAtual,
+    exportado_em:new Date().toISOString()
+  };
+  const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = 'portal-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Backup exportado com sucesso!','ok');
+}
 function _ativarModoEmergencia(){
   window._modoEmergencia = true;
   const bar = document.getElementById('emergency-bar');
@@ -1661,19 +1685,85 @@ function _mostrarErroSemDados(){
     <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
          font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
          background:#0b0f1a;color:#e2e8f0;padding:24px;text-align:center">
-      <div style="font-size:52px;margin-bottom:20px">⚡</div>
+      <div style="font-size:52px;margin-bottom:16px">⚡</div>
       <h1 style="font-size:20px;font-weight:700;margin-bottom:10px">Sem dados locais neste dispositivo</h1>
-      <p style="color:#94a3b8;font-size:14px;max-width:360px;line-height:1.7;margin-bottom:28px">
-        Não há sessão nem cache salvo neste navegador.<br>
-        <strong style="color:#e2e8f0">Acesse de onde você já usou o portal antes</strong> — o navegador que tinha a sessão ativa terá os dados salvos.<br><br>
-        Quando o serviço for restaurado, o acesso normal voltará a funcionar.
+      <p style="color:#94a3b8;font-size:14px;max-width:380px;line-height:1.7;margin-bottom:24px">
+        Serviço indisponível e nenhum cache encontrado.<br>
+        <strong style="color:#e2e8f0">Verifique se a quota mensal já resetou:</strong><br>
+        acesse <code style="background:#1e2a3a;padding:2px 6px;border-radius:4px">app.supabase.com</code>, localize o projeto pausado e clique em <strong style="color:#e2e8f0">Restore project</strong>.
       </p>
+
+      <div style="width:100%;max-width:380px;background:#111827;border:1px solid #1f2937;border-radius:12px;padding:20px;margin-bottom:16px;text-align:left">
+        <div style="font-size:13px;font-weight:600;color:#f59e0b;margin-bottom:10px">📂 Importar backup do Supabase</div>
+        <div style="font-size:12px;color:#94a3b8;line-height:1.6;margin-bottom:14px">
+          No painel do Supabase → <strong>SQL Editor</strong> → cole e execute:<br>
+          <code style="display:block;background:#0d1117;color:#7dd3fc;padding:10px;border-radius:6px;margin-top:8px;font-size:11px;white-space:pre-wrap">SELECT json_build_object(
+  'revendas',    (SELECT json_agg(r) FROM revendas r),
+  'tarefas',     (SELECT json_agg(t) FROM tarefas t),
+  'usuarios',    (SELECT json_agg(u) FROM perfis u),
+  'atividades',  (SELECT json_agg(a) FROM atividades a),
+  'handovers',   (SELECT json_agg(h) FROM handovers h),
+  'treinamentos',(SELECT json_agg(tr) FROM treinamentos tr)
+) AS backup;</code>
+          Baixe o resultado como JSON e importe abaixo.
+        </div>
+        <label style="display:block;background:#1d4ed8;color:#fff;padding:10px 0;border-radius:8px;
+               text-align:center;font-size:13px;font-weight:600;cursor:pointer">
+          Selecionar arquivo de backup
+          <input type="file" id="backup-file" accept=".json,.csv" style="display:none"
+                 onchange="importarBackupJSON(this)">
+        </label>
+        <div id="backup-import-msg" style="display:none;margin-top:10px;font-size:12px;padding:8px 12px;border-radius:6px"></div>
+      </div>
+
       <a href="./index.html"
-         style="background:#4f46e5;color:#fff;padding:11px 28px;border-radius:8px;
-                text-decoration:none;font-size:14px;font-weight:600">
+         style="color:#64748b;font-size:13px;text-decoration:underline">
         Voltar ao login
       </a>
     </div>`;
+}
+
+function importarBackupJSON(input){
+  const file = input.files[0];
+  if(!file) return;
+  const msg = document.getElementById('backup-import-msg');
+  msg.style.display = 'block';
+  msg.style.background = '#1e3a5f';
+  msg.style.color = '#93c5fd';
+  msg.textContent = 'Lendo arquivo…';
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      let raw = e.target.result.trim();
+      // Supabase SQL Editor exporta como [{backup: {...}}]
+      let data = JSON.parse(raw);
+      if(Array.isArray(data) && data[0]?.backup) data = data[0].backup;
+      if(!data || typeof data !== 'object') throw new Error('Formato inválido');
+
+      let count = 0;
+      if(data.revendas?.length)    { sessionStorage.setItem('sb_revendas_backup', JSON.stringify(data.revendas)); count++; }
+      if(data.tarefas?.length)     { localStorage.setItem('lc_cache_tarefas',     JSON.stringify(data.tarefas));  count++; }
+      if(data.usuarios?.length)    { localStorage.setItem('lc_cache_usuarios',    JSON.stringify(data.usuarios)); count++; }
+      if(data.atividades?.length)  { localStorage.setItem('lc_cache_atividades',  JSON.stringify(data.atividades)); count++; }
+      if(data.handovers?.length)   { localStorage.setItem('lc_cache_handovers',   JSON.stringify(data.handovers)); count++; }
+      if(data.treinamentos?.length){ localStorage.setItem('lc_cache_treinamentos',JSON.stringify(data.treinamentos)); count++; }
+      if(data.perfil)              { localStorage.setItem('lc_perfil_cache',      JSON.stringify(data.perfil)); }
+      localStorage.setItem('lc_cache_ts', new Date().toISOString());
+
+      if(count === 0) throw new Error('Nenhuma tabela encontrada no arquivo');
+
+      msg.style.background = '#14532d';
+      msg.style.color = '#86efac';
+      msg.textContent = `✓ ${count} tabela(s) importada(s). Abrindo portal…`;
+      setTimeout(()=> window.location.replace('./app.html?emergency=1'), 1200);
+    } catch(err) {
+      msg.style.background = '#450a0a';
+      msg.style.color = '#fca5a5';
+      msg.textContent = 'Arquivo inválido: '+err.message+'. Use o resultado da query SQL acima.';
+    }
+  };
+  reader.readAsText(file);
 }
 
 // Guard: redireciona para login se não autenticado
