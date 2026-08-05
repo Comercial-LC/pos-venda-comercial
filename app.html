@@ -1924,11 +1924,23 @@ function ativarModoTV(){
   let _tvDebounce = null;
 
   async function tvRefresh(){
-    // Recarrega dados de forma segura (proteção contra vazio)
+    // Recarrega apenas o que a TV precisa (revendas + tarefas) — não carrega todas as tabelas
     const cacheAntes = DB.revendas.length;
-    await loadFromSupabase();
-    // Se por algum motivo voltou vazio, não renderiza
-    if(DB.revendas.length === 0 && cacheAntes > 0) return;
+    const CAMPOS_TV = 'id,nome,status,cs,contratos,curva,ingresso,inativado_portal,criado_em';
+    let todas = [], pag = 0;
+    while(true){
+      const {data,error} = await sb.from('revendas').select(CAMPOS_TV)
+        .order('nome',{ascending:true}).range(pag*500,(pag+1)*500-1);
+      if(error||!data||!data.length) break;
+      todas = todas.concat(data);
+      if(data.length < 500) break;
+      pag++;
+    }
+    if(todas.length > 0) DB.revendas = todas.map(normalizeRevenda);
+    else if(DB.revendas.length === 0 && cacheAntes > 0) return;
+    const {data:tasks} = await sb.from('tarefas')
+      .select('id,status,vencimento').neq('status','Concluída').limit(1000);
+    if(tasks) DB.tarefas = tasks.map(t=>({...t, titulo:'', revenda:'', responsavel:'', prioridade:'Média', desc:'', criadoEm:t.criado_em}));
     renderTVDashboard();
     // Pisca indicador AO VIVO
     const dot = document.getElementById('tv-live-dot');
@@ -1979,11 +1991,8 @@ function ativarModoTV(){
     setInterval(_tvPoll, 2000);
   }
 
-  // Atualiza o dashboard a cada 5s (mais responsivo que 30s)
-  setInterval(async ()=>{
-    await loadFromSupabase();
-    renderTVDashboard();
-  }, 5000);
+  // Re-renderiza a cada 2 min usando cache local — Realtime cuida das atualizações imediatas
+  setInterval(renderTVDashboard, 120000);
 
   console.log('TV: polling 2s (celebração) + 5s (dashboard) ativos');
 }
@@ -2315,13 +2324,13 @@ async function loadFromSupabase(){
       }
     }
 
-    // ── Carrega demais tabelas ───────────────────────────────
+    // ── Carrega demais tabelas (colunas específicas + limites) ──
     const [users, tasks, ativs, trains, handov] = await Promise.all([
-      sb.from('perfis').select('*').order('nome'),
-      sb.from('tarefas').select('*').order('criado_em',{ascending:false}),
-      sb.from('atividades').select('*').order('criado_em',{ascending:false}).limit(200),
-      sb.from('treinamentos').select('*').order('criado_em',{ascending:false}),
-      sb.from('handovers').select('*').order('criado_em',{ascending:false}),
+      sb.from('perfis').select('id,nome,email,perfil,ativo,avatar_iniciais').order('nome'),
+      sb.from('tarefas').select('id,titulo,descricao,revenda_id,revenda_nome,responsavel,prioridade,vencimento,tipo,status,criado_por,criado_em,atualizado_em').order('criado_em',{ascending:false}).limit(1000),
+      sb.from('atividades').select('id,tipo,revenda_nome,descricao,criado_em,usuario_nome').order('criado_em',{ascending:false}).limit(200),
+      sb.from('treinamentos').select('*').order('criado_em',{ascending:false}).limit(200),
+      sb.from('handovers').select('id,revenda_id,revenda_nome,cs_nome,cs_id,inicio,prazo,progresso,status,obs,checklist,criado_em').order('criado_em',{ascending:false}).limit(200),
     ]);
     if(users.data  && users.data.length  > 0) DB.usuarios     = users.data.map(normalizeUsuario);
     if(tasks.data)                             DB.tarefas      = tasks.data.map(normalizeTask);
@@ -2425,12 +2434,55 @@ async function persist(tabela, id, dados){
   }
 }
 
-// Realtime: atualiza cache quando Supabase muda
+// Realtime: atualiza apenas a tabela que mudou (não recarrega tudo)
 function initRealtimeSync(){
-  ['revendas','tarefas','atividades','handovers','perfis'].forEach(tabela => {
+  let _syncTimer = null;
+
+  const _recarregar = {
+    revendas: async ()=>{
+      const C='id,nome,cnpj,cidade,uf,email,tel,cs,status,segmento,porte,contratos,curva,ingresso,obs,produtos,tpc,inativado_portal,criado_em,id_origem';
+      let todas=[],pag=0;
+      while(true){
+        const {data,error}=await sb.from('revendas').select(C).order('nome',{ascending:true}).range(pag*500,(pag+1)*500-1);
+        if(error||!data||!data.length) break;
+        todas=todas.concat(data);
+        if(data.length<500) break;
+        pag++;
+      }
+      if(todas.length>0){
+        DB.revendas=todas.map(normalizeRevenda);
+        try{sessionStorage.setItem('sb_revendas_backup',JSON.stringify(DB.revendas.map(r=>({id:r.id,nome:r.nome,status:r.status,cs:r.cs,contratos:r.contratos,curva:r.curva,ingresso:r.ingresso,cidade:r.cidade,uf:r.uf,email:r.email,tel:r.tel,produtos:r.produtos,id_origem:r.id_origem,criadoEm:r.criadoEm,inativado_portal:r.inativado_portal||false}))));}catch(e){}
+      }
+    },
+    tarefas: async ()=>{
+      const C='id,titulo,descricao,revenda_id,revenda_nome,responsavel,prioridade,vencimento,tipo,status,criado_por,criado_em,atualizado_em';
+      const {data}=await sb.from('tarefas').select(C).order('criado_em',{ascending:false}).limit(1000);
+      if(data) DB.tarefas=data.map(normalizeTask);
+    },
+    atividades: async ()=>{
+      const {data}=await sb.from('atividades').select('id,tipo,revenda_nome,descricao,criado_em,usuario_nome').order('criado_em',{ascending:false}).limit(200);
+      if(data) DB.atividades=data.map(normalizeAtiv);
+    },
+    handovers: async ()=>{
+      const {data}=await sb.from('handovers').select('id,revenda_id,revenda_nome,cs_nome,cs_id,inicio,prazo,progresso,status,obs,checklist,criado_em').order('criado_em',{ascending:false}).limit(200);
+      if(data) DB.handovers=data.map(normalizeHandover);
+    },
+    perfis: async ()=>{
+      const {data}=await sb.from('perfis').select('id,nome,email,perfil,ativo,avatar_iniciais').order('nome');
+      if(data&&data.length>0) DB.usuarios=data.map(normalizeUsuario);
+    },
+  };
+
+  ['revendas','tarefas','atividades','handovers','perfis'].forEach(tabela=>{
     sb.channel('sync_'+tabela)
       .on('postgres_changes',{event:'*',schema:'public',table:tabela},
-        async ()=>{ await loadFromSupabase(); renderPanel(document.querySelector('.panel.on')?.id?.replace('p-','')||'dashboard'); }
+        async ()=>{
+          await _recarregar[tabela]?.();
+          clearTimeout(_syncTimer);
+          _syncTimer=setTimeout(()=>{
+            renderPanel(document.querySelector('.panel.on')?.id?.replace('p-','')||'dashboard');
+          }, 500);
+        }
       ).subscribe();
   });
 }
@@ -6910,7 +6962,7 @@ async function _carregarConversasWa(){
   const { data: msgs, error: msgsErr } = await sb.from('whatsapp_messages')
     .select('id, revenda_id, direction, body, phone, contact_name, created_at, media_mimetype, media_filename')
     .order('created_at', { ascending: false })
-    .limit(2000);
+    .limit(200);
 
   if(msgsErr){
     console.error('[WA] Erro ao carregar conversas:', msgsErr.message);
