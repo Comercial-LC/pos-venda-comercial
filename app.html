@@ -1658,23 +1658,26 @@ function _ativarModoEmergencia(){
 
 // Guard: redireciona para login se não autenticado
 async function initAuth(){
+  // Captura token RAW antes de qualquer chamada Supabase
+  // (getSession() deleta o token do localStorage se o refresh falhar)
+  let tokenBackup = null;
+  try {
+    const chave = Object.keys(localStorage).find(k=>k.startsWith('sb-')&&k.endsWith('-auth-token'));
+    if(chave) tokenBackup = JSON.parse(localStorage.getItem(chave)||'null');
+  } catch(e){}
+
   let session = null, isEmergencia = false;
 
-  // 1ª tentativa: sessão normal (lê do localStorage se token ainda válido)
+  // 1ª tentativa: sessão normal (lê do localStorage se token válido)
   try {
     const {data, error} = await sb.auth.getSession();
     if(!error) session = data?.session;
   } catch(e){}
 
-  // 2ª tentativa: token guardado no localStorage (Supabase v2)
-  if(!session){
-    try {
-      const chave = Object.keys(localStorage).find(k=>k.startsWith('sb-')&&k.endsWith('-auth-token'));
-      if(chave){
-        const tok = JSON.parse(localStorage.getItem(chave)||'null');
-        if(tok?.user){ session = tok; isEmergencia = true; }
-      }
-    } catch(e){}
+  // 2ª tentativa: token backup (salvo antes do getSession poder deletá-lo)
+  if(!session && tokenBackup?.user){
+    session = tokenBackup;
+    isEmergencia = true;
   }
 
   // 3ª tentativa: modo emergência sem sessão (só cache local)
