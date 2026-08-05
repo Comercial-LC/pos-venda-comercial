@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://accounts.google.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://www.googleapis.com https://oauth2.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; object-src 'none'; frame-src https://accounts.google.com; frame-ancestors 'none';">
 <title>Portal Sucesso da Revenda — LC Sistemas</title>
+<link rel="manifest" href="manifest.json">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -315,7 +316,6 @@ select option{background:var(--bg2)}
     <div class="nav-sec">Gestão</div>
     <div class="nav-it" onclick="go('tarefas')"><span class="nav-ic">✅</span><span class="nav-label">Tarefas</span></div>
     <div class="nav-it" onclick="go('metas')"><span class="nav-ic">🎯</span><span class="nav-label">Metas</span></div>
-    <div class="nav-it" onclick="go('whatsapp')"><span class="nav-ic">💬</span><span class="nav-label">WhatsApp</span></div>
     <div class="nav-sec">Dados</div>
     <div class="nav-it" onclick="go('relatorios')"><span class="nav-ic">📈</span><span class="nav-label">Relatórios</span></div>
     <div class="nav-it" onclick="go('importacao')"><span class="nav-ic">📥</span><span class="nav-label">Importação Excel</span></div>
@@ -554,11 +554,6 @@ select option{background:var(--bg2)}
       </div>
     </div>
 
-    <!-- WHATSAPP -->
-    <div class="panel" id="p-whatsapp">
-      <div id="wa-root"></div>
-    </div>
-
     <!-- TIMELINE -->
     <div class="panel" id="p-timeline">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
@@ -791,19 +786,11 @@ select option{background:var(--bg2)}
     <div class="panel" id="p-integracao">
       <div style="font-size:19px;font-weight:700;margin-bottom:6px">Integrações</div>
       <div style="font-size:12px;color:var(--txt3);margin-bottom:22px">Conecte o Portal com ferramentas externas</div>
-      <div class="alert al-info" style="margin-bottom:20px"><span>ℹ️</span><span>Orion CRM está em roadmap e será disponibilizado em breve. O serviço WhatsApp já está ativo — veja o status de conexão abaixo.</span></div>
+      <div class="alert al-info" style="margin-bottom:20px"><span>ℹ️</span><span>Orion CRM está em roadmap e será disponibilizado em breve.</span></div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">
         <div class="card"><div style="display:flex;align-items:center;gap:12px;margin-bottom:10px"><div style="width:44px;height:44px;background:var(--accl);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:20px">🔮</div><div><div style="font-weight:600">Orion CRM</div><div style="font-size:11px;color:var(--txt3)">Em desenvolvimento</div></div></div><div style="font-size:12px;color:var(--txt2)">Sincronização de dados de vendas e contatos.</div></div>
-        <div class="card"><div style="display:flex;align-items:center;gap:12px;margin-bottom:10px"><div style="width:44px;height:44px;background:var(--okl);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:20px">💬</div><div><div style="font-weight:600">WhatsApp Business</div><div style="font-size:11px" id="wa-card-badge">⚪ Iniciando...</div></div></div><div style="font-size:12px;color:var(--txt2)">Mensagens registradas automaticamente na timeline de cada revenda.</div></div>
         <div class="card"><div style="display:flex;align-items:center;gap:12px;margin-bottom:10px"><div style="width:44px;height:44px;background:var(--warnl);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:20px">📧</div><div><div style="font-weight:600">E-mail / SMTP</div><div style="font-size:11px;color:var(--ok)">✅ Disponível</div></div></div><div style="font-size:12px;color:var(--txt2)">Envio de relatórios e alertas automáticos.</div></div>
         <div class="card"><div style="display:flex;align-items:center;gap:12px;margin-bottom:10px"><div style="width:44px;height:44px;background:var(--purl);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:20px">🔗</div><div><div style="font-weight:600">API REST / Webhook</div><div style="font-size:11px;color:var(--ok)">✅ Disponível</div></div></div><div style="font-size:12px;color:var(--txt2)">Integre qualquer sistema via webhook ou JWT.</div></div>
-      </div>
-      <!-- WhatsApp — Status da Conexão -->
-      <div style="margin-top:28px">
-        <div style="font-size:15px;font-weight:600;margin-bottom:14px">💬 WhatsApp — Status da Conexão</div>
-        <div class="card" id="wa-conn-card" style="padding:18px;min-height:80px;display:flex;align-items:center">
-          <div style="color:var(--txt3);font-size:13px">Carregando...</div>
-        </div>
       </div>
     </div>
 
@@ -1271,7 +1258,6 @@ select option{background:var(--bg2)}
     <!-- Elementos legados ocultos (compatibilidade) -->
     <div id="card-tab-historico" style="display:none"></div>
     <div id="card-tab-info"      style="display:none"></div>
-    <div id="card-tab-whatsapp"  style="display:none"><div id="card-wa-msgs"></div></div>
 
   </div>
 </div>
@@ -2276,6 +2262,44 @@ const DB = {
   _carregado: false,
 };
 
+// Registra Service Worker para funcionamento offline
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+
+// Monitor de conexão
+function _atualizarStatusRede(){
+  const bar = document.getElementById('offline-bar');
+  if(!bar) return;
+  if(navigator.onLine){ bar.style.display='none'; }
+  else {
+    bar.style.display='flex';
+    const ts = localStorage.getItem('lc_cache_ts');
+    const el = document.getElementById('offline-bar-ts');
+    if(el && ts) el.textContent = '· Dados de '+new Date(ts).toLocaleString('pt-BR');
+  }
+}
+window.addEventListener('online',  _atualizarStatusRede);
+window.addEventListener('offline', _atualizarStatusRede);
+_atualizarStatusRede();
+
+// Restaura cache offline imediatamente (render antes de ir ao Supabase)
+function _restaurarCacheOffline(){
+  try {
+    const ts = localStorage.getItem('lc_cache_ts');
+    if(!ts) return;
+    const rev = sessionStorage.getItem('sb_revendas_backup');
+    if(rev){ const p=JSON.parse(rev); if(p.length>0) DB.revendas=p; }
+    const t=localStorage.getItem('lc_cache_tarefas');     if(t) DB.tarefas=JSON.parse(t);
+    const u=localStorage.getItem('lc_cache_usuarios');    if(u) DB.usuarios=JSON.parse(u);
+    const a=localStorage.getItem('lc_cache_atividades');  if(a) DB.atividades=JSON.parse(a);
+    const h=localStorage.getItem('lc_cache_handovers');   if(h) DB.handovers=JSON.parse(h);
+    const tr=localStorage.getItem('lc_cache_treinamentos');if(tr) DB.treinamentos=JSON.parse(tr);
+    DB._carregado = true;
+    console.log('📦 Cache offline restaurado:', new Date(ts).toLocaleString('pt-BR'));
+  } catch(e){ console.warn('Cache offline inválido:', e.message); }
+}
+
 // Carrega dados do Supabase para o cache local
 async function loadFromSupabase(){
   const cacheAntes = DB.revendas.length;
@@ -2340,6 +2364,15 @@ async function loadFromSupabase(){
 
     DB._carregado = true;
     console.log('✅ Cache:', DB.revendas.length, 'revendas |', DB.tarefas.length, 'tarefas');
+    // Salva cache offline (todas as tabelas)
+    try {
+      localStorage.setItem('lc_cache_ts', new Date().toISOString());
+      localStorage.setItem('lc_cache_tarefas',     JSON.stringify(DB.tarefas));
+      localStorage.setItem('lc_cache_usuarios',    JSON.stringify(DB.usuarios));
+      localStorage.setItem('lc_cache_atividades',  JSON.stringify(DB.atividades));
+      localStorage.setItem('lc_cache_handovers',   JSON.stringify(DB.handovers));
+      localStorage.setItem('lc_cache_treinamentos',JSON.stringify(DB.treinamentos));
+    } catch(e){}
 
   } catch(e){
     console.warn('loadFromSupabase erro:', e.message);
@@ -2504,7 +2537,7 @@ function toggleTheme(){isDark=!isDark;localStorage.setItem('lc_theme',isDark?'da
 applyTheme();
 
 // ─── Nav ───────────────────────────────────────────────────────────
-const TITLES={dashboard:'Dashboard Executivo',revendas:'Cadastro de Revendas',pipeline:'Pipeline de Onboarding',tarefas:'Gestão de Tarefas',whatsapp:'💬 WhatsApp',timeline:'Timeline de Atividades',treinamentos:'Central de Treinamentos',handover:'Gestão de Handover',relatorios:'Relatórios & Analytics',importacao:'Importação de Dados',usuarios:'Controle de Usuários',integracao:'Integrações',configuracoes:'⚙️ Configurações'};
+const TITLES={dashboard:'Dashboard Executivo',revendas:'Cadastro de Revendas',pipeline:'Pipeline de Onboarding',tarefas:'Gestão de Tarefas',timeline:'Timeline de Atividades',treinamentos:'Central de Treinamentos',handover:'Gestão de Handover',relatorios:'Relatórios & Analytics',importacao:'Importação de Dados',usuarios:'Controle de Usuários',integracao:'Integrações',configuracoes:'⚙️ Configurações'};
 function toggleNavGrp(){
   const grp=document.getElementById('nav-cfg-group');
   const sub=document.getElementById('nav-cfg-sub');
@@ -2527,7 +2560,7 @@ function go(name){
   renderPanel(name);
 }
 function renderPanel(name){
-  const fn={dashboard:renderDashboard,revendas:renderRevendas,pipeline:renderKanban,tarefas:renderTasks,whatsapp:renderWhatsapp,timeline:renderTimeline,treinamentos:renderTreinamentos,handover:renderHandover,relatorios:renderRelatorios,usuarios:renderUsers,importacao:renderImport,configuracoes:renderConfiguracoes,integracao:renderIntegracao};
+  const fn={dashboard:renderDashboard,revendas:renderRevendas,pipeline:renderKanban,tarefas:renderTasks,timeline:renderTimeline,treinamentos:renderTreinamentos,handover:renderHandover,relatorios:renderRelatorios,usuarios:renderUsers,importacao:renderImport,configuracoes:renderConfiguracoes,integracao:renderIntegracao};
   if(fn[name]){
     fn[name]();
     if(name==='pipeline') setTimeout(initKanbanScroll, 150);
@@ -3723,10 +3756,6 @@ function renderCardInfo(id){
           ${phones.map(p=>`
             <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg2);border:1px solid var(--bdr);border-radius:7px;padding:6px 10px">
               <span style="font-size:12px;color:var(--txt2)">📞 ${esc(p)}</span>
-              <button onclick="abrirWaComFone('${esc(p)}','${esc(id)}','${esc(rev.nome)}')"
-                style="display:inline-flex;align-items:center;gap:4px;background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.35);border-radius:6px;padding:3px 9px;font-size:11px;color:#22c55e;cursor:pointer;font-weight:600;white-space:nowrap">
-                💬 WhatsApp
-              </button>
             </div>`).join('')}
         </div>`;
       })()}
@@ -6644,9 +6673,10 @@ function initApp(){
       }
     } catch(e){}
 
+    _restaurarCacheOffline(); // renderiza instantaneamente do cache local
     // ── PASSO 2: Dados frescos do Supabase ───────────────────────────
     try {
-      await loadFromSupabase();
+      await loadFromSupabase(); // depois sincroniza com o Supabase
     } catch(e){
       console.error('Erro loadFromSupabase:', e);
       DB._carregado = true; // evita loop de retry infinito
@@ -6703,65 +6733,6 @@ function initApp(){
         }
       ).subscribe();
 
-    // Realtime: nova mensagem WhatsApp
-    sb.channel('wa_msgs_live')
-      .on('postgres_changes',
-        {event:'INSERT', schema:'public', table:'whatsapp_messages'},
-        async (payload)=>{
-          if(!document.getElementById('p-whatsapp')?.classList.contains('on')) return;
-          const m = payload.new;
-          if(!m) return;
-
-          // Verifica se pertence à thread aberta (phone exato, revenda_id ou dígitos)
-          let isCurrentThread = false;
-          if(_waRevendaSel && window._waConvMap){
-            const conv = window._waConvMap.get(_waRevendaSel);
-            if(conv){
-              const mD = (m.phone||'').replace(/@[a-z.]+$/i,'').replace(/\D/g,'');
-              const cD = (conv.phone||'').replace(/@[a-z.]+$/i,'').replace(/\D/g,'');
-              isCurrentThread = m.phone === conv.phone
-                || (m.revenda_id && m.revenda_id === conv.revendaId)
-                || (mD && cD && (mD.endsWith(cD)||cD.endsWith(mD)));
-            }
-          }
-
-          if(isCurrentThread){
-            // Adiciona bolha diretamente — sem recarregar a thread inteira
-            const msgsEl = document.getElementById('wa-thread-msgs');
-            if(msgsEl){
-              // Remove bolha otimista com mesmo corpo (evita duplicata visual)
-              for(const el of msgsEl.querySelectorAll('[data-optimistic]')){
-                if(m.body && el.textContent.includes(m.body.slice(0,20))){ el.remove(); break; }
-              }
-              // Busca media_base64 separado se necessário (Realtime pode truncar payloads grandes)
-              if(m.media_mimetype && !m.media_base64){
-                const { data: md } = await sb.from('whatsapp_messages')
-                  .select('media_base64').eq('id', m.id).maybeSingle();
-                if(md) m.media_base64 = md.media_base64;
-              }
-              const div = document.createElement('div');
-              div.style.cssText = `display:flex;justify-content:${m.direction==='outbound'?'flex-end':'flex-start'}`;
-              div.innerHTML = _buildBubbleHtml(m);
-              msgsEl.appendChild(div);
-              msgsEl.scrollTop = msgsEl.scrollHeight;
-            }
-          }
-
-          // Sempre atualiza sidebar (preview, ordem, badge não-lido)
-          await _carregarConversasWa();
-        }
-      ).subscribe();
-
-    // Realtime: mudança de status WhatsApp → atualiza painel correspondente
-    sb.channel('wa_status_sync')
-      .on('postgres_changes',
-        {event:'*', schema:'public', table:'whatsapp_status'},
-        async ()=>{
-          if(document.getElementById('p-integracao')?.classList.contains('on')) renderWaStatus();
-          if(document.getElementById('p-whatsapp')?.classList.contains('on')) renderWhatsapp();
-        }
-      ).subscribe();
-
     // ── PASSO 6: Resize handler ───────────────────────────────
     window.addEventListener('resize',()=>{
       const panel = document.querySelector('.panel.on');
@@ -6775,1001 +6746,31 @@ function initApp(){
 // ─── Utilitário ─────────────────────────────────────────────────────
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-// ─── WhatsApp ────────────────────────────────────────────────────────
-let _waRevendaSel  = null;
-let _waPendingOpen = null; // { phone, revendaId, nome } — abre conversa após carregarConversas
-let _waPollingTimer = null;
-
-// ── Controle de leitura por conversa (localStorage) ──────────────────
-const _WA_READ_KEY = 'wa_read_map';
-function _waGetReadMap(){ try{ return JSON.parse(localStorage.getItem(_WA_READ_KEY)||'{}'); }catch{ return {}; } }
-function _waMarkRead(key){ try{ const m=_waGetReadMap(); m[key]=new Date().toISOString(); localStorage.setItem(_WA_READ_KEY,JSON.stringify(m)); }catch{} }
-function _waIsUnread(conv){
-  const last = conv?.last;
-  if(!last || last.direction !== 'inbound') return false;
-  const m = _waGetReadMap();
-  const readAt = m[conv.phone || String(conv.rev?.id||'')];
-  if(!readAt) return true;
-  return new Date(last.created_at) > new Date(readAt);
-}
-
-// ── Polling de status (fallback para Realtime) ────────────────────────
-function _waStartPolling(){
-  _waStopPolling();
-  _waPollingTimer = setInterval(async () => {
-    const { data } = await sb.from('whatsapp_status').select('status,qr_code,numero').eq('id',1).maybeSingle();
-    if(!data) return;
-    if(data.status === 'conectado'){
-      _waStopPolling();
-      if(document.getElementById('p-whatsapp')?.classList.contains('on')) renderWhatsapp();
-      return;
-    }
-    // Atualiza QR sem re-renderizar tudo
-    const qrEl = document.getElementById('wa-qr-img');
-    if(qrEl && data.qr_code) qrEl.src = data.qr_code;
-  }, 5000);
-}
-
-function _waStopPolling(){
-  if(_waPollingTimer){ clearInterval(_waPollingTimer); _waPollingTimer = null; }
-}
-
-// ── Ponto de entrada do painel ────────────────────────────────────────
-async function renderWhatsapp(){
-  const root = document.getElementById('wa-root');
-  if(!root) return;
-  root.innerHTML = '<div style="padding:40px;text-align:center;color:var(--txt3)">Carregando...</div>';
-  const { data: st } = await sb.from('whatsapp_status').select('*').eq('id',1).maybeSingle();
-  if((st?.status||'desconectado') === 'conectado'){
-    _waStopPolling();
-    _renderWaChatHub(st);
-    await _carregarConversasWa();
-  } else {
-    _renderWaConexao(st);
-    _waStartPolling();
-  }
-}
-
-// ── Tela de conexão / QR Code ─────────────────────────────────────────
-function _renderWaConexao(st){
-  const root = document.getElementById('wa-root');
-  if(!root) return;
-  const status = st?.status || 'desconectado';
-  const qr     = st?.qr_code || null;
-  const S = {
-    'desconectado':  { label:'DESCONECTADO',      cor:'#ef4444', dot:'🔴', msg:'Inicie o serviço WhatsApp no servidor para gerar o QR Code.' },
-    'iniciando':     { label:'INICIANDO...',       cor:'#f59e0b', dot:'🟡', msg:'O serviço está carregando, aguarde o QR Code...' },
-    'aguardando_qr': { label:'AGUARDANDO LEITURA', cor:'#f59e0b', dot:'🟡', msg:'Escaneie o QR Code abaixo com o WhatsApp do celular.' },
-    'desconectando': { label:'DESCONECTANDO...',   cor:'#f59e0b', dot:'🟡', msg:'Encerrando sessão, aguarde...' },
-  };
-  const s = S[status] || { label: status.toUpperCase(), cor:'#6b7280', dot:'⚪', msg:'' };
-  root.innerHTML = `
-    <div style="min-height:calc(100vh - 120px);display:flex;align-items:center;justify-content:center">
-      <div style="max-width:440px;width:100%;text-align:center;padding:24px">
-        <div style="width:80px;height:80px;border-radius:50%;background:rgba(37,211,102,.1);display:flex;align-items:center;justify-content:center;font-size:42px;margin:0 auto 20px">💬</div>
-        <div style="font-size:22px;font-weight:700;margin-bottom:6px">WhatsApp</div>
-        <div style="font-size:13px;color:var(--txt3);margin-bottom:28px">${esc(s.msg)}</div>
-        <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);padding:36px;box-shadow:0 4px 24px rgba(0,0,0,.07)">
-          <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 16px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.8px;border:1px solid ${s.cor}40;color:${s.cor};background:${s.cor}12;margin-bottom:28px">
-            ${s.dot} ${esc(s.label)}
-          </div>
-          ${qr ? `
-          <div style="margin-bottom:16px">
-            <img id="wa-qr-img" src="${qr}" alt="QR Code WhatsApp"
-              style="width:228px;height:228px;border-radius:12px;border:2px solid var(--bdr);display:block;margin:0 auto">
-          </div>
-          <div style="font-size:12px;color:var(--txt3);line-height:1.7;margin-bottom:16px">
-            Abra o WhatsApp → Aparelhos Conectados → Conectar aparelho
-          </div>
-          <button class="btn btn-s" onclick="reconectarWhatsapp()" style="font-size:12px;gap:6px">
-            🔄 Gerar novo QR
-          </button>
-          ` : `
-          <div style="padding:20px 0 24px">
-            <div style="font-size:40px;margin-bottom:14px">⏳</div>
-            <div style="font-size:13px;color:var(--txt3);line-height:1.8;margin-bottom:20px">
-              O serviço WhatsApp está desconectado.<br>Se ele já estiver rodando, clique abaixo para reconectar.
-            </div>
-            <button class="btn btn-p" onclick="reconectarWhatsapp()" style="font-size:13px;gap:6px;margin-bottom:10px;width:100%">
-              ▶ Iniciar conexão
-            </button>
-            <div style="font-size:11px;color:var(--txt3);margin-top:8px">
-              Necessário: serviço rodando com <code style="background:var(--bg2);padding:2px 6px;border-radius:3px">npm start</code>
-            </div>
-          </div>
-          `}
-        </div>
-        <div style="font-size:11px;color:var(--txt3);margin-top:14px;opacity:.6">Atualiza automaticamente em tempo real</div>
-      </div>
-    </div>`;
-}
-
-// ── Chat Hub 3 colunas (WhatsApp conectado) ───────────────────────────
-function _renderWaChatHub(st){
-  const root = document.getElementById('wa-root');
-  if(!root) return;
-  const numero = st?.numero || '';
-  root.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding:0 2px">
-      <div style="display:flex;align-items:center;gap:10px">
-        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#25D366,#128C7E);display:flex;align-items:center;justify-content:center;font-size:18px">💬</div>
-        <div>
-          <div style="font-size:16px;font-weight:700;color:var(--txt);letter-spacing:-.3px">WhatsApp <span style="color:var(--txt3);font-weight:400;font-size:13px">— Central de Atendimento</span></div>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <div style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#22c55e;font-weight:600;background:rgba(34,197,94,.1);padding:5px 12px;border-radius:20px;border:1px solid rgba(34,197,94,.25)">
-          <div style="width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px #22c55e"></div>
-          Conectado${numero ? ' (+' + esc(numero) + ')' : ''}
-        </div>
-        <button class="btn btn-s" onclick="desconectarWhatsapp()" style="font-size:11px;padding:5px 12px;color:#ef4444;border-color:#ef444440;border-radius:20px;background:rgba(239,68,68,.08)">Desconectar</button>
-      </div>
-    </div>
-
-    <div style="display:grid;grid-template-columns:26% 44% 30%;border:1px solid var(--bdr);border-radius:var(--rxl);overflow:hidden;height:calc(100vh - 172px);box-shadow:var(--sh2)">
-
-      <!-- Col 1 -->
-      <div style="border-right:1px solid var(--bdr);display:flex;flex-direction:column;background:var(--bg);min-height:0;overflow:hidden">
-        <div style="padding:12px 14px;border-bottom:1px solid var(--bdr);flex-shrink:0">
-          <div style="position:relative">
-            <input type="text" id="wa-search" placeholder="Buscar conversa..." oninput="filtrarWaList()"
-              style="width:100%;padding:8px 12px 8px 34px;font-size:12.5px;border-radius:20px;border:1px solid var(--bdr2);background:var(--card);color:var(--txt);box-sizing:border-box;outline:none;font-family:var(--font)">
-            <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:13px;opacity:.5">🔍</span>
-          </div>
-        </div>
-        <div id="wa-conv-items" style="flex:1;overflow-y:auto;min-height:0"></div>
-      </div>
-
-      <!-- Col 2 -->
-      <div style="display:flex;flex-direction:column;background:var(--bg2);border-right:1px solid var(--bdr);overflow:hidden;min-height:0">
-        <div id="wa-thread-header" style="padding:12px 16px;border-bottom:1px solid var(--bdr);background:var(--bg);min-height:56px;display:flex;align-items:center;gap:12px;flex-shrink:0">
-          <div style="color:var(--txt3);font-size:13px">Selecione uma conversa à esquerda</div>
-        </div>
-        <div id="wa-thread-msgs" style="flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:10px;min-height:0"></div>
-        <div id="wa-thread-input" style="display:none;flex-direction:column;flex-shrink:0;background:var(--bg);padding:10px 14px 14px">
-          <div id="wa-emoji-picker" style="display:none;padding:8px 12px;border:1px solid var(--bdr);border-radius:12px;background:var(--card);flex-wrap:wrap;gap:2px;margin-bottom:8px;max-height:120px;overflow-y:auto"></div>
-          <div id="wa-media-preview" style="display:none"></div>
-          <div style="display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--bdr2);border-radius:24px;padding:6px 8px 6px 14px">
-            <label title="Anexar arquivo" style="cursor:pointer;font-size:16px;opacity:.6;transition:opacity .2s;line-height:1;flex-shrink:0" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.6">📎<input type="file" id="wa-file-input" accept="image/*,audio/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.zip,.rar" style="display:none" onchange="handleWaFileAttach(this)"></label>
-            <label title="Enviar figurinha" style="cursor:pointer;font-size:16px;opacity:.6;transition:opacity .2s;line-height:1;flex-shrink:0" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.6">🎭<input type="file" id="wa-sticker-input" accept="image/*" style="display:none" onchange="handleWaStickerAttach(this)"></label>
-            <button id="wa-emoji-btn" onclick="toggleWaEmoji()" title="Emoji" style="background:none;border:none;cursor:pointer;font-size:16px;opacity:.6;transition:opacity .2s;padding:0;line-height:1;flex-shrink:0" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.6">😊</button>
-            <input id="wa-msg-input" type="text" placeholder="Digite uma mensagem..."
-              onkeydown="if(event.key==='Enter'&&!event.shiftKey){enviarMsgWhatsapp();event.preventDefault()}"
-              oninput="_waUpdateSendBtn()"
-              style="flex:1;background:none;border:none;outline:none;color:var(--txt);font-size:13.5px;font-family:var(--font);padding:4px 0">
-            <button id="wa-send-btn" onclick="enviarMsgWhatsapp()" style="display:none;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--acc2));border:none;cursor:pointer;font-size:14px;flex-shrink:0;color:#fff;box-shadow:0 2px 8px rgba(139,92,246,.45)">➤</button>
-            <button id="wa-rec-btn" onclick="toggleGravacaoWa()" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:var(--card2);border:1px solid var(--bdr2);cursor:pointer;font-size:15px;flex-shrink:0">🎤</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Col 3 -->
-      <div id="wa-lead-panel" style="display:flex;flex-direction:column;background:var(--bg);overflow:hidden;min-height:0">
-        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;color:var(--txt3)">
-          <div style="font-size:36px;margin-bottom:12px;opacity:.4">👆</div>
-          <div style="font-size:13px">Selecione uma conversa para ver o perfil</div>
-        </div>
-      </div>
-
-    </div>`;
-}
-
-// ── Carrega lista de conversas (todos os contatos) ────────────────────
-async function _carregarConversasWa(){
-  const listEl = document.getElementById('wa-conv-items');
-  if(!listEl) return;
-
-  const { data: msgs, error: msgsErr } = await sb.from('whatsapp_messages')
-    .select('id, revenda_id, direction, body, phone, contact_name, created_at, media_mimetype, media_filename')
-    .order('created_at', { ascending: false })
-    .limit(200);
-
-  if(msgsErr){
-    console.error('[WA] Erro ao carregar conversas:', msgsErr.message);
-    listEl.innerHTML = `<div style="padding:16px;color:var(--err);font-size:12px">
-      ⚠️ Erro ao carregar conversas.<br>
-      <span style="color:var(--txt3)">${msgsErr.message}</span><br><br>
-      <span style="color:var(--txt3)">Execute a migração SQL no Supabase caso ainda não tenha feito.</span>
-    </div>`;
-    return;
-  }
-
-  if(!msgs || !msgs.length){
-    listEl.innerHTML = '<div style="padding:16px;color:var(--txt3);font-size:13px">Nenhuma conversa ainda.<br>Aguardando mensagens...</div>';
-    return;
-  }
-
-  // Agrupa por telefone — funciona para revendas cadastradas e desconhecidos
-  const convMap = new Map();
-  for(const m of msgs){
-    const key = m.phone || String(m.revenda_id) || 'desconhecido';
-    if(!convMap.has(key)){
-      // Busca revenda pelo DB local (por phone) ou pelo revenda_id
-      const phoneDigits = (m.phone||'').replace(/@[a-z.]+$/,'').replace(/\D/g,'');
-      const revDB = m.phone
-        ? (window.DB?.revendas||[]).find(r =>
-            [r.tel, r.tel2, r.tel3].some(t => {
-              const td = normalizarFoneJS(t||'');
-              return td && (td === phoneDigits || td.endsWith(phoneDigits) || phoneDigits.endsWith(td));
-            })
-          )
-        : null;
-      const revById = !revDB && m.revenda_id
-        ? (window.DB?.revendas||[]).find(r => r.id === m.revenda_id)
-        : null;
-      const rev = revDB || revById || { id: null, nome: m.contact_name || _fmtFone(m.phone), tel: m.phone };
-      convMap.set(key, { phone: m.phone, rev, revendaId: m.revenda_id, msgs: [], last: m });
-    }
-    convMap.get(key).msgs.push(m);
-  }
-
-  // Mescla conversas do mesmo revenda_id (corrige histórico de phone inconsistente)
-  const _ridIdx = new Map();
-  for(const [k, c] of [...convMap.entries()]){
-    const rid = c.revendaId;
-    if(!rid) continue;
-    if(_ridIdx.has(rid)){
-      const mainKey = _ridIdx.get(rid);
-      const main = convMap.get(mainKey);
-      main.msgs.push(...c.msgs);
-      main.last = main.msgs.reduce((a,b)=>new Date(a.created_at)>=new Date(b.created_at)?a:b, main.last);
-      convMap.delete(k);
-    } else {
-      _ridIdx.set(rid, k);
-    }
-  }
-
-  window._waConvMap = convMap;
-  _renderWaList([...convMap.values()]);
-
-  if(_waPendingOpen){
-    const pending   = _waPendingOpen;
-    _waPendingOpen  = null;
-    const dig       = pending.phone.replace(/\D/g,'');
-    // Procura conversa existente por telefone (com ou sem DDI 55)
-    let key = null;
-    for(const [k, c] of convMap.entries()){
-      const cp = (c.phone||'').replace(/\D/g,'');
-      if(cp === dig || ('55'+cp) === dig || cp === ('55'+dig)){ key = k; break; }
-    }
-    if(!key){
-      // Cria conversa sintética para envio inicial
-      const revSynth = window.DB?.revendas.find(r=>r.id===pending.revendaId)
-        || { id: pending.revendaId, nome: pending.nome||'', tel: pending.phone };
-      const synthConv = {
-        phone: pending.phone, rev: revSynth, revendaId: pending.revendaId,
-        msgs: [],
-        last: { body: '— nova conversa —', created_at: new Date().toISOString(), direction: 'outbound' },
-      };
-      convMap.set(pending.phone, synthConv);
-      window._waConvMap = convMap;
-      _renderWaList([...convMap.values()]);
-      key = pending.phone;
-    }
-    abrirWaThread(key);
-  } else if(!_waRevendaSel){
-    const first = [...convMap.keys()][0];
-    if(first) abrirWaThread(first);
-  }
-}
-
-function _fmtFone(phone){
-  if(!phone) return 'Desconhecido';
-  const s = String(phone);
-  if(s.includes('@g.us')){
-    const n = s.replace('@g.us','').replace(/\D/g,'');
-    return 'Grupo ' + (n.slice(-6)||n);
-  }
-  const d = s.replace(/@[a-z.]+$/,'').replace(/\D/g,'');
-  if(d.length === 13) return `+${d.slice(0,2)} (${d.slice(2,4)}) ${d.slice(4,9)}-${d.slice(9)}`;
-  if(d.length === 12) return `+${d.slice(0,2)} (${d.slice(2,4)}) ${d.slice(4,8)}-${d.slice(8)}`;
-  if(d.length === 11) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
-  if(d.length === 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
-  return d.length > 14 ? d.slice(0,5)+'...'+d.slice(-4) : (d||s.slice(0,20));
-}
-
-const _waAccordion = new Set(['aguardando','andamento','critico','vip']);
-function _toggleWaAccordion(id){ _waAccordion.has(id)?_waAccordion.delete(id):_waAccordion.add(id); filtrarWaList(); }
-function _renderWaList(convs){
-  const listEl = document.getElementById('wa-conv-items');
-  if(!listEl) return;
-  if(!convs.length){
-    listEl.innerHTML = '<div style="padding:20px 16px;color:var(--txt3);font-size:13px;text-align:center">Nenhuma conversa encontrada.</div>';
-    return;
-  }
-
-  // Classify into groups
-  const groups = [
-    { id:'critico',    label:'Crítico',             color:'#EF4444', items:[] },
-    { id:'aguardando', label:'Aguardando Resposta',  color:'#8B5CF6', items:[] },
-    { id:'andamento',  label:'Em Andamento',         color:'#22C55E', items:[] },
-    { id:'vip',        label:'VIP',                  color:'#7C3AED', items:[] },
-  ];
-  convs.forEach(c => {
-    const isGroup = (c.phone||'').includes('@g.us');
-    const isRev   = !!c.rev?.id;
-    const unread  = _waIsUnread(c);
-    if(isGroup)               groups[3].items.push(c);
-    else if(!isRev && unread) groups[0].items.push(c); // desconhecido + não lido → crítico
-    else if(isRev  && unread) groups[1].items.push(c); // revenda + não lido → aguardando
-    else if(!isRev)           groups[0].items.push(c); // desconhecido (já lido) → crítico
-    else                      groups[2].items.push(c); // revenda (já lido) → em andamento
-  });
-
-  const renderItem = c => {
-    const last    = c.last;
-    const sent    = last.direction === 'outbound';
-    const preview = esc((last.body||'').slice(0,48)+((last.body||'').length>48?'…':''));
-    const data    = new Date(last.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
-    const isRev   = !!c.rev?.id;
-    const key     = esc(c.phone || String(c.rev?.id||''));
-    const isSel   = _waRevendaSel === (c.phone || String(c.rev?.id));
-    const initials= (c.rev?.nome||'?').slice(0,2).toUpperCase();
-    const unread  = _waIsUnread(c);
-    const tag     = unread ? `<span style="font-size:9px;font-weight:700;color:#fff;background:#ef4444;padding:2px 6px;border-radius:10px;letter-spacing:.3px">novo</span>` : '';
-    const selStyle = isSel
-      ? 'background:var(--purl);border-left:3px solid var(--pur);'
-      : 'border-left:3px solid transparent;';
-    return `<div class="wa-conv-item" onclick="abrirWaThread('${key}')" style="padding:11px 14px 11px 11px;cursor:pointer;border-bottom:1px solid var(--bdr);display:flex;gap:10px;align-items:flex-start;transition:background .15s;${selStyle}" onmouseover="if(!this.dataset.sel)this.style.background='var(--card)'" onmouseout="if(!this.dataset.sel)this.style.background=''" ${isSel?'data-sel=1':''}>
-      <div style="width:38px;height:38px;border-radius:50%;background:${isRev?'linear-gradient(135deg,var(--prim),var(--pur))':'var(--card2)'};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:${isRev?'#fff':'var(--txt3)'};flex-shrink:0;letter-spacing:-.5px">${isRev?initials:'👤'}</div>
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;margin-bottom:3px">
-          <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)">${esc(c.rev?.nome||_fmtFone(c.phone||''))}${tag}</div>
-          <div style="font-size:10px;color:var(--txt3);flex-shrink:0">${data}</div>
-        </div>
-        <div style="font-size:11.5px;color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sent?'<span style="color:var(--txt2);font-size:10px">Você: </span>':''}${preview||'<span style="font-style:italic;opacity:.6">mídia</span>'}</div>
-      </div>
-    </div>`;
-  };
-
-  listEl.innerHTML = groups.filter(g=>g.items.length).map(g => {
-    const open = _waAccordion.has(g.id);
-    const dot  = g.items.filter(c=>_waIsUnread(c)).length;
-    return `<div>
-      <div onclick="_toggleWaAccordion('${g.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;cursor:pointer;background:var(--card2);border-bottom:1px solid var(--bdr);user-select:none;position:sticky;top:0;z-index:1">
-        <div style="display:flex;align-items:center;gap:7px">
-          <div style="width:7px;height:7px;border-radius:50%;background:${g.color};box-shadow:0 0 5px ${g.color}66"></div>
-          <span style="font-size:11.5px;font-weight:700;color:${g.color};letter-spacing:.3px;text-transform:uppercase">${g.label}</span>
-          <span style="font-size:10px;color:var(--txt3);background:var(--card);padding:1px 6px;border-radius:10px;border:1px solid var(--bdr)">${g.items.length}</span>
-          ${dot?`<span style="font-size:10px;font-weight:700;color:#fff;background:${g.color};padding:1px 6px;border-radius:10px">${dot} novo</span>`:''}
-        </div>
-        <span style="color:var(--txt3);font-size:11px;transition:transform .2s;display:inline-block;transform:rotate(${open?'0':'180deg'})">${open?'▲':'▼'}</span>
-      </div>
-      ${open ? g.items.map(renderItem).join('') : ''}
-    </div>`;
-  }).join('');
-}
-
-function filtrarWaList(){
-  const q = (document.getElementById('wa-search')?.value||'').toLowerCase();
-  const convs = [...(window._waConvMap||new Map()).values()];
-  _renderWaList(q ? convs.filter(c=>(c.rev?.nome||'').toLowerCase().includes(q)) : convs);
-}
-
-async function abrirWaThread(key){
-  _waRevendaSel = key;
-  _waMarkRead(key); // marca como lido ao abrir a conversa
-  const conv = window._waConvMap?.get(key);
-  if(!conv) return;
-
-  const q = (document.getElementById('wa-search')?.value||'').toLowerCase();
-  const convs = [...(window._waConvMap||new Map()).values()];
-  _renderWaList(q ? convs.filter(c=>{
-    const k = c.phone || String(c.rev?.id||'');
-    return (c.rev?.nome||k).toLowerCase().includes(q);
-  }) : convs);
-
-  const header  = document.getElementById('wa-thread-header');
-  const msgsEl  = document.getElementById('wa-thread-msgs');
-  const inputEl = document.getElementById('wa-thread-input');
-  if(!header || !msgsEl) return;
-
-  window._waThreadPhone    = conv.phone || normalizarFoneJS(conv.rev?.tel||'');
-  window._waThreadRevendaId = conv.revendaId || null;
-
-  const isRev   = !!conv.rev?.id;
-  const avatar  = isRev ? '💬' : '👤';
-  const avBg    = isRev ? 'rgba(37,211,102,.15)' : 'rgba(107,114,128,.12)';
-  const rid     = conv.revendaId ? esc(String(conv.revendaId)) : null;
-  header.innerHTML = `
-    <div style="width:40px;height:40px;border-radius:50%;background:${avBg};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${avatar}</div>
-    <div style="flex:1">
-      <div style="font-weight:600">${esc(conv.rev?.nome||'?')}</div>
-      <div style="font-size:11px;color:var(--txt3)">${esc(conv.phone||'')} · ${conv.msgs.length} mensagem${conv.msgs.length>1?'s':''}</div>
-    </div>
-    ${rid ? `<button class="btn btn-s btn-sm" onclick="openCardModal('${rid}')">Ver card</button>` : ''}`;
-
-  if(inputEl){ inputEl.style.display = 'flex'; _clearWaMedia(); _waUpdateSendBtn(); }
-
-  // Carrega mensagens do DB incluindo mídia para a thread ativa
-  const _isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(key);
-  let _q = sb.from('whatsapp_messages')
-    .select('id, direction, body, phone, created_at, media_base64, media_mimetype, media_filename')
-    .order('created_at', { ascending: true })
-    .limit(100);
-  // Busca por revenda_id E phone em paralelo para capturar msgs com revenda_id=null
-  let _dbMsgs = [];
-  if(conv.revendaId){
-    const [r1, r2] = await Promise.all([
-      sb.from('whatsapp_messages')
-        .select('id, direction, body, phone, created_at, media_base64, media_mimetype, media_filename')
-        .eq('revenda_id', conv.revendaId)
-        .order('created_at', { ascending: true }).limit(100),
-      sb.from('whatsapp_messages')
-        .select('id, direction, body, phone, created_at, media_base64, media_mimetype, media_filename')
-        .eq('phone', key)
-        .order('created_at', { ascending: true }).limit(100),
-    ]);
-    const seen = new Set();
-    _dbMsgs = [...(r1.data||[]), ...(r2.data||[])]
-      .filter(m => { if(seen.has(m.id)) return false; seen.add(m.id); return true; })
-      .sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
-  } else {
-    const { data } = await _q.eq('phone', key);
-    _dbMsgs = data || [];
-  }
-  const _threadMsgs = _dbMsgs.length
-    ? _dbMsgs
-    : [...(conv.msgs||[])].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
-  msgsEl.innerHTML = _threadMsgs.map(m =>
-    `<div style="display:flex;justify-content:${m.direction==='outbound'?'flex-end':'flex-start'}">${_buildBubbleHtml(m)}</div>`
-  ).join('');
-  msgsEl.scrollTop = msgsEl.scrollHeight;
-  _renderWaLeadPanel(conv);
-}
-
-// ── Helpers de ícone e status ─────────────────────────────────────────
 function _waTipoIcon(tipo){
-  const t = (tipo||'').toLowerCase();
-  if(t.includes('whatsapp'))                         return { icon:'💬', cor:'#22c55e', bg:'rgba(34,197,94,.12)' };
-  if(t.includes('liga') || t.includes('📞'))         return { icon:'📞', cor:'#3b82f6', bg:'rgba(59,130,246,.12)' };
-  if(t.includes('email') || t.includes('📧'))        return { icon:'📧', cor:'#8b5cf6', bg:'rgba(139,92,246,.12)' };
-  if(t.includes('reuni') || t.includes('📅'))        return { icon:'📅', cor:'#f59e0b', bg:'rgba(245,158,11,.12)' };
-  if(t.includes('handover') || t.includes('🤝'))     return { icon:'🤝', cor:'#10b981', bg:'rgba(16,185,129,.12)' };
-  if(t.includes('proposta') || t.includes('📄'))     return { icon:'📄', cor:'#6366f1', bg:'rgba(99,102,241,.12)' };
-  return { icon:'📌', cor:'#6b7280', bg:'rgba(107,114,128,.12)' };
+  const t=(tipo||'').toLowerCase();
+  if(t.includes('whatsapp'))                        return{icon:'💬',cor:'#22c55e',bg:'rgba(34,197,94,.12)'};
+  if(t.includes('liga')||t.includes('📞'))          return{icon:'📞',cor:'#3b82f6',bg:'rgba(59,130,246,.12)'};
+  if(t.includes('email')||t.includes('📧'))         return{icon:'📧',cor:'#8b5cf6',bg:'rgba(139,92,246,.12)'};
+  if(t.includes('reuni')||t.includes('📅'))         return{icon:'📅',cor:'#f59e0b',bg:'rgba(245,158,11,.12)'};
+  if(t.includes('handover')||t.includes('🤝'))      return{icon:'🤝',cor:'#10b981',bg:'rgba(16,185,129,.12)'};
+  if(t.includes('proposta')||t.includes('📄'))      return{icon:'📄',cor:'#6366f1',bg:'rgba(99,102,241,.12)'};
+  if(t.includes('suporte')||t.includes('🖥'))       return{icon:'🖥️',cor:'#0ea5e9',bg:'rgba(14,165,233,.12)'};
+  return{icon:'📌',cor:'#6b7280',bg:'rgba(107,114,128,.12)'};
 }
-
 function _waStatusInfo(status){
-  const s = (status||'').toLowerCase();
-  if(s.includes('ativo') && !s.includes('in'))       return { cor:'#22c55e' };
-  if(s.includes('inativ')||s.includes('churn')||s.includes('cancel')||s.includes('perdido')) return { cor:'#ef4444' };
-  if(s.includes('nova'))                             return { cor:'#3b82f6' };
-  if(s.includes('implant'))                          return { cor:'#f59e0b' };
-  if(s.includes('academy')||s.includes('libera'))    return { cor:'#8b5cf6' };
-  if(s.includes('decola')||s.includes('primeiro'))   return { cor:'#10b981' };
-  if(s.includes('handover')||s.includes('onboard'))  return { cor:'#6366f1' };
-  return { cor:'#6b7280' };
+  const s=(status||'').toLowerCase();
+  if(s.includes('ativo')&&!s.includes('in'))                                                     return{cor:'#22c55e'};
+  if(s.includes('inativ')||s.includes('churn')||s.includes('cancel')||s.includes('perdido'))     return{cor:'#ef4444'};
+  if(s.includes('nova'))                                                                          return{cor:'#3b82f6'};
+  if(s.includes('implant'))                                                                       return{cor:'#f59e0b'};
+  if(s.includes('academy')||s.includes('libera'))                                                 return{cor:'#8b5cf6'};
+  if(s.includes('decola')||s.includes('primeiro'))                                                return{cor:'#10b981'};
+  if(s.includes('handover')||s.includes('onboard'))                                               return{cor:'#6366f1'};
+  return{cor:'#6b7280'};
 }
 
-// ── Painel da coluna 3 — Perfil + Timeline ────────────────────────────
-async function _renderWaLeadPanel(conv){
-  const el = document.getElementById('wa-lead-panel');
-  if(!el) return;
+function renderIntegracao(){}
 
-  if(!conv?.revendaId){
-    el.innerHTML = `
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;color:var(--txt3)">
-        <div style="font-size:36px;margin-bottom:12px">👤</div>
-        <div style="font-weight:600;font-size:13px;margin-bottom:6px;color:var(--txt2)">Contato não cadastrado</div>
-        <div style="font-size:12px">Número não vinculado a nenhuma revenda.</div>
-      </div>`;
-    return;
-  }
-
-  el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--txt3);font-size:12px">Carregando...</div>';
-
-  const [{ data: rev }, { data: hist }] = await Promise.all([
-    sb.from('revendas').select('*').eq('id', conv.revendaId).maybeSingle(),
-    sb.from('historico_cards').select('*').eq('revenda_id', conv.revendaId)
-      .order('criado_em', { ascending: false }).limit(40),
-  ]);
-
-  if(!rev){ el.innerHTML = '<div style="padding:16px;color:var(--txt3);font-size:12px">Revenda não encontrada.</div>'; return; }
-
-  // ── build KPI data ──────────────────────────────────────────────────
-  const hist40 = hist || [];
-  let metas6 = [], tasks5 = [];
-  try { const r = await sb.from('orion_metas').select('nome,meta,valor_atual,status').eq('revenda_id',conv.revendaId).order('nome').limit(6); metas6 = r.data||[]; } catch{}
-  try { const r = await sb.from('tarefas').select('titulo,status,prioridade,criado_em').eq('revenda_id',conv.revendaId).order('criado_em',{ascending:false}).limit(5); tasks5 = r.data||[]; } catch{}
-
-  const cidUf = [rev.cidade, rev.uf].filter(Boolean).join(' · ');
-  const stMap = {
-    'Crítico':     { cor:'#EF4444', bg:'rgba(239,68,68,.12)' },
-    'No Ritmo':    { cor:'#22C55E', bg:'rgba(34,197,94,.12)' },
-    'Alerta':      { cor:'#F59E0B', bg:'rgba(245,158,11,.12)' },
-    'Novo':        { cor:'#3B82F6', bg:'rgba(59,130,246,.12)' },
-  };
-  const st2 = stMap[rev.status] || { cor:'var(--txt3)', bg:'var(--card2)' };
-
-  const priMap = { alta:'#EF4444', media:'#F59E0B', baixa:'#22C55E' };
-
-  // Pipeline mini-bars from metas
-  const pipelineHtml = metas6.length ? metas6.map(m => {
-    const pct = m.meta > 0 ? Math.min(100, Math.round((m.valor_atual||0)/m.meta*100)) : 0;
-    return `<div style="margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-        <span style="font-size:11px;color:var(--txt2);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${esc(m.nome)}</span>
-        <span style="font-size:11px;font-weight:700;color:${pct>=100?'var(--ok)':pct>=60?'var(--acc2)':'var(--err)'}">${pct}%</span>
-      </div>
-      <div style="height:5px;background:var(--bdr);border-radius:10px;overflow:hidden">
-        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--acc),var(--acc2));border-radius:10px;transition:width .4s ease"></div>
-      </div>
-    </div>`;
-  }).join('') : '<div style="font-size:11px;color:var(--txt3);text-align:center;padding:8px 0">Sem metas cadastradas</div>';
-
-  // KPI from first meta
-  const kpi = metas6[0];
-  const kpiHtml = kpi ? `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:12px 0">
-      ${[['META',kpi.meta||0,'var(--txt2)'],['ATUAL',kpi.valor_atual||0,'var(--acc)'],['FALTAM',Math.max(0,(kpi.meta||0)-(kpi.valor_atual||0)),'var(--err)']].map(([l,v,c])=>`
-        <div style="background:var(--card2);border-radius:10px;padding:10px 8px;text-align:center;border:1px solid var(--bdr)">
-          <div style="font-size:18px;font-weight:800;color:${c};line-height:1">${v}</div>
-          <div style="font-size:9px;color:var(--txt3);margin-top:3px;letter-spacing:.5px;text-transform:uppercase">${l}</div>
-        </div>`).join('')}
-    </div>` : '';
-
-  // Recent tasks
-  const tasksHtml = tasks5.length ? tasks5.map(t => {
-    const pc = priMap[t.prioridade] || 'var(--txt3)';
-    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bdr)">
-      <div style="width:6px;height:6px;border-radius:50%;background:${pc};flex-shrink:0"></div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:11.5px;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.titulo||'Tarefa')}</div>
-        <div style="font-size:10px;color:var(--txt3)">${esc(t.status||'')}</div>
-      </div>
-      <span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;flex-shrink:0;background:${pc}18;color:${pc}">${esc(t.prioridade||'')}</span>
-    </div>`;
-  }).join('') : '<div style="font-size:11px;color:var(--txt3);padding:8px 0">Nenhuma tarefa recente.</div>';
-
-  el.style.overflowY = 'auto';
-  el.innerHTML = `
-    <!-- Header -->
-    <div style="padding:14px 16px;border-bottom:1px solid var(--bdr);flex-shrink:0">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span style="font-size:10px;font-weight:700;color:var(--txt3);letter-spacing:.8px;text-transform:uppercase">Customer Intelligence Panel</span>
-        <button onclick="openCardModal('${esc(rev.id)}')" style="font-size:10px;padding:3px 10px;background:var(--accl);color:var(--acc);border:1px solid rgba(139,92,246,.3);border-radius:20px;cursor:pointer;font-weight:600">Ver card ↗</button>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--prim),var(--pur));display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0">${esc((rev.nome||'?').slice(0,2).toUpperCase())}</div>
-        <div style="min-width:0">
-          <div style="font-size:14px;font-weight:700;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(rev.nome)}</div>
-          <div style="font-size:11px;color:var(--txt3)">${esc(cidUf||'—')}</div>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
-        <span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;background:${st2.bg};color:${st2.cor};border:1px solid ${st2.cor}30">${esc(rev.status||'—')}</span>
-        ${rev.cs?`<span style="font-size:10px;color:var(--txt3)">CS: <span style="color:var(--txt2)">${esc(rev.cs)}</span></span>`:''}
-      </div>
-    </div>
-
-    <!-- Reseller Info -->
-    <div style="padding:10px 16px;border-bottom:1px solid var(--bdr)">
-      <div style="font-size:9px;font-weight:700;color:var(--txt3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px">Reseller Info · <span style="color:var(--acc)">LINKED RESELLER INFO: Portal Sucesso</span></div>
-      ${[['Segmento',rev.segmento],['Porte',rev.porte],['CNPJ',rev.cnpj],['Contratos',rev.contratos]].filter(([,v])=>v).map(([l,v])=>`
-        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;border-bottom:1px solid var(--bdr)">
-          <span style="font-size:10.5px;color:var(--txt3)">${l}</span>
-          <span style="font-size:11px;color:var(--txt);font-weight:500;max-width:130px;text-align:right;overflow:hidden;text-overflow:ellipsis">${esc(String(v))}</span>
-        </div>`).join('')}
-    </div>
-
-    <!-- Onboarding Pipeline (KPIs/Metas) -->
-    <div style="padding:10px 16px;border-bottom:1px solid var(--bdr)">
-      <div style="font-size:9px;font-weight:700;color:var(--txt3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px">Onboarding Pipeline</div>
-      ${pipelineHtml}
-    </div>
-
-    <!-- KPI Widgets -->
-    ${kpiHtml ? `<div style="padding:4px 16px 0;border-bottom:1px solid var(--bdr)">
-      <div style="font-size:9px;font-weight:700;color:var(--txt3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:0">KPI</div>
-      ${kpiHtml}
-    </div>` : ''}
-
-    <!-- Recent Tasks -->
-    <div style="padding:10px 16px;flex:1;overflow-y:auto">
-      <div style="font-size:9px;font-weight:700;color:var(--txt3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px">Recent Tasks List</div>
-      ${tasksHtml}
-    </div>
-
-    <!-- Footer -->
-    <div style="padding:8px 16px;border-top:1px solid var(--bdr);background:var(--bg2);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
-      <span style="font-size:10px;color:var(--txt3)">${hist40.length} interações</span>
-      <button onclick="_renderWaLeadPanel({revendaId:'${esc(rev.id)}'})" style="font-size:10px;color:var(--txt3);background:none;border:none;cursor:pointer">↻ atualizar</button>
-    </div>`;
-}
-
-// ── WhatsApp: mídia, áudio e helpers de renderização ─────────────────
-
-function _waMediaIcon(mt){
-  if(!mt) return '📎';
-  if(mt.startsWith('image/')) return '🖼️';
-  if(mt.startsWith('video/')) return '🎬';
-  if(mt.startsWith('audio/')) return '🎵';
-  if(mt.includes('pdf')) return '📄';
-  if(mt.includes('word') || mt.includes('msword')) return '📝';
-  if(mt.includes('excel') || mt.includes('spreadsheet')) return '📊';
-  if(mt.includes('zip') || mt.includes('rar') || mt.includes('7z')) return '📦';
-  return '📎';
-}
-
-function _buildBubbleHtml(m){
-  const sent = m.direction === 'outbound';
-  const hora = m._hora || new Date(m.created_at||Date.now()).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-  let mediaHtml = '';
-  if(m.media_mimetype && m.media_base64){
-    const src = `data:${m.media_mimetype};base64,${m.media_base64}`;
-    const bigFile = m.media_base64.length > 3000000;
-    if(m.media_mimetype.startsWith('image/')){
-      mediaHtml = bigFile
-        ? `<a href="${src}" download="${esc(m.media_filename||'imagem')}" style="display:flex;align-items:center;gap:6px;color:var(--acc);font-size:12px;text-decoration:none">🖼️ ${esc(m.media_filename||'Imagem')} (${(m.media_base64.length*.75/1048576).toFixed(1)} MB)</a>`
-        : `<img src="${src}" style="max-width:220px;max-height:200px;border-radius:12px;display:block;cursor:pointer;margin-bottom:4px" onclick="window.open(this.src,'_blank')">`;
-    } else if(m.media_mimetype.startsWith('audio/')){
-      mediaHtml = `<audio controls style="width:220px;max-width:100%;margin-bottom:4px;border-radius:8px"><source src="${src}" type="${m.media_mimetype}"></audio>`;
-    } else if(m.media_mimetype.startsWith('video/')){
-      mediaHtml = `<video controls style="max-width:220px;border-radius:12px;display:block;margin-bottom:4px"><source src="${src}" type="${m.media_mimetype}"></video>`;
-    } else {
-      mediaHtml = `<a href="${src}" download="${esc(m.media_filename||'arquivo')}" style="display:flex;align-items:center;gap:6px;color:var(--acc);font-size:12px;text-decoration:none;padding:8px 10px;background:rgba(139,92,246,.08);border-radius:8px;border:1px solid rgba(139,92,246,.2)">${_waMediaIcon(m.media_mimetype)} ${esc(m.media_filename||'Arquivo')}</a>`;
-    }
-  } else if(m.media_mimetype){
-    mediaHtml = `<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--txt3);padding:6px 8px;background:var(--card2);border-radius:8px;margin-bottom:4px">${_waMediaIcon(m.media_mimetype)} ${esc(m.media_filename||m.media_mimetype)}</div>`;
-  }
-  const bodyHtml = (m.body||'').trim() ? `<div style="font-size:13.5px;line-height:1.55;color:var(--txt);word-break:break-word">${esc(m.body)}</div>` : '';
-  const tick = sent ? (m._opt ? '<span style="opacity:.5"> ⏳</span>' : '<span style="color:var(--acc)"> ✓✓</span>') : '';
-
-  const bgSent = 'linear-gradient(135deg,rgba(46,26,71,.55),rgba(124,58,237,.3))';
-  const bgRecv = 'var(--card)';
-  const borderSent = '1px solid rgba(124,58,237,.3)';
-  const borderRecv = '1px solid var(--bdr)';
-  const radiusSent = '18px 18px 4px 18px';
-  const radiusRecv = '18px 18px 18px 4px';
-
-  return `<div style="max-width:74%;background:${sent?bgSent:bgRecv};border-radius:${sent?radiusSent:radiusRecv};padding:10px 14px;border:${sent?borderSent:borderRecv};backdrop-filter:blur(4px)${m._opt?';opacity:.65':''}">
-    ${mediaHtml}${bodyHtml}
-    <div style="font-size:10px;color:${sent?'rgba(255,255,255,.5)':'var(--txt3)'};margin-top:4px;text-align:right;display:flex;align-items:center;justify-content:flex-end;gap:3px">${hora}${tick}</div>
-  </div>`;
-}
-
-function _waUpdateSendBtn(){
-  const hasText  = (document.getElementById('wa-msg-input')?.value||'').trim().length > 0;
-  const hasMedia = !!window._waPendingMedia;
-  const showSend = hasText || hasMedia;
-  const sbtn = document.getElementById('wa-send-btn');
-  const rbtn = document.getElementById('wa-rec-btn');
-  if(sbtn) sbtn.style.display = showSend ? 'flex' : 'none';
-  if(rbtn) rbtn.style.display = showSend ? 'none' : 'flex';
-}
-
-function _clearWaMedia(){
-  if(window._waPendingMedia?.audioUrl) URL.revokeObjectURL(window._waPendingMedia.audioUrl);
-  window._waPendingMedia = null;
-  const el = document.getElementById('wa-media-preview');
-  if(el){ el.style.display = 'none'; el.innerHTML = ''; }
-  _waUpdateSendBtn();
-}
-
-function handleWaFileAttach(input){
-  const file = input.files[0];
-  input.value = '';
-  if(!file) return;
-  if(file.size > 16 * 1024 * 1024){ toast('Arquivo muito grande (máx 16 MB)','warn'); return; }
-  const reader = new FileReader();
-  reader.onload = e => {
-    const dataUrl = e.target.result;
-    window._waPendingMedia = { base64: dataUrl.split(',')[1], mimetype: file.type, filename: file.name, dataUrl };
-    const prev = document.getElementById('wa-media-preview');
-    if(prev){
-      const isImg = file.type.startsWith('image/');
-      prev.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--bdr);background:var(--bg2)';
-      prev.innerHTML = `${isImg
-        ? `<img src="${dataUrl}" style="max-height:56px;max-width:80px;border-radius:6px;object-fit:cover">`
-        : `<div style="font-size:22px">${_waMediaIcon(file.type)}</div>`}
-        <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(file.name)}</div><div style="font-size:10px;color:var(--txt3)">${(file.size/1024).toFixed(0)} KB</div></div>
-        <button onclick="_clearWaMedia()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--txt3);padding:0 4px">✕</button>`;
-    }
-    _waUpdateSendBtn();
-  };
-  reader.readAsDataURL(file);
-}
-
-function handleWaStickerAttach(input){
-  const file = input.files[0];
-  input.value = '';
-  if(!file) return;
-  if(file.size > 5 * 1024 * 1024){ toast('Imagem muito grande para figurinha (máx 5 MB)','warn'); return; }
-  const reader = new FileReader();
-  reader.onload = e => {
-    const dataUrl = e.target.result;
-    window._waPendingMedia = { base64: dataUrl.split(',')[1], mimetype: file.type, filename: file.name, dataUrl, asSticker: true };
-    const prev = document.getElementById('wa-media-preview');
-    if(prev){
-      prev.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--bdr);background:var(--bg2)';
-      prev.innerHTML = `<img src="${dataUrl}" style="max-height:56px;max-width:56px;border-radius:8px;object-fit:cover">
-        <div style="flex:1;min-width:0">
-          <div style="font-size:12px;font-weight:600">🎭 Figurinha</div>
-          <div style="font-size:10px;color:var(--txt3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(file.name)}</div>
-        </div>
-        <button onclick="_clearWaMedia()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--txt3);padding:0 4px">✕</button>`;
-    }
-    _waUpdateSendBtn();
-  };
-  reader.readAsDataURL(file);
-}
-
-let _waRecorder = null, _waAudioChunks = [], _waIsRecording = false, _waRecTimer = null, _waRecSeconds = 0;
-
-async function toggleGravacaoWa(){
-  if(_waIsRecording){ pararGravacaoWa(); } else { await iniciarGravacaoWa(); }
-}
-
-async function iniciarGravacaoWa(){
-  if(_waIsRecording) return;
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    _waAudioChunks = [];
-    _waIsRecording = true;
-    _waRecSeconds = 0;
-    const mt = MediaRecorder.isTypeSupported('audio/ogg; codecs=opus') ? 'audio/ogg; codecs=opus'
-             : MediaRecorder.isTypeSupported('audio/webm; codecs=opus') ? 'audio/webm; codecs=opus'
-             : 'audio/webm';
-    _waRecorder = new MediaRecorder(stream, { mimeType: mt });
-    _waRecorder.ondataavailable = e => { if(e.data.size > 0) _waAudioChunks.push(e.data); };
-    _waRecorder.start(100);
-    const btn = document.getElementById('wa-rec-btn');
-    const inp = document.getElementById('wa-msg-input');
-    if(btn){ btn.textContent = '⏹️'; btn.style.background = 'rgba(239,68,68,.18)'; btn.style.border = '1px solid rgba(239,68,68,.5)'; btn.title = 'Clique para parar e enviar'; }
-    if(inp){ inp.disabled = true; inp.placeholder = '🔴 Gravando... 0:00 — clique ⏹️ para parar'; }
-    _waRecTimer = setInterval(() => {
-      _waRecSeconds++;
-      const m = String(Math.floor(_waRecSeconds/60)).padStart(2,'0');
-      const s = String(_waRecSeconds % 60).padStart(2,'0');
-      const i = document.getElementById('wa-msg-input');
-      if(i) i.placeholder = `🔴 Gravando... ${m}:${s} — clique ⏹️ para parar`;
-    }, 1000);
-  } catch(e){
-    _waIsRecording = false;
-    toast('Microfone não permitido: ' + (e.message||'erro ao acessar mic'), 'warn');
-  }
-}
-
-function pararGravacaoWa(){
-  if(!_waIsRecording || !_waRecorder || _waRecorder.state === 'inactive') return;
-  _waIsRecording = false;
-  clearInterval(_waRecTimer); _waRecTimer = null;
-  const btn = document.getElementById('wa-rec-btn');
-  const inp = document.getElementById('wa-msg-input');
-  if(btn){ btn.textContent = '🎤'; btn.style.background = ''; btn.style.border = '1px solid var(--bdr)'; btn.title = 'Clique para gravar áudio'; }
-  if(inp){ inp.disabled = false; inp.placeholder = 'Digite uma mensagem...'; }
-  const durSec = _waRecSeconds;
-  _waRecorder.stop();
-  _waRecorder.onstop = () => {
-    const blob = new Blob(_waAudioChunks, { type: _waRecorder.mimeType });
-    _waRecorder.stream.getTracks().forEach(t => t.stop());
-    _waRecorder = null;
-    if(blob.size < 500){ toast('Gravação muito curta — tente novamente','warn'); return; }
-    const audioUrl = URL.createObjectURL(blob);
-    const reader = new FileReader();
-    reader.onload = e => {
-      const dataUrl = e.target.result;
-      const ext = blob.type.includes('ogg') ? 'ogg' : 'webm';
-      window._waPendingMedia = { base64: dataUrl.split(',')[1], mimetype: blob.type, filename: `audio_${Date.now()}.${ext}`, dataUrl, audioUrl };
-      const prev = document.getElementById('wa-media-preview');
-      if(prev){
-        prev.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--bdr);background:var(--bg2)';
-        const m = String(Math.floor(durSec/60)).padStart(2,'0');
-        const s = String(durSec % 60).padStart(2,'0');
-        prev.innerHTML = `<div style="font-size:20px">🎵</div>
-          <div style="flex:1">
-            <audio controls src="${audioUrl}" style="width:100%;height:34px"></audio>
-            <div style="font-size:10px;color:var(--txt3);margin-top:2px">Áudio gravado — ${m}:${s}</div>
-          </div>
-          <button onclick="_clearWaMedia()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--txt3);padding:0 4px">✕</button>`;
-      }
-      _waUpdateSendBtn();
-    };
-    reader.readAsDataURL(blob);
-  };
-}
-
-// ── Emoji picker ──────────────────────────────────────────────────────
-const _WA_EMOJIS = ['😊','😂','😍','🥰','😅','🤔','😬','🙏','💪','👍','👎','❤️',
-  '🎉','✅','❌','🔥','💯','⚡','🚀','💡','📊','📈','💰','🤝','👋','✨',
-  '😎','🤩','😄','🤦','🙄','💀','🫡','👏','🫂','🎯','📢','🔔','📅','🎊'];
-
-function toggleWaEmoji(){
-  const el = document.getElementById('wa-emoji-picker');
-  if(!el) return;
-  const open = el.style.display === 'flex';
-  if(open){ el.style.display = 'none'; return; }
-  if(!el.innerHTML){
-    el.innerHTML = _WA_EMOJIS.map(e =>
-      `<button onclick="insertWaEmoji('${e}')" style="font-size:20px;background:none;border:none;cursor:pointer;padding:3px;border-radius:6px;line-height:1">${e}</button>`
-    ).join('');
-  }
-  el.style.display = 'flex';
-}
-
-function insertWaEmoji(emoji){
-  const input = document.getElementById('wa-msg-input');
-  if(!input) return;
-  const pos = input.selectionStart ?? input.value.length;
-  input.value = input.value.slice(0, pos) + emoji + input.value.slice(pos);
-  input.focus();
-  input.setSelectionRange(pos + emoji.length, pos + emoji.length);
-  _waUpdateSendBtn();
-}
-
-function _waSetSendMode(asSticker){
-  if(!window._waPendingMedia) return;
-  window._waPendingMedia.asSticker = asSticker;
-  const fb = document.getElementById('wa-send-foto-btn');
-  const sb = document.getElementById('wa-send-sticker-btn');
-  if(fb){ fb.style.background = asSticker ? 'none' : 'var(--acc)'; fb.style.color = asSticker ? 'inherit' : '#fff'; fb.style.border = `1px solid ${asSticker ? 'var(--bdr)' : 'var(--acc)'}`; }
-  if(sb){ sb.style.background = asSticker ? 'rgba(99,102,241,.15)' : 'none'; sb.style.border = `1px solid ${asSticker ? 'var(--acc)' : 'var(--bdr)'}`; }
-}
-
-async function enviarMsgWhatsapp(){
-  const input = document.getElementById('wa-msg-input');
-  const body  = (input?.value||'').trim();
-  const media = window._waPendingMedia;
-  if(!body && !media) return;
-  if(!_waRevendaSel) return;
-
-  const rawPhone = window._waThreadPhone||'';
-  if(!rawPhone){ toast('Número não encontrado para esta conversa','warn'); return; }
-  let phone;
-  if(rawPhone.includes('@')){
-    phone = rawPhone; // @lid ou @c.us — JID válido; preserva para manter thread unificada
-  } else {
-    const dig = rawPhone.replace(/\D/g,'');
-    // Dígitos de @lid antigos (> 13 dígitos sem @) são inválidos como telefone
-    if(dig.length > 13){
-      toast('Este contato usa ID interno do WhatsApp sem telefone cadastrado. Não é possível enviar.','error');
-      return;
-    }
-    phone = (dig.length >= 12 && dig.startsWith('55')) ? dig : '55' + dig;
-  }
-
-  if(input) input.value = '';
-  if(input) input.disabled = true;
-  _clearWaMedia();
-  _waUpdateSendBtn();
-
-  const msgsEl = document.getElementById('wa-thread-msgs');
-  let optDiv = null;
-  if(msgsEl){
-    const hora = new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-    optDiv = document.createElement('div');
-    optDiv.dataset.optimistic = '1';
-    optDiv.style.cssText = 'display:flex;justify-content:flex-end';
-    optDiv.innerHTML = _buildBubbleHtml({direction:'outbound',body,_hora:hora,_opt:true,
-      media_base64:media?.base64, media_mimetype:media?.mimetype, media_filename:media?.filename});
-    msgsEl.appendChild(optDiv);
-    msgsEl.scrollTop = msgsEl.scrollHeight;
-  }
-
-  const payload = {
-    revenda_id: window._waThreadRevendaId || null,
-    phone,
-    body: body || (media?.filename || ''),
-    status: 'pending',
-    ...(media ? { media_base64: media.base64, media_mimetype: media.mimetype, media_filename: media.filename } : {}),
-    ...(media?.asSticker ? { media_as_sticker: true } : {}),
-  };
-
-  const { error } = await sb.from('mensagens_pendentes').insert(payload);
-  if(input) input.disabled = false;
-  if(input) input.focus();
-
-  if(error){
-    const hint = error.message?.includes('column') ? ' — Execute a migração SQL no Supabase.' : '';
-    toast('Erro ao enviar: ' + error.message + hint, 'err');
-    if(body && input) input.value = body;
-    optDiv?.remove();
-    return;
-  }
-}
-
-// Abre o chat hub do WhatsApp diretamente em um contato específico (a partir do card)
-function abrirWaComFone(phone, revendaId, nome){
-  if(!phone) return;
-  const dig      = phone.replace(/\D/g,'');
-  const phoneNorm = (dig.length >= 12 && dig.startsWith('55')) ? dig : '55' + dig;
-
-  closeMo('mo-card');
-
-  const pWa = document.getElementById('p-whatsapp');
-  if(pWa?.classList.contains('on') && window._waConvMap){
-    // Painel já aberto — busca conversa existente ou cria sintética
-    let key = null;
-    for(const [k, c] of window._waConvMap.entries()){
-      const cp = (c.phone||'').replace(/\D/g,'');
-      if(cp === dig || ('55'+cp) === dig || cp === ('55'+dig)){ key = k; break; }
-    }
-    if(!key){
-      const revSynth = window.DB?.revendas.find(r=>r.id===revendaId)
-        || { id: revendaId, nome: nome||'', tel: phone };
-      const synthConv = {
-        phone: phoneNorm, rev: revSynth, revendaId,
-        msgs: [],
-        last: { body: '— nova conversa —', created_at: new Date().toISOString(), direction: 'outbound' },
-      };
-      window._waConvMap.set(phoneNorm, synthConv);
-      _renderWaList([...window._waConvMap.values()]);
-      key = phoneNorm;
-    }
-    abrirWaThread(key);
-    return;
-  }
-
-  // Painel fechado — sinaliza para abrir a conversa após renderizar
-  _waPendingOpen = { phone: phoneNorm, revendaId, nome };
-  go('whatsapp');
-}
-
-async function desconectarWhatsapp(){
-  if(!confirm('Desconectar o WhatsApp? O serviço irá gerar um novo QR Code para reconectar.')) return;
-  const { error } = await sb.from('whatsapp_commands').insert({ action: 'disconnect' });
-  if(error){ toast('Erro: '+error.message,'err'); return; }
-  toast('Comando enviado. Aguarde a desconexão...','ok');
-}
-
-async function reconectarWhatsapp(){
-  const btn = document.querySelector('[onclick="reconectarWhatsapp()"]');
-  if(btn){ btn.disabled = true; btn.textContent = 'Aguardando...'; }
-  const { error } = await sb.from('whatsapp_commands').insert({ action: 'reconnect' });
-  if(error){ toast('Erro: '+error.message,'err'); if(btn){ btn.disabled=false; btn.textContent='▶ Iniciar conexão'; } return; }
-  toast('Comando enviado — aguarde o QR Code aparecer','ok');
-}
-
-function normalizarFoneJS(tel){ return String(tel||'').replace(/\D/g,''); }
-
-async function renderCardWhatsapp(id){
-  const el = document.getElementById('card-wa-msgs');
-  if(!el||!id) return;
-  el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--txt3)">⏳ Carregando...</div>';
-  const { data: msgs } = await sb.from('whatsapp_messages')
-    .select('*').eq('revenda_id', id).order('created_at',{ascending:true}).limit(200);
-  if(!msgs||!msgs.length){
-    el.innerHTML = '<div style="text-align:center;padding:30px;color:var(--txt3);font-size:13px">Nenhuma mensagem WhatsApp neste card.</div>';
-    return;
-  }
-  el.innerHTML = msgs.map(m=>{
-    const sent = m.direction === 'outbound';
-    const hora = new Date(m.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-    return `<div style="display:flex;justify-content:${sent?'flex-end':'flex-start'}">
-      <div style="max-width:75%;background:${sent?'rgba(37,211,102,.15)':'var(--bg2)'};border-radius:${sent?'12px 12px 2px 12px':'12px 12px 12px 2px'};padding:8px 12px;border:1px solid var(--bdr)">
-        <div style="font-size:13px;line-height:1.5">${esc(m.body||'')}</div>
-        <div style="font-size:10px;color:var(--txt3);margin-top:3px;text-align:right">${hora}${sent?' ✓✓':''}</div>
-      </div>
-    </div>`;
-  }).join('');
-  el.scrollTop = el.scrollHeight;
-}
-
-// ─── Integrações ────────────────────────────────────────────────────
-async function renderWaStatus(){
-  const badge = document.getElementById('wa-card-badge');
-  const card  = document.getElementById('wa-conn-card');
-  if(!card) return;
-  card.innerHTML = '<div style="color:var(--txt3);font-size:13px">Carregando...</div>';
-  const { data } = await sb.from('whatsapp_status').select('*').eq('id',1).maybeSingle();
-  if(!data){
-    if(badge){ badge.textContent='⚪ Não iniciado'; badge.style.color='var(--txt3)'; }
-    card.innerHTML = '<div style="display:flex;align-items:center;gap:14px"><div style="width:44px;height:44px;background:var(--txt3)22;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px">💬</div><div><div style="font-weight:600;color:var(--txt2)">Serviço não iniciado</div><div style="font-size:12px;color:var(--txt3);margin-top:3px">Execute: <code>cd services/whatsapp</code> → <code>npm start</code></div></div></div>';
-    return;
-  }
-  if(data.status==='conectado'){
-    if(badge){ badge.textContent='✅ Conectado'; badge.style.color='#25d366'; }
-    card.innerHTML = '<div style="display:flex;align-items:center;gap:14px"><div style="width:48px;height:48px;background:#25d36618;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px">💬</div><div><div style="font-weight:600;color:#25d366">✅ WhatsApp conectado</div>'+(data.numero?'<div style="font-size:12px;color:var(--txt3);margin-top:3px">Número: +'+data.numero+'</div>':'')+'<div style="font-size:11px;color:var(--txt3);margin-top:3px">Desde: '+new Date(data.updated_at).toLocaleString('pt-BR')+'</div></div></div>';
-  } else if(data.status==='aguardando_qr' && data.qr_code){
-    if(badge){ badge.textContent='📱 Aguardando scan'; badge.style.color='var(--acc)'; }
-    card.innerHTML = '<div style="text-align:center;padding:8px 0;width:100%"><div style="font-weight:600;margin-bottom:12px">📱 Abra o WhatsApp → Dispositivos conectados → Conectar dispositivo</div><img src="'+data.qr_code+'" style="width:210px;height:210px;border-radius:10px;border:2px solid var(--bdr)"><div style="font-size:11px;color:var(--txt3);margin-top:10px">O QR code expira em ~30s e é atualizado automaticamente.</div></div>';
-  } else {
-    if(badge){ badge.textContent='⚪ Desconectado'; badge.style.color='var(--txt3)'; }
-    card.innerHTML = '<div style="display:flex;align-items:center;gap:14px"><div style="width:48px;height:48px;background:var(--txt3)22;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px">💬</div><div><div style="font-weight:600;color:var(--txt2)">⚪ Desconectado</div><div style="font-size:12px;color:var(--txt3);margin-top:3px">Inicie o serviço: <code>cd services/whatsapp && npm start</code></div></div></div>';
-  }
-}
-function renderIntegracao(){ renderWaStatus(); }
 
 // ═══════════════════════════════════════════════════════════════════
 // FUNÇÕES DE CELEBRAÇÃO: FOGUETE, FOGOS E PARABÉNS
@@ -8609,6 +7610,14 @@ inicializarGoogleCalendar();
       </div>
     </div>
   </div>
+</div>
+
+<!-- Indicador offline -->
+<div id="offline-bar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9998;
+     background:#92400e;color:#fef3c7;padding:6px 16px;font-size:12px;font-weight:500;
+     align-items:center;justify-content:center;gap:8px;text-align:center">
+  📡 Sem conexão com o servidor — exibindo dados do cache local
+  <span id="offline-bar-ts" style="opacity:.7;font-weight:400"></span>
 </div>
 
 <!-- Pill sessão remota ativa -->

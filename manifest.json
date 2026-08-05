@@ -1,0 +1,16 @@
+{
+  "name": "Portal Revenda LC",
+  "short_name": "Portal LC",
+  "description": "Portal de Sucesso da Revenda — LC Sistemas",
+  "start_url": "app.html",
+  "display": "standalone",
+  "background_color": "#121824",
+  "theme_color": "#8B5CF6",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%238B5CF6'/><text y='.9em' font-size='80' x='10'>LC</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
