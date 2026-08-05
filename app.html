@@ -1656,8 +1656,30 @@ function _ativarModoEmergencia(){
   if(el && ts) el.textContent = '· dados de '+new Date(ts).toLocaleString('pt-BR');
 }
 
+function _mostrarErroSemDados(){
+  document.body.innerHTML = `
+    <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+         background:#0b0f1a;color:#e2e8f0;padding:24px;text-align:center">
+      <div style="font-size:52px;margin-bottom:20px">⚡</div>
+      <h1 style="font-size:20px;font-weight:700;margin-bottom:10px">Sem dados locais neste dispositivo</h1>
+      <p style="color:#94a3b8;font-size:14px;max-width:360px;line-height:1.7;margin-bottom:28px">
+        Não há sessão nem cache salvo neste navegador.<br>
+        <strong style="color:#e2e8f0">Acesse de onde você já usou o portal antes</strong> — o navegador que tinha a sessão ativa terá os dados salvos.<br><br>
+        Quando o serviço for restaurado, o acesso normal voltará a funcionar.
+      </p>
+      <a href="./index.html"
+         style="background:#4f46e5;color:#fff;padding:11px 28px;border-radius:8px;
+                text-decoration:none;font-size:14px;font-weight:600">
+        Voltar ao login
+      </a>
+    </div>`;
+}
+
 // Guard: redireciona para login se não autenticado
 async function initAuth(){
+  const _modoEmergParam = new URLSearchParams(location.search).has('emergency');
+
   // Captura token RAW antes de qualquer chamada Supabase
   // (getSession() deleta o token do localStorage se o refresh falhar)
   let tokenBackup = null;
@@ -1683,6 +1705,7 @@ async function initAuth(){
   // 3ª tentativa: modo emergência sem sessão (só cache local)
   if(!session){
     if(_lerCachePerfil()){ isEmergencia = true; session = {user:{id:'offline'}}; }
+    else if(_modoEmergParam){ _mostrarErroSemDados(); return false; }
     else { window.location.replace('./index.html'); return false; }
   }
 
@@ -1723,7 +1746,10 @@ async function initAuth(){
     isEmergencia = true;
   }
 
-  if(!perfil){ window.location.replace('./index.html'); return false; }
+  if(!perfil){
+    if(_modoEmergParam){ _mostrarErroSemDados(); return false; }
+    window.location.replace('./index.html'); return false;
+  }
 
   // Só verifica conta ativa quando banco respondeu normalmente
   if(!isEmergencia && !perfil.ativo){
