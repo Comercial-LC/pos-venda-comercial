@@ -83,6 +83,19 @@ input::placeholder{color:var(--txt3)}
         </button>
         <div id="emergency-ts" style="font-size:11px;color:var(--txt3);text-align:center;margin-top:6px"></div>
       </div>
+
+      <!-- Importar backup — sempre visível no rodapé do card de login -->
+      <div style="margin-top:20px;border-top:1px solid var(--bdr);padding-top:16px;text-align:center">
+        <div style="font-size:11px;color:var(--txt3);margin-bottom:10px">Serviço indisponível? Importe um backup</div>
+        <label style="display:inline-flex;align-items:center;gap:6px;background:rgba(99,102,241,.12);
+               color:#818cf8;border:1px solid rgba(99,102,241,.28);border-radius:8px;
+               padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">
+          📂 Carregar arquivo de backup
+          <input type="file" id="backup-file-login" accept=".json,.csv" style="display:none"
+                 onchange="importarBackupLogin(this)">
+        </label>
+        <div id="backup-login-msg" style="display:none;margin-top:10px;font-size:12px;padding:8px 12px;border-radius:6px"></div>
+      </div>
     </div>
 
     <!-- TELA: CADASTRO -->
@@ -265,6 +278,44 @@ function verificarCacheEmergencia(){
 }
 function acessarEmergencia(){
   window.location.replace('./app.html?emergency=1');
+}
+function importarBackupLogin(input){
+  const file = input.files[0];
+  if(!file) return;
+  const msg = document.getElementById('backup-login-msg');
+  msg.style.display = 'block';
+  msg.style.background = 'rgba(99,102,241,.15)';
+  msg.style.color = '#a5b4fc';
+  msg.textContent = 'Lendo arquivo…';
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      let raw = e.target.result.trim();
+      let data = JSON.parse(raw);
+      // Supabase SQL Editor exporta como [{backup:{...}}]
+      if(Array.isArray(data) && data[0]?.backup) data = data[0].backup;
+      if(!data || typeof data !== 'object') throw new Error('Formato inválido');
+      let count = 0;
+      if(data.revendas?.length)    { sessionStorage.setItem('sb_revendas_backup', JSON.stringify(data.revendas)); count++; }
+      if(data.tarefas?.length)     { localStorage.setItem('lc_cache_tarefas',      JSON.stringify(data.tarefas));  count++; }
+      if(data.usuarios?.length)    { localStorage.setItem('lc_cache_usuarios',     JSON.stringify(data.usuarios)); count++; }
+      if(data.atividades?.length)  { localStorage.setItem('lc_cache_atividades',   JSON.stringify(data.atividades)); count++; }
+      if(data.handovers?.length)   { localStorage.setItem('lc_cache_handovers',    JSON.stringify(data.handovers)); count++; }
+      if(data.treinamentos?.length){ localStorage.setItem('lc_cache_treinamentos', JSON.stringify(data.treinamentos)); count++; }
+      if(data.perfil)              { localStorage.setItem('lc_perfil_cache',       JSON.stringify(data.perfil)); }
+      localStorage.setItem('lc_cache_ts', new Date().toISOString());
+      if(count === 0) throw new Error('Nenhuma tabela encontrada no arquivo');
+      msg.style.background = 'rgba(34,197,94,.15)';
+      msg.style.color = '#86efac';
+      msg.textContent = '✓ ' + count + ' tabela(s) importada(s). Abrindo portal…';
+      setTimeout(()=> window.location.replace('./app.html?emergency=1'), 1200);
+    } catch(err) {
+      msg.style.background = 'rgba(239,68,68,.15)';
+      msg.style.color = '#fca5a5';
+      msg.textContent = 'Arquivo inválido: ' + err.message;
+    }
+  };
+  reader.readAsText(file);
 }
 // Mostra botão de emergência automaticamente se há cache disponível
 verificarCacheEmergencia();
