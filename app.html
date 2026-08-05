@@ -1705,6 +1705,21 @@ async function initAuth(){
     isEmergencia = true;
   }
 
+  // Último recurso: cria perfil mínimo a partir do token de sessão
+  if(!perfil && session.user && session.user.id !== 'offline'){
+    const meta = session.user.user_metadata || {};
+    const nomeBase = meta.nome || session.user.email?.split('@')[0] || 'Usuário';
+    perfil = {
+      id: session.user.id,
+      nome: nomeBase,
+      email: session.user.email || '',
+      perfil: 'cs',
+      ativo: true,
+      avatar_iniciais: nomeBase.slice(0,2).toUpperCase()
+    };
+    isEmergencia = true;
+  }
+
   if(!perfil){ window.location.replace('./index.html'); return false; }
 
   // Só verifica conta ativa quando banco respondeu normalmente
