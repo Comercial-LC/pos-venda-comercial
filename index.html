@@ -248,14 +248,19 @@ function setLoading(btnId, loading, txt){
   btn.innerHTML=loading?`<span class="spinner"></span>${txt}...`:txt;
 }
 
-function verificarCacheEmergencia(){
-  const perfil = localStorage.getItem('lc_perfil_cache');
-  const ts     = localStorage.getItem('lc_cache_ts');
-  if(!perfil || !ts) return false;
+function _mostrarBotaoEmergencia(){
   const sect = document.getElementById('emergency-section');
   if(sect) sect.style.display = 'block';
+  const ts = localStorage.getItem('lc_cache_ts');
   const tsEl = document.getElementById('emergency-ts');
-  if(tsEl) tsEl.textContent = 'Dados salvos em '+new Date(ts).toLocaleString('pt-BR');
+  if(tsEl) tsEl.textContent = ts ? 'Dados salvos em '+new Date(ts).toLocaleString('pt-BR') : 'Sessão anterior encontrada';
+}
+function verificarCacheEmergencia(){
+  const perfil   = localStorage.getItem('lc_perfil_cache');
+  const ts       = localStorage.getItem('lc_cache_ts');
+  const temToken = Object.keys(localStorage).some(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+  if(!perfil && !ts && !temToken) return false;
+  _mostrarBotaoEmergencia();
   return true;
 }
 function acessarEmergencia(){
@@ -282,9 +287,9 @@ async function doLogin(){
     if(msgConhecida){
       showMsg(msgConhecida,'err');
     } else {
-      // Erro de servidor/quota — exibe mensagem e revela acesso emergência
+      // Erro de servidor/quota — exibe mensagem e força exibição do botão emergência
       showMsg('Serviço temporariamente indisponível. Use o acesso com dados locais abaixo.','err');
-      verificarCacheEmergencia();
+      _mostrarBotaoEmergencia();
     }
     return;
   }
