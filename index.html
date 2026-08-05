@@ -305,6 +305,13 @@ function importarBackupLogin(input){
       if(data.perfil)              { localStorage.setItem('lc_perfil_cache',       JSON.stringify(data.perfil)); }
       localStorage.setItem('lc_cache_ts', new Date().toISOString());
       if(count === 0) throw new Error('Nenhuma tabela encontrada no arquivo');
+      // Auto-detecta perfil do admin para lc_perfil_cache
+      if(!data.perfil && data.usuarios?.length){
+        const admin = data.usuarios.find(u=>u.perfil==='Administrador'&&u.ativo!==false)
+                   || data.usuarios.find(u=>u.ativo!==false)
+                   || data.usuarios[0];
+        if(admin) localStorage.setItem('lc_perfil_cache', JSON.stringify(admin));
+      }
       msg.style.background = 'rgba(34,197,94,.15)';
       msg.style.color = '#86efac';
       msg.textContent = '✓ ' + count + ' tabela(s) importada(s). Abrindo portal…';
