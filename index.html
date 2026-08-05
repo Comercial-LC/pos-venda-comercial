@@ -264,7 +264,7 @@ function verificarCacheEmergencia(){
   return true;
 }
 function acessarEmergencia(){
-  window.location.replace('./app.html');
+  window.location.replace('./app.html?emergency=1');
 }
 // Mostra botão de emergência automaticamente se há cache disponível
 verificarCacheEmergencia();
@@ -287,9 +287,12 @@ async function doLogin(){
     if(msgConhecida){
       showMsg(msgConhecida,'err');
     } else {
-      // Erro de servidor/quota — exibe mensagem e força exibição do botão emergência
-      showMsg('Serviço temporariamente indisponível. Use o acesso com dados locais abaixo.','err');
-      _mostrarBotaoEmergencia();
+      // Erro de servidor/quota — mostra botão SOMENTE se há dados locais reais
+      if(verificarCacheEmergencia()){
+        showMsg('Serviço temporariamente indisponível. Use o acesso com dados locais abaixo.','err');
+      } else {
+        showMsg('Serviço temporariamente indisponível (quota excedida). Não há dados locais neste dispositivo. Acesse de onde já usou o portal antes.','err');
+      }
     }
     return;
   }
