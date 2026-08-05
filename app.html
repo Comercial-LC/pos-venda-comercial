@@ -1643,25 +1643,85 @@ function iniciarControleSession(perfil, userId, session){
   }, restante);
 }
 
+// ─── Helpers de cache de perfil ──────────────────────────────────────
+function _lerCachePerfil(){
+  try{ return JSON.parse(localStorage.getItem('lc_perfil_cache')||'null'); }catch{ return null; }
+}
+function _ativarModoEmergencia(){
+  window._modoEmergencia = true;
+  const bar = document.getElementById('emergency-bar');
+  if(bar) bar.style.display = 'flex';
+  const ts = localStorage.getItem('lc_cache_ts');
+  const el = document.getElementById('emergency-bar-ts');
+  if(el && ts) el.textContent = '· dados de '+new Date(ts).toLocaleString('pt-BR');
+}
+
 // Guard: redireciona para login se não autenticado
 async function initAuth(){
-  const {data:{session}} = await sb.auth.getSession();
-  if(!session){ window.location.replace('./index.html'); return false; }
+  let session = null, isEmergencia = false;
+
+  // 1ª tentativa: sessão normal (lê do localStorage se token ainda válido)
+  try {
+    const {data, error} = await sb.auth.getSession();
+    if(!error) session = data?.session;
+  } catch(e){}
+
+  // 2ª tentativa: token guardado no localStorage (Supabase v2)
+  if(!session){
+    try {
+      const chave = Object.keys(localStorage).find(k=>k.startsWith('sb-')&&k.endsWith('-auth-token'));
+      if(chave){
+        const tok = JSON.parse(localStorage.getItem(chave)||'null');
+        if(tok?.user){ session = tok; isEmergencia = true; }
+      }
+    } catch(e){}
+  }
+
+  // 3ª tentativa: modo emergência sem sessão (só cache local)
+  if(!session){
+    if(_lerCachePerfil()){ isEmergencia = true; session = {user:{id:'offline'}}; }
+    else { window.location.replace('./index.html'); return false; }
+  }
+
   sessaoAtual = session;
-  // Carrega perfil
-  const {data:perfil} = await sb.from('perfis').select('*').eq('id',session.user.id).single();
-  perfilAtual = perfil;
-  if(!perfil || !perfil.ativo){
+
+  // Tenta carregar perfil do banco (falha se quota excedida)
+  let perfil = null;
+  if(!isEmergencia){
+    try {
+      const uid = session.user?.id;
+      if(uid && uid !== 'offline'){
+        const {data} = await sb.from('perfis').select('*').eq('id',uid).single();
+        perfil = data;
+        // Guarda para uso offline futuro
+        if(perfil) localStorage.setItem('lc_perfil_cache', JSON.stringify(perfil));
+      }
+    } catch(e){ isEmergencia = true; }
+  }
+
+  // Fallback: perfil do cache local
+  if(!perfil){
+    perfil = _lerCachePerfil();
+    isEmergencia = true;
+  }
+
+  if(!perfil){ window.location.replace('./index.html'); return false; }
+
+  // Só verifica conta ativa quando banco respondeu normalmente
+  if(!isEmergencia && !perfil.ativo){
     await sb.auth.signOut();
     window.location.replace('./index.html');
     return false;
   }
-  // Atualiza UI com dados do usuário
-  document.getElementById('currentUserAv').textContent  = perfil.avatar_iniciais||perfil.nome.slice(0,2).toUpperCase();
+
+  perfilAtual = perfil;
+  document.getElementById('currentUserAv').textContent  = perfil.avatar_iniciais||(perfil.nome||'?').slice(0,2).toUpperCase();
   document.getElementById('currentUserName').textContent = perfil.nome;
   document.getElementById('currentUserRole').textContent = perfil.perfil;
-  iniciarControleSession(perfil, session.user.id, session);
+
+  if(!isEmergencia) iniciarControleSession(perfil, session.user.id, session);
   aplicarPermissoes(perfil);
+  if(isEmergencia) _ativarModoEmergencia();
   return true;
 }
 
@@ -7618,6 +7678,14 @@ inicializarGoogleCalendar();
      align-items:center;justify-content:center;gap:8px;text-align:center">
   📡 Sem conexão com o servidor — exibindo dados do cache local
   <span id="offline-bar-ts" style="opacity:.7;font-weight:400"></span>
+</div>
+
+<!-- Indicador modo emergência (quota excedida) -->
+<div id="emergency-bar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;
+     background:#78350f;color:#fde68a;padding:7px 16px;font-size:12px;font-weight:600;
+     align-items:center;justify-content:center;gap:8px;text-align:center;border-bottom:2px solid #f59e0b">
+  ⚡ Modo Emergência — leitura apenas, dados locais
+  <span id="emergency-bar-ts" style="opacity:.7;font-weight:400"></span>
 </div>
 
 <!-- Pill sessão remota ativa -->

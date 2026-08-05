@@ -69,6 +69,20 @@ input::placeholder{color:var(--txt3)}
       </div>
       <div class="forgot" onclick="showForgot()">Esqueci minha senha</div>
       <button class="btn btn-p" id="btn-login" onclick="doLogin()">Entrar</button>
+
+      <!-- Acesso emergência — aparece quando há cache local disponível ou servidor falhou -->
+      <div id="emergency-section" style="display:none;margin-top:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <div style="flex:1;height:1px;background:var(--bdr)"></div>
+          <span style="font-size:11px;color:var(--txt3);white-space:nowrap">ou</span>
+          <div style="flex:1;height:1px;background:var(--bdr)"></div>
+        </div>
+        <button class="btn" id="btn-emergency" onclick="acessarEmergencia()"
+          style="background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid rgba(245,158,11,.28);font-weight:600;width:100%;gap:6px">
+          ⚡ Acessar com dados locais
+        </button>
+        <div id="emergency-ts" style="font-size:11px;color:var(--txt3);text-align:center;margin-top:6px"></div>
+      </div>
     </div>
 
     <!-- TELA: CADASTRO -->
@@ -234,6 +248,22 @@ function setLoading(btnId, loading, txt){
   btn.innerHTML=loading?`<span class="spinner"></span>${txt}...`:txt;
 }
 
+function verificarCacheEmergencia(){
+  const perfil = localStorage.getItem('lc_perfil_cache');
+  const ts     = localStorage.getItem('lc_cache_ts');
+  if(!perfil || !ts) return false;
+  const sect = document.getElementById('emergency-section');
+  if(sect) sect.style.display = 'block';
+  const tsEl = document.getElementById('emergency-ts');
+  if(tsEl) tsEl.textContent = 'Dados salvos em '+new Date(ts).toLocaleString('pt-BR');
+  return true;
+}
+function acessarEmergencia(){
+  window.location.replace('./app.html');
+}
+// Mostra botão de emergência automaticamente se há cache disponível
+verificarCacheEmergencia();
+
 async function doLogin(){
   const email=document.getElementById('login-email').value.trim();
   const senha=document.getElementById('login-senha').value;
@@ -243,12 +273,19 @@ async function doLogin(){
   const {data,error}=await sb.auth.signInWithPassword({email,password:senha});
   if(error){
     setLoading('btn-login',false,'Entrar');
-    const msgs={
+    const ERROS_USUARIO={
       'Invalid login credentials':'E-mail ou senha incorretos.',
       'Email not confirmed':'Confirme seu e-mail antes de entrar.',
       'User not found':'Usuário não encontrado.',
     };
-    showMsg(msgs[error.message]||error.message,'err');
+    const msgConhecida = ERROS_USUARIO[error.message];
+    if(msgConhecida){
+      showMsg(msgConhecida,'err');
+    } else {
+      // Erro de servidor/quota — exibe mensagem e revela acesso emergência
+      showMsg('Serviço temporariamente indisponível. Use o acesso com dados locais abaixo.','err');
+      verificarCacheEmergencia();
+    }
     return;
   }
   // Verifica se está ativo
