@@ -358,7 +358,7 @@ create index if not exists idx_historico_tipo     on public.historico_cards(tipo
 create index if not exists idx_handovers_revenda  on public.handovers(revenda_id);
 create index if not exists idx_atividades_tipo    on public.atividades(tipo);
 create index if not exists idx_auditoria_acao     on public.auditoria(acao);
-create index if not exists idx_orion_leads_proc   on public.orion_leads_vendidos(processado);
+-- (idx_orion_leads_proc criado em rls_e_tabelas_orion.sql junto com a tabela)
 
 -- Para bancos já existentes: ALTER para adicionar 'Dashboard TV' ao constraint
 -- ALTER TABLE public.perfis DROP CONSTRAINT IF EXISTS perfis_perfil_check;
