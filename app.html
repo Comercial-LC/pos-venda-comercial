@@ -2097,84 +2097,11 @@ function ativarModoTV(){
   atualizaRelogio();
   setInterval(atualizaRelogio, 1000);
 
-  // Realtime exclusivo da TV — isolado do sistema principal
-  // Não chama loadFromSupabase para não causar sumiço de dados
-  // Em vez disso, busca os dados específicos que mudaram
-  
-  let _tvDebounce = null;
+  // Re-renderiza a cada 5 min usando cache local — Realtime cuida das atualizações imediatas
+  // (celebrações detectadas em carregarMetas(), disparado pelo canal orion_metas_ch)
+  setInterval(renderTVDashboard, 300000);
 
-  async function tvRefresh(){
-    // Recarrega apenas o que a TV precisa (revendas + tarefas) — não carrega todas as tabelas
-    const cacheAntes = DB.revendas.length;
-    const CAMPOS_TV = 'id,nome,status,cs,contratos,curva,ingresso,inativado_portal,criado_em';
-    let todas = [], pag = 0;
-    while(true){
-      const {data,error} = await sb.from('revendas').select(CAMPOS_TV)
-        .order('nome',{ascending:true}).range(pag*500,(pag+1)*500-1);
-      if(error||!data||!data.length) break;
-      todas = todas.concat(data);
-      if(data.length < 500) break;
-      pag++;
-    }
-    if(todas.length > 0) DB.revendas = todas.map(normalizeRevenda);
-    else if(DB.revendas.length === 0 && cacheAntes > 0) return;
-    const {data:tasks} = await sb.from('tarefas')
-      .select('id,status,vencimento').neq('status','Concluída').limit(1000);
-    if(tasks) DB.tarefas = tasks.map(t=>({...t, titulo:'', revenda:'', responsavel:'', prioridade:'Média', desc:'', criadoEm:t.criado_em}));
-    renderTVDashboard();
-    // Pisca indicador AO VIVO
-    const dot = document.getElementById('tv-live-dot');
-    if(dot){
-      dot.style.background='var(--acc)';
-      setTimeout(()=>{ if(dot) dot.style.background='var(--ok)'; }, 1500);
-    }
-  }
-
-  function tvScheduleRefresh(imediato = false){
-    clearTimeout(_tvDebounce);
-    _tvDebounce = setTimeout(tvRefresh, imediato ? 0 : 400);
-  }
-
-  // Canal TV — revendas e atividades (atualiza display)
-  ['revendas','atividades'].forEach(tabela => {
-    sb.channel('tv_watch_'+tabela)
-      .on('postgres_changes', {event:'*', schema:'public', table:tabela},
-        ()=>{ tvScheduleRefresh(); })
-      .subscribe();
-  });
-
-  // Polling a cada 2s — detecta aumento de valor_atual e dispara celebração.
-  // Não depende de realtime nem de REPLICA IDENTITY: funciona sempre.
-  {
-    let _polVal = {}, _polSt = {}, _pronto = false;
-
-    async function _tvPoll() {
-      const mes = new Date().getMonth()+1, ano = new Date().getFullYear();
-      const {data} = await sb.from('orion_metas')
-        .select('id,nome,valor_atual,status').eq('mes',mes).eq('ano',ano);
-      if(!data) return;
-      data.forEach(m => {
-        if(_pronto && _polVal[m.id] !== undefined && m.valor_atual > _polVal[m.id]){
-          if(m.status === 'atingida' && _polSt[m.id] !== 'atingida'){
-            comemoracao30s(m.nome);
-          } else {
-            comemoracao10s();
-          }
-        }
-        _polVal[m.id] = m.valor_atual;
-        _polSt[m.id]  = m.status;
-      });
-      if(!_pronto){ _pronto = true; console.log('TV: cache pronto —', data.length, 'metas'); }
-    }
-
-    _tvPoll(); // carrega valores iniciais imediatamente
-    setInterval(_tvPoll, 2000);
-  }
-
-  // Re-renderiza a cada 2 min usando cache local — Realtime cuida das atualizações imediatas
-  setInterval(renderTVDashboard, 120000);
-
-  console.log('TV: polling 2s (celebração) + 5s (dashboard) ativos');
+  console.log('TV: Realtime ativo (celebrações via carregarMetas)');
 }
 
 async function renderTVDashboard(){
@@ -2190,8 +2117,7 @@ async function renderTVDashboard(){
       if(backup) DB.revendas = JSON.parse(backup);
     } catch(e){}
   }
-  // Sempre busca config fresca do Supabase na TV
-  await carregarCfgDoSupabase();
+  // Usa config em cache (cfg_sync Realtime invalida quando muda)
   const rv   = DB.revendas || [];
   const task = DB.tarefas  || [];
 
@@ -2579,6 +2505,41 @@ async function loadFromSupabase(){
   }
 }
 
+// Atualiza apenas uma tabela (substitui loadFromSupabase() após mutações simples)
+async function _refreshTabela(tabela){
+  const PG = 500;
+  if(tabela === 'revendas'){
+    const C = 'id,nome,cnpj,cidade,uf,email,tel,cs,status,segmento,porte,contratos,curva,ingresso,obs,produtos,tpc,inativado_portal,criado_em,id_origem';
+    let todas=[], pag=0;
+    while(true){
+      const {data,error}=await sb.from('revendas').select(C).order('nome',{ascending:true}).range(pag*PG,(pag+1)*PG-1);
+      if(error||!data||!data.length) break;
+      todas=todas.concat(data);
+      if(data.length<PG) break;
+      pag++;
+    }
+    if(todas.length>0){
+      DB.revendas=todas.map(normalizeRevenda);
+      try{sessionStorage.setItem('sb_revendas_backup',JSON.stringify(DB.revendas.map(r=>({id:r.id,nome:r.nome,status:r.status,cs:r.cs,contratos:r.contratos,curva:r.curva,ingresso:r.ingresso,cidade:r.cidade,uf:r.uf,email:r.email,tel:r.tel,produtos:r.produtos,id_origem:r.id_origem,criadoEm:r.criadoEm,inativado_portal:r.inativado_portal||false}))));}catch(e){}
+    }
+  } else if(tabela === 'tarefas'){
+    const {data}=await sb.from('tarefas').select('id,titulo,descricao,revenda_id,revenda_nome,responsavel,prioridade,vencimento,tipo,status,criado_por,criado_em,atualizado_em').order('criado_em',{ascending:false}).limit(1000);
+    if(data) DB.tarefas=data.map(normalizeTask);
+  } else if(tabela === 'atividades'){
+    const {data}=await sb.from('atividades').select('id,tipo,revenda_nome,descricao,criado_em,usuario_nome').order('criado_em',{ascending:false}).limit(200);
+    if(data) DB.atividades=data.map(normalizeAtiv);
+  } else if(tabela === 'handovers'){
+    const {data}=await sb.from('handovers').select('id,revenda_id,revenda_nome,cs_nome,cs_id,inicio,prazo,progresso,status,obs,checklist,criado_em').order('criado_em',{ascending:false}).limit(200);
+    if(data) DB.handovers=data.map(normalizeHandover);
+  } else if(tabela === 'perfis'){
+    const {data}=await sb.from('perfis').select('id,nome,email,perfil,ativo,avatar_iniciais').order('nome');
+    if(data&&data.length>0) DB.usuarios=data.map(normalizeUsuario);
+  } else if(tabela === 'treinamentos'){
+    const {data}=await sb.from('treinamentos').select('*').order('criado_em',{ascending:false}).limit(200);
+    if(data) DB.treinamentos=data;
+  }
+}
+
 // Normaliza campos Supabase → formato do app
 function normalizeRevenda(r){
   return {...r,
@@ -2708,6 +2669,8 @@ function initRealtimeSync(){
           clearTimeout(_syncTimer);
           _syncTimer=setTimeout(()=>{
             renderPanel(document.querySelector('.panel.on')?.id?.replace('p-','')||'dashboard');
+            // Atualiza TV se estiver visível (sem nova query — usa DB atualizado)
+            if(document.getElementById('tv-dash')?.classList.contains('on')) renderTVDashboard();
           }, 500);
         }
       ).subscribe();
@@ -2879,7 +2842,7 @@ async function saveRevenda(){
     usuario_id:sessaoAtual?.user?.id, usuario_nome:perfilAtual?.nome,
   });
   logAuditoria(editId?'UPDATE':'CREATE','revendas',savedId,{nome,status:payload.status});
-  await loadFromSupabase();
+  await Promise.all([_refreshTabela('revendas'), _refreshTabela('atividades')]);
   renderRevendas(); renderDashboard();
 }
 
@@ -2932,7 +2895,7 @@ function deleteRevenda(id){
     if(error){toast('Erro ao excluir: '+error.message,'err');return}
     toast('Revenda excluída','warn');
     logAuditoria('DELETE','revendas',id,{nome:revDel?.nome});
-    await loadFromSupabase();
+    await _refreshTabela('revendas');
     renderRevendas();renderDashboard();
   });
 }
@@ -3065,7 +3028,7 @@ function renderDashboard(){
     const barsEl = document.getElementById('dash-motivos');
     try {
       const {data: hist} = await sb.from('historico_cards')
-        .select('descricao').like('descricao', '%Motivo:%');
+        .select('descricao').like('descricao', '%Motivo:%').limit(500);
       if(loadEl) loadEl.style.display = 'none';
       const motivoCount = {};
       (hist||[]).forEach(h => {
@@ -4106,8 +4069,6 @@ async function toggleInativadoPortal(revId){
   if(currentCardId === revId) setTimeout(()=>renderCardHistorico(revId), 200);
 
   toast(novoValor ? '✅ Marcado como Inativado no portal' : 'Marcação removida', 'ok');
-  // Recarrega do banco para garantir que os contadores reflitam o estado real
-  await loadFromSupabase();
   renderDashboard();
   if(document.getElementById('tv-dash')?.classList.contains('on')) renderTVDashboard();
 }
@@ -4221,7 +4182,7 @@ async function saveTask(){
   }
   if(error){toast('Erro: '+error.message,'err');return}
   closeMo('mo-task');toast(editId?'Tarefa atualizada!':'Tarefa criada!'+(meetAtivo?' + Meet criado! 📅':''));
-  await loadFromSupabase();renderTasks();
+  await _refreshTabela('tarefas');renderTasks();
 }
 
 function editTask(id){
@@ -4325,7 +4286,7 @@ async function concludeTask(id){
   const {error}=await sb.from('tarefas').update({status:'Concluída',atualizado_em:new Date().toISOString()}).eq('id',id);
   if(error){toast('Erro: '+error.message,'err');return}
   toast('Tarefa concluída! ✓');
-  await loadFromSupabase();renderTasks();
+  await _refreshTabela('tarefas');renderTasks();
 }
 
 function deleteTask(id){
@@ -4341,7 +4302,7 @@ function deleteTask(id){
     const {error}=await sb.from('tarefas').delete().eq('id',id);
     if(error){toast('Erro: '+error.message,'err');return}
     toast(eventId&&_gcalToken ? 'Tarefa e evento do Meet excluídos' : 'Tarefa excluída','warn');
-    await loadFromSupabase();renderTasks();
+    await _refreshTabela('tarefas');renderTasks();
   });
 }
 
@@ -4405,7 +4366,7 @@ async function saveAtividade(){
   });
   if(error){toast('Erro: '+error.message,'err');return}
   closeMo('mo-ativ');toast('Atividade registrada!');
-  await loadFromSupabase();renderTimeline();
+  await _refreshTabela('atividades');renderTimeline();
 }
 
 function renderTimeline(){
@@ -4448,7 +4409,7 @@ async function saveTreinamento(){
   });
   if(error){toast('Erro: '+error.message,'err');return}
   closeMo('mo-train');toast('Trilha criada!');
-  await loadFromSupabase();renderTreinamentos();
+  await _refreshTabela('treinamentos');renderTreinamentos();
 }
 
 function deleteTreinamento(id){
@@ -4456,7 +4417,7 @@ function deleteTreinamento(id){
     const {error}=await sb.from('treinamentos').delete().eq('id',id);
     if(error){toast('Erro: '+error.message,'err');return}
     toast('Trilha excluída','warn');
-    await loadFromSupabase();renderTreinamentos();
+    await _refreshTabela('treinamentos');renderTreinamentos();
   });
 }
 
@@ -4504,7 +4465,7 @@ async function saveHandover(){
     usuario_id:sessaoAtual?.user?.id, usuario_nome:perfilAtual?.nome,
   });
   closeMo('mo-handover');toast('Handover iniciado!');
-  await loadFromSupabase();renderHandover();
+  await Promise.all([_refreshTabela('handovers'), _refreshTabela('atividades')]);renderHandover();
 }
 
 function renderHandover(){
@@ -4556,7 +4517,7 @@ async function toggleHandoverCheck(hid,key,val){
     checklist:newCheck,progresso:prog,atualizado_em:new Date().toISOString()
   }).eq('id',hid);
   if(error){toast('Erro: '+error.message,'err');return}
-  await loadFromSupabase();renderHandover();showHandoverDetail(hid);
+  await _refreshTabela('handovers');renderHandover();showHandoverDetail(hid);
 }
 
 async function completeHandover(id){
@@ -4568,7 +4529,7 @@ async function completeHandover(id){
     usuario_id:sessaoAtual?.user?.id,usuario_nome:perfilAtual?.nome,
   });
   toast('Handover concluído! 🎉');
-  await loadFromSupabase();renderHandover();
+  await Promise.all([_refreshTabela('handovers'), _refreshTabela('atividades')]);renderHandover();
 }
 
 function deleteHandover(id){
@@ -4576,7 +4537,7 @@ function deleteHandover(id){
     const {error}=await sb.from('handovers').delete().eq('id',id);
     if(error){toast('Erro: '+error.message,'err');return}
     toast('Handover excluído','warn');
-    await loadFromSupabase();renderHandover();
+    await _refreshTabela('handovers');renderHandover();
   });
 }
 
@@ -4649,7 +4610,8 @@ async function renderRelatorios(){
     const {data: hist} = await sb.from('historico_cards')
       .select('descricao,criado_em')
       .like('descricao', '%Motivo:%')
-      .order('criado_em', {ascending: false});
+      .order('criado_em', {ascending: false})
+      .limit(500);
     if(loadEl) loadEl.style.display = 'none';
     const motivoCount = {};
     (hist||[]).forEach(h => {
@@ -5133,7 +5095,7 @@ async function saveUser(){
     closeMo('mo-user');return;
   }
   closeMo('mo-user');
-  await loadFromSupabase();renderUsers();updateCurrentUser();
+  await _refreshTabela('perfis');renderUsers();updateCurrentUser();
 }
 
 function editUser(id){
@@ -5154,7 +5116,7 @@ async function toggleUserStatus(id){
   if(error){toast('Erro: '+error.message,'err');return}
   toast(`Usuário ${novoStatus?'ativado':'desativado'}`);
   logAuditoria(novoStatus?'USER_ACTIVATED':'USER_DEACTIVATED','perfis',id,{nome:u.nome});
-  await loadFromSupabase();renderUsers();
+  await _refreshTabela('perfis');renderUsers();
 }
 
 function deleteUser(id){
@@ -5164,7 +5126,7 @@ function deleteUser(id){
     if(error){toast('Erro: '+error.message,'err');return}
     toast('Usuário excluído','warn');
     logAuditoria('DELETE','perfis',id,{nome:u?.nome});
-    await loadFromSupabase();renderUsers();
+    await _refreshTabela('perfis');renderUsers();
   });
 }
 
@@ -5337,6 +5299,9 @@ const FUNC_URL = 'https://vykhskaayukmodnglujc.supabase.co/functions/v1/webhook-
 const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
+// Estado anterior das metas — detecta aumentos para disparar celebrações na TV
+let _metasAnterior = {};
+
 async function carregarMetas(){
   try {
     const now   = new Date();
@@ -5355,6 +5320,22 @@ async function carregarMetas(){
       document.getElementById('dash-metas-wrap').style.display='none';
       return;
     }
+
+    // Detecta aumentos de valor_atual e dispara celebrações na TV (substitui _tvPoll)
+    if(Object.keys(_metasAnterior).length > 0){
+      data.forEach(m => {
+        const prev = _metasAnterior[m.id];
+        if(prev !== undefined && m.valor_atual > prev.valor_atual){
+          if(m.status === 'atingida' && prev.status !== 'atingida'){
+            comemoracao30s(m.nome);
+          } else {
+            comemoracao10s();
+          }
+        }
+      });
+    }
+    // Atualiza estado anterior
+    data.forEach(m => { _metasAnterior[m.id] = {valor_atual: m.valor_atual, status: m.status}; });
 
     // Mostra o bloco
     document.getElementById('dash-metas-wrap').style.display='block';
@@ -6281,7 +6262,7 @@ Peça para trocar no primeiro acesso.`);
     });
 
     closeMo('mo-convite');
-    await loadFromSupabase();
+    await _refreshTabela('perfis');
     renderUsers();
 
   } catch(e){
