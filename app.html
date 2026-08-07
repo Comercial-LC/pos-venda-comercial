@@ -2035,6 +2035,7 @@ async function renderTVLayout2Data(tvCfg, rv, etapas, todosKpis){
 }
 
 function ativarModoTV(){
+  _isTVMode = true;
   // Esconde sidebar e topbar completamente
   document.getElementById('sb').style.display = 'none';
   document.querySelector('.topbar').style.display = 'none';
@@ -5303,6 +5304,7 @@ const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho',
 
 // Estado anterior das metas — detecta aumentos para disparar celebrações na TV
 let _metasAnterior = {};
+let _isTVMode = false;
 
 async function carregarMetas(){
   try {
@@ -5324,7 +5326,7 @@ async function carregarMetas(){
     }
 
     // Detecta aumentos de valor_atual e dispara celebrações na TV (substitui _tvPoll)
-    if(Object.keys(_metasAnterior).length > 0){
+    if(_isTVMode && Object.keys(_metasAnterior).length > 0){
       data.forEach(m => {
         const prev = _metasAnterior[m.id];
         if(prev !== undefined && m.valor_atual > prev.valor_atual){
