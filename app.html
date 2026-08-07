@@ -2432,7 +2432,7 @@ async function loadFromSupabase(){
     while(true){
       const {data, error} = await sb
         .from('revendas')
-        .select('*')
+        .select('id,nome,cnpj,cidade,uf,email,tel,cs,status,segmento,porte,contratos,curva,ingresso,obs,produtos,tpc,inativado_portal,criado_em,id_origem')
         .order('nome', {ascending:true})
         .range(pag*PG, (pag+1)*PG - 1);
       if(error){ console.warn('revendas pag'+pag+':', error.message); break; }
@@ -2623,50 +2623,44 @@ async function persist(tabela, id, dados){
   }
 }
 
-// Realtime: atualiza apenas a tabela que mudou (não recarrega tudo)
+// Realtime: aplica delta diretamente no cache (sem recarregar a tabela inteira)
 function initRealtimeSync(){
   let _syncTimer = null;
 
-  const _recarregar = {
-    revendas: async ()=>{
-      const C='id,nome,cnpj,cidade,uf,email,tel,cs,status,segmento,porte,contratos,curva,ingresso,obs,produtos,tpc,inativado_portal,criado_em,id_origem';
-      let todas=[],pag=0;
-      while(true){
-        const {data,error}=await sb.from('revendas').select(C).order('nome',{ascending:true}).range(pag*500,(pag+1)*500-1);
-        if(error||!data||!data.length) break;
-        todas=todas.concat(data);
-        if(data.length<500) break;
-        pag++;
-      }
-      if(todas.length>0){
-        DB.revendas=todas.map(normalizeRevenda);
-        try{sessionStorage.setItem('sb_revendas_backup',JSON.stringify(DB.revendas.map(r=>({id:r.id,nome:r.nome,status:r.status,cs:r.cs,contratos:r.contratos,curva:r.curva,ingresso:r.ingresso,cidade:r.cidade,uf:r.uf,email:r.email,tel:r.tel,produtos:r.produtos,id_origem:r.id_origem,criadoEm:r.criadoEm,inativado_portal:r.inativado_portal||false}))));}catch(e){}
-      }
-    },
-    tarefas: async ()=>{
-      const C='id,titulo,descricao,revenda_id,revenda_nome,responsavel,prioridade,vencimento,tipo,status,criado_por,criado_em,atualizado_em';
-      const {data}=await sb.from('tarefas').select(C).order('criado_em',{ascending:false}).limit(1000);
-      if(data) DB.tarefas=data.map(normalizeTask);
-    },
-    atividades: async ()=>{
-      const {data}=await sb.from('atividades').select('id,tipo,revenda_nome,descricao,criado_em,usuario_nome').order('criado_em',{ascending:false}).limit(200);
-      if(data) DB.atividades=data.map(normalizeAtiv);
-    },
-    handovers: async ()=>{
-      const {data}=await sb.from('handovers').select('id,revenda_id,revenda_nome,cs_nome,cs_id,inicio,prazo,progresso,status,obs,checklist,criado_em').order('criado_em',{ascending:false}).limit(200);
-      if(data) DB.handovers=data.map(normalizeHandover);
-    },
-    perfis: async ()=>{
-      const {data}=await sb.from('perfis').select('id,nome,email,perfil,ativo,avatar_iniciais').order('nome');
-      if(data&&data.length>0) DB.usuarios=data.map(normalizeUsuario);
-    },
-  };
+  // Aplica INSERT/UPDATE/DELETE no cache em memória — zero egress adicional
+  function _applyDelta(tabela, payload){
+    const { eventType, new: row, old: oldRow } = payload;
+    const dbKeys  = { revendas:'revendas', tarefas:'tarefas', atividades:'atividades', handovers:'handovers', perfis:'usuarios' };
+    const norms   = { revendas:normalizeRevenda, tarefas:normalizeTask, atividades:normalizeAtiv, handovers:normalizeHandover, perfis:normalizeUsuario };
+    const arr = DB[dbKeys[tabela]];
+    if(!arr || !eventType) return;
+    const fn = norms[tabela] || (x=>x);
+
+    if(eventType === 'INSERT'){
+      if(row?.id) arr.push(fn(row));
+    } else if(eventType === 'UPDATE'){
+      if(!row?.id) return;
+      const idx = arr.findIndex(r=>r.id===row.id);
+      if(idx >= 0) arr[idx] = fn(row); else arr.push(fn(row));
+    } else if(eventType === 'DELETE'){
+      const id = oldRow?.id;
+      if(id){ const idx=arr.findIndex(r=>r.id===id); if(idx>=0) arr.splice(idx,1); }
+    }
+    // Mantém ordenação de revendas e tarefas após delta
+    if(tabela === 'revendas') arr.sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+    if(tabela === 'tarefas')  arr.sort((a,b)=>new Date(b.criadoEm||b.criado_em||0)-new Date(a.criadoEm||a.criado_em||0));
+  }
 
   ['revendas','tarefas','atividades','handovers','perfis'].forEach(tabela=>{
     sb.channel('sync_'+tabela)
       .on('postgres_changes',{event:'*',schema:'public',table:tabela},
-        async ()=>{
-          await _recarregar[tabela]?.();
+        async (payload)=>{
+          // Aplica delta se payload contém dados; fallback para reload completo se não
+          if(payload?.new?.id || payload?.old?.id){
+            _applyDelta(tabela, payload);
+          } else {
+            await _refreshTabela(tabela);
+          }
           clearTimeout(_syncTimer);
           _syncTimer=setTimeout(()=>{
             renderPanel(document.querySelector('.panel.on')?.id?.replace('p-','')||'dashboard');
@@ -6451,6 +6445,7 @@ async function renderMetasHistorico(){
 
   const {data} = await sb.from('orion_metas')
     .select('*')
+    .gte('ano', new Date().getFullYear() - 1)
     .order('ano', {ascending:false})
     .order('mes', {ascending:false})
     .order('nome');
@@ -6887,7 +6882,7 @@ function initApp(){
     verificarLeadsOrion();
 
     setInterval(carregarMetas, 5 * 60 * 1000);
-    setInterval(verificarLeadsOrion, 2 * 60 * 1000);
+    setInterval(verificarLeadsOrion, 10 * 60 * 1000); // Realtime cobre mudanças imediatas
 
     sb.channel('orion_metas_ch')
       .on('postgres_changes',
