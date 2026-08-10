@@ -3101,7 +3101,7 @@ function drawPipelineChart(){
   const canvas=document.getElementById('chartPipeline');
   if(!canvas)return;
   const rv=DB.revendas||[];
-  const ETAPAS=['Nova Revenda','Implantação','Liberação Web','Academy','Decola Instalação','Decola Produtos','Primeiro Cliente','Handover'];
+  const ETAPAS=['Nova Revenda','Implantação','Liberação Web','Academy','Decola Instalação','Decola Produtos','Decola 1 Cliente','Handover'];
   const counts={};
   ETAPAS.forEach(e=>counts[e]=0);
   rv.forEach(r=>{if(counts[r.status]!==undefined)counts[r.status]++});

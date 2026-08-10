@@ -46,7 +46,8 @@ create table if not exists public.revendas (
   status       text not null default 'Nova Revenda'
                  check (status in ('Nova Revenda','Implantação','Liberação Web',
                    'Academy','Decola Instalação','Decola Produtos',
-                   'Primeiro Cliente','Handover')),
+                   'Decola 1 Cliente','Handover',
+                   'Inativo','Pausados','Sem Retorno')),
   segmento     text,
   porte        text,
   contratos    integer default 0,
