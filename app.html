@@ -4976,17 +4976,19 @@ async function confirmImport(rows){
   // ── ATUALIZAÇÃO de existentes (modo "update") ──────────────
   if(toUpdate.length){
     for(const r of toUpdate){
-      const {error} = await sb.from('revendas')
-        .update({
+      const updatePayload = {
           email:     r.email     || null,
           tel:       r.tel       || null,
           cidade:    r.cidade    || null,
           uf:        r.uf        || null,
           cs:        r.cs        || null,
-          contratos: r.contratos ? (parseInt(r.contratos)||0):null,
+          contratos: r.contratos ? (parseInt(r.contratos)||0) : null,
           curva:     r.curva     || null,
           atualizado_em: new Date().toISOString(),
-        })
+        };
+        if(r.cnpj) updatePayload.cnpj = r.cnpj;
+        const {error} = await sb.from('revendas')
+        .update(updatePayload)
         .or(`nome.ilike.${r.nome},id_origem.eq.${r.idOrigem||'null'}`);
       if(!error) updated++;
     }
