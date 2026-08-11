@@ -7318,7 +7318,7 @@ function _renderDescHistorico(h){
     const meetLink = (h.desc||'').match(/🔗\s*(https:\/\/meet\.google\.com\/\S+)/)?.[1];
     const linhas = (h.desc||'').split('\n').map(l=>{
       if(l.startsWith('🔗') && meetLink)
-        return `🔗 <a href="${meetLink}" target="_blank" rel="noopener" style="color:var(--acc);font-weight:600;word-break:break-all">${meetLink}</a>`;
+        return `🔗 <a href="${meetLink}" target="_blank" rel="noopener" style="color:var(--acc);font-weight:600">${meetLink.replace('https://','')}</a>`;
       if(l.startsWith('**') && l.endsWith('**'))
         return `<strong>${esc(l.slice(2,-2))}</strong>`;
       return esc(l);
