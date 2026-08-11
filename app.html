@@ -1864,14 +1864,15 @@ function aplicarPermissoes(p){
     ativarModoTV();
     return;
   }
+  // Administrador tem acesso total — nunca restringe
+  if(p.perfil === 'Administrador') return;
+
   if(!p.pode_gerenciar_usuarios) document.querySelectorAll('[onclick*="usuarios"]').forEach(el=>el.style.display='none');
   if(!p.pode_importar) document.querySelectorAll('[onclick*="importacao"]').forEach(el=>el.style.display='none');
   if(!p.pode_ver_relatorios) document.querySelectorAll('[onclick*="relatorios"]').forEach(el=>el.style.display='none');
-  // Botão convidar: só Admin
-  if(p.perfil !== 'Administrador'){
-    const btn = document.getElementById('btn-convidar');
-    if(btn) btn.style.display='none';
-  }
+  // Botão convidar: só Admin (já tratado acima)
+  const btn = document.getElementById('btn-convidar');
+  if(btn) btn.style.display='none';
 }
 
 // ─── ESTRUTURAS HTML DOS LAYOUTS DA TV ──────────────────────────────────
