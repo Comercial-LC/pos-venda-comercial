@@ -3383,18 +3383,24 @@ function renderKanban(){
               <div style="font-size:10px;color:var(--txt3);margin-top:5px">${(r.produtos||[]).length}/${PRODUTOS.length} produtos</div>`
             : '';
           // Barra de progresso por etapa
-          const ehInativa = ehColInativa;
+          const _nomesPause = ['pausado'];
+          const ehPause = _nomesPause.some(n => col.id.toLowerCase().includes(n));
           let pct, barColor;
-          if(ehInativa){
-            // Inativo: barra vermelha 0%
-            pct      = 0;
-            barColor = '#ef4444';
+          if(ehColInativa){
+            // Inativo/perdido: barra vermelha 0%
+            pct = 0; barColor = '#ef4444';
+          } else if(ehPause){
+            // Pausado: barra âmbar 0%
+            pct = 0; barColor = '#f59e0b';
           } else {
-            // Etapas ativas: progresso linear 0% → 100%
-            const colsAtivas  = COLS.filter(c => !_nomesInat.some(n=>c.id.toLowerCase().includes(n)));
-            const etapaIdx    = colsAtivas.findIndex(c=>c.id===col.id);
-            const totalAtivas = colsAtivas.length;
-            pct      = totalAtivas > 1 ? Math.round((etapaIdx/(totalAtivas-1))*100) : 100;
+            // Jornada ativa: linear 0% → 100% (Handover = último = 100%)
+            const colsJornada = COLS.filter(c =>
+              !_nomesInat.some(n => c.id.toLowerCase().includes(n)) &&
+              !_nomesPause.some(n => c.id.toLowerCase().includes(n))
+            );
+            const etapaIdx    = colsJornada.findIndex(c => c.id === col.id);
+            const totalAtivas = colsJornada.length;
+            pct      = totalAtivas > 1 ? Math.round((etapaIdx / (totalAtivas - 1)) * 100) : 100;
             barColor = col.color;
           }
           return `<div class="kcard"
@@ -3530,14 +3536,38 @@ async function toggleProduto(revId, produto, e){
   renderKanban();
 }
 
+let _kbScrollTimer = null;
+
+function _kbEdgeScroll(e){
+  const wrap = document.getElementById('kb-scroll-wrap');
+  if(!wrap || !dragId) return;
+  const rect = wrap.getBoundingClientRect();
+  const x    = e.clientX;
+  const EDGE = 130, SPEED = 10;
+  let vel = 0;
+  if(x >= rect.left && x < rect.left + EDGE)  vel = -Math.ceil((rect.left + EDGE - x) / EDGE * SPEED);
+  if(x <= rect.right && x > rect.right - EDGE) vel =  Math.ceil((x - (rect.right - EDGE)) / EDGE * SPEED);
+  clearInterval(_kbScrollTimer); _kbScrollTimer = null;
+  if(vel !== 0){
+    _kbScrollTimer = setInterval(()=>{
+      wrap.scrollLeft += vel;
+      const top = document.getElementById('kb-scroll-top');
+      if(top) top.scrollLeft = wrap.scrollLeft;
+    }, 16);
+  }
+}
+
 function kDragStart(e, id){
   dragId=id;
   e.dataTransfer.effectAllowed='move';
   e.dataTransfer.setData('text/plain', id);
   setTimeout(()=>{ const el=document.querySelector(`.kcard[data-id="${id}"]`); if(el)el.style.opacity='0.4'; },0);
+  document.addEventListener('dragover', _kbEdgeScroll);
 }
 
 function kDragEnd(e){
+  document.removeEventListener('dragover', _kbEdgeScroll);
+  clearInterval(_kbScrollTimer); _kbScrollTimer = null;
   if(dragId){
     const el=document.querySelector(`.kcard[data-id="${dragId}"]`);
     if(el)el.style.opacity='1';
