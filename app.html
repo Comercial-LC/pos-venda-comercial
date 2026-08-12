@@ -3425,7 +3425,7 @@ function renderKanban(){
             </div>
             <div style="font-size:13px;font-weight:600;margin-bottom:3px;padding-right:24px">${safe(r.nome)}</div>
             <div style="font-size:11px;color:var(--txt3)">· ${safe(r.cs||'Sem CS')}</div>
-            ${r.contratos ? `<div style="font-size:11px;color:var(--txt3)">${r.contratos} contratos${r.curva?' · Curva '+r.curva:''}</div>` : ''}
+            <div onclick="editarContratos('${r.id}',event)" style="font-size:11px;color:var(--txt3);cursor:pointer;display:inline-block;padding:2px 4px;border-radius:3px;transition:background .15s" onmouseenter="this.style.background='var(--bdr)'" onmouseleave="this.style.background=''" title="Clique para editar contratos">${r.contratos||0} contratos${r.curva?' · Curva '+r.curva:''}</div>
             ${r.inativado_portal ? `<div style="margin-top:5px"><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(234,88,12,.15);color:#ea580c;border:1px solid rgba(234,88,12,.35);font-weight:600">🔴 Inativado no portal</span></div>` : ''}
             ${prodCheck}
             <!-- Barra de progresso da jornada -->
@@ -3658,6 +3658,37 @@ async function kDrop(e, newStatus){
   } else {
     await executar('');
   }
+}
+
+function editarContratos(id, event){
+  event.stopPropagation();
+  const div = event.currentTarget;
+  const rev = (DB.revendas||[]).find(r=>r.id===id);
+  if(!rev) return;
+  const val = rev.contratos||0;
+  const curvaText = rev.curva ? ' · Curva '+rev.curva : '';
+  div.style.background = '';
+  div.innerHTML = `<input type="number" min="0" max="9999" value="${val}"
+    onclick="event.stopPropagation()"
+    onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}else if(event.key==='Escape'){this.dataset.cancel='1';this.blur()}"
+    onblur="salvarContratos('${id}',this)"
+    style="width:64px;font-size:11px;padding:1px 5px;border-radius:4px;border:1px solid var(--acc);background:var(--bg2);color:var(--txt);outline:none">`;
+  const inp = div.querySelector('input');
+  inp.focus();
+  inp.select();
+  inp._curvaText = curvaText;
+}
+
+async function salvarContratos(id, inputEl){
+  if(inputEl.dataset.cancel){ renderKanban(); return; }
+  const num = Math.max(0, parseInt(inputEl.value)||0);
+  const ri = (DB.revendas||[]).findIndex(r=>r.id===id);
+  const oldVal = ri>-1 ? (DB.revendas[ri].contratos||0) : 0;
+  if(num === oldVal){ renderKanban(); return; }
+  if(ri>-1) DB.revendas[ri].contratos = num;
+  renderKanban();
+  const {error} = await sb.from('revendas').update({contratos:num,atualizado_em:new Date().toISOString()}).eq('id',id);
+  if(error){ toast('Erro ao salvar contratos: '+error.message,'err'); if(ri>-1) DB.revendas[ri].contratos=oldVal; renderKanban(); }
 }
 
 function kCardClick(e, id){
