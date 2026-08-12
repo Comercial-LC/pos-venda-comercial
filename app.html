@@ -3537,24 +3537,19 @@ async function toggleProduto(revId, produto, e){
   renderKanban();
 }
 
-let _kbScrollTimer = null;
-
 function _kbEdgeScroll(e){
   const wrap = document.getElementById('kb-scroll-wrap');
   if(!wrap || !dragId) return;
   const rect = wrap.getBoundingClientRect();
-  const x    = e.clientX;
-  const EDGE = 130, SPEED = 10;
+  const x = e.clientX;
+  const EDGE = 150, SPEED = 12;
   let vel = 0;
-  if(x >= rect.left && x < rect.left + EDGE)  vel = -Math.ceil((rect.left + EDGE - x) / EDGE * SPEED);
+  if(x >= rect.left  && x < rect.left  + EDGE) vel = -Math.ceil((rect.left  + EDGE - x) / EDGE * SPEED);
   if(x <= rect.right && x > rect.right - EDGE) vel =  Math.ceil((x - (rect.right - EDGE)) / EDGE * SPEED);
-  clearInterval(_kbScrollTimer); _kbScrollTimer = null;
   if(vel !== 0){
-    _kbScrollTimer = setInterval(()=>{
-      wrap.scrollLeft += vel;
-      const top = document.getElementById('kb-scroll-top');
-      if(top) top.scrollLeft = wrap.scrollLeft;
-    }, 16);
+    wrap.scrollLeft += vel;
+    const top = document.getElementById('kb-scroll-top');
+    if(top) top.scrollLeft = wrap.scrollLeft;
   }
 }
 
@@ -3568,7 +3563,6 @@ function kDragStart(e, id){
 
 function kDragEnd(e){
   document.removeEventListener('dragover', _kbEdgeScroll);
-  clearInterval(_kbScrollTimer); _kbScrollTimer = null;
   if(dragId){
     const el=document.querySelector(`.kcard[data-id="${dragId}"]`);
     if(el)el.style.opacity='1';
