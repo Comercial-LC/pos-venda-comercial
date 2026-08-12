@@ -3425,7 +3425,7 @@ function renderKanban(){
             </div>
             <div style="font-size:13px;font-weight:600;margin-bottom:3px;padding-right:24px">${safe(r.nome)}</div>
             <div style="font-size:11px;color:var(--txt3)">· ${safe(r.cs||'Sem CS')}</div>
-            <div onclick="editarContratos('${r.id}',event)" style="font-size:11px;color:var(--txt3);cursor:pointer;display:inline-block;padding:2px 4px;border-radius:3px;transition:background .15s" onmouseenter="this.style.background='var(--bdr)'" onmouseleave="this.style.background=''" title="Clique para editar contratos">${r.contratos||0} contratos${r.curva?' · Curva '+r.curva:''}</div>
+            <div onclick="editarContratos('${r.id}',event)" style="font-size:11px;color:var(--txt);cursor:pointer;margin-top:5px;padding:3px 7px;border-radius:5px;border:1px solid var(--bdr);background:var(--bg2);display:flex;align-items:center;gap:5px;transition:border-color .15s" onmouseenter="this.style.borderColor='var(--acc)'" onmouseleave="this.style.borderColor='var(--bdr)'" title="Clique para editar contratos"><span style="opacity:.6;font-size:10px">📋</span><span><strong>${r.contratos||0}</strong> contratos${r.curva?' · Curva '+r.curva:''}</span></div>
             ${r.inativado_portal ? `<div style="margin-top:5px"><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(234,88,12,.15);color:#ea580c;border:1px solid rgba(234,88,12,.35);font-weight:600">🔴 Inativado no portal</span></div>` : ''}
             ${prodCheck}
             <!-- Barra de progresso da jornada -->
