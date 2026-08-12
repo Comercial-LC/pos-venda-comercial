@@ -3431,11 +3431,17 @@ function renderKanban(){
             <!-- Barra de progresso da jornada -->
             <div style="margin-top:8px">
               <div class="pbar"><div class="pfill" style="width:${pct}%;background:${barColor}"></div></div>
-              <div style="display:flex;justify-content:space-between;margin-top:3px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
                 <span style="font-size:10px;color:var(--txt3)">${fmtDate(r.ingresso)}</span>
                 <span style="font-size:10px;color:${barColor};font-weight:600">${pct}%</span>
               </div>
             </div>
+            ${perfilAtual?.perfil==='Administrador' ? `<div style="display:flex;justify-content:flex-end;margin-top:7px">
+              <button onclick="excluirCard('${r.id}',event)" title="Excluir revenda"
+                style="font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;cursor:pointer;transition:background .15s"
+                onmouseenter="this.style.background='rgba(239,68,68,.28)'"
+                onmouseleave="this.style.background='rgba(239,68,68,.1)'">🗑 Excluir</button>
+            </div>` : ''}
           </div>`;
         }).join('')
       : `<div style="font-size:12px;color:var(--txt3);text-align:center;padding:20px 10px;
@@ -3689,6 +3695,19 @@ async function salvarContratos(id, inputEl){
   renderKanban();
   const {error} = await sb.from('revendas').update({contratos:num,atualizado_em:new Date().toISOString()}).eq('id',id);
   if(error){ toast('Erro ao salvar contratos: '+error.message,'err'); if(ri>-1) DB.revendas[ri].contratos=oldVal; renderKanban(); }
+}
+
+async function excluirCard(id, event){
+  event.stopPropagation();
+  if(perfilAtual?.perfil !== 'Administrador'){ toast('Sem permissão','err'); return; }
+  const rev = (DB.revendas||[]).find(r=>r.id===id);
+  if(!rev) return;
+  if(!confirm(`Excluir a revenda "${rev.nome}"?\n\nEsta ação não pode ser desfeita.`)) return;
+  const {error} = await sb.from('revendas').delete().eq('id', id);
+  if(error){ toast('Erro ao excluir: '+error.message,'err'); return; }
+  DB.revendas = (DB.revendas||[]).filter(r=>r.id!==id);
+  renderKanban();
+  toast('Revenda excluída');
 }
 
 function kCardClick(e, id){
