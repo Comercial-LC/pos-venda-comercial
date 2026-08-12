@@ -1276,9 +1276,10 @@ select option{background:var(--bg2)}
       <div class="fr"><div class="fg"><label>Cargo</label><input id="r-cargo" placeholder="Ex: Diretor, Gerente, Sócio..."></div><div class="fg"></div></div>
       <div class="fr"><div class="fg"><label>Segmento</label><select id="r-seg"><option value="">Selecione</option><option>Tecnologia</option><option>Varejo</option><option>Serviços</option><option>Indústria</option><option>Saúde</option><option>Educação</option><option>Financeiro</option><option>Outros</option></select></div><div class="fg"><label>Porte</label><select id="r-porte"><option value="">Selecione</option><option>Pequeno</option><option>Médio</option><option>Grande</option></select></div></div>
       <div class="fr"><div class="fg"><label>Nº de Vendedores</label><input id="r-vend" type="number" placeholder="0"></div><div class="fg"><label>Data de Ingresso</label><input id="r-ingresso" type="date"></div></div>
+      <div class="fr"><div class="fg"><label>Qtd. Contratos</label><input id="r-contratos" type="number" min="0" placeholder="0"></div><div class="fg"><label>Curva</label><input id="r-curva" placeholder="Ex: A, B, C"></div></div>
       <div class="fg"><label>Observações</label><textarea id="r-obs" rows="3" placeholder="Informações adicionais..."></textarea></div>
     </div>
-    <div class="mof"><button class="btn btn-s" onclick="closeMo('mo-rev')">Cancelar</button><button class="btn btn-p" onclick="saveRevenda()">💾 Salvar Revenda</button></div>
+    <div class="mof"><button class="btn btn-d" id="rev-del-btn" style="display:none;margin-right:auto" onclick="closeMo('mo-rev');deleteRevenda(document.getElementById('rev-edit-id').value)">🗑 Excluir</button><button class="btn btn-s" onclick="closeMo('mo-rev')">Cancelar</button><button class="btn btn-p" onclick="saveRevenda()">💾 Salvar Revenda</button></div>
   </div>
 </div>
 
@@ -2815,6 +2816,8 @@ async function saveRevenda(){
     porte:     document.getElementById('r-porte').value||null,
     obs:       document.getElementById('r-obs').value.trim()||null,
     ingresso:  document.getElementById('r-ingresso').value||today(),
+    contratos: parseInt(document.getElementById('r-contratos').value)||null,
+    curva:     document.getElementById('r-curva').value.trim()||null,
     atualizado_em: new Date().toISOString(),
   };
 
@@ -2845,10 +2848,12 @@ async function saveRevenda(){
 function novaRevenda(){
   document.getElementById('mo-rev-title').textContent = 'Nova Revenda';
   document.getElementById('rev-edit-id').value = '';
-  ['r-nome','r-cnpj','r-cidade','r-email','r-tel','r-cs','r-cargo','r-vend','r-obs'].forEach(id=>{
+  ['r-nome','r-cnpj','r-cidade','r-email','r-tel','r-cs','r-cargo','r-vend','r-contratos','r-curva','r-obs'].forEach(id=>{
     const el = document.getElementById(id);
     if(el){ el.value=''; el.readOnly=false; el.placeholder=el.placeholder||''; }
   });
+  const delBtn=document.getElementById('rev-del-btn');
+  if(delBtn) delBtn.style.display='none';
   document.getElementById('r-cnpj').placeholder = '00.000.000/0001-00';
   document.getElementById('r-uf').value = '';
   document.getElementById('r-seg').value = '';
@@ -2880,7 +2885,11 @@ function editRevenda(id){
   document.getElementById('r-porte').value=r.porte||'';
   document.getElementById('r-vend').value=r.vendedores||'';
   document.getElementById('r-ingresso').value=r.ingresso||'';
+  document.getElementById('r-contratos').value=r.contratos||'';
+  document.getElementById('r-curva').value=r.curva||'';
   document.getElementById('r-obs').value=r.obs||'';
+  const delBtn=document.getElementById('rev-del-btn');
+  if(delBtn) delBtn.style.display=perfilAtual?.perfil==='Administrador'?'':'none';
   openMo('mo-rev');
 }
 
@@ -2892,7 +2901,7 @@ function deleteRevenda(id){
     toast('Revenda excluída','warn');
     logAuditoria('DELETE','revendas',id,{nome:revDel?.nome});
     await _refreshTabela('revendas');
-    renderRevendas();renderDashboard();
+    renderRevendas();renderDashboard();renderKanban();
   });
 }
 
@@ -3424,24 +3433,17 @@ function renderKanban(){
               </div>
             </div>
             <div style="font-size:13px;font-weight:600;margin-bottom:3px;padding-right:24px">${safe(r.nome)}</div>
-            <div style="font-size:11px;color:var(--txt3)">· ${safe(r.cs||'Sem CS')}</div>
-            <div onclick="editarContratos('${r.id}',event)" style="font-size:11px;color:var(--txt);cursor:pointer;margin-top:5px;padding:3px 7px;border-radius:5px;border:1px solid var(--bdr);background:var(--bg2);display:flex;align-items:center;gap:5px;transition:border-color .15s" onmouseenter="this.style.borderColor='var(--acc)'" onmouseleave="this.style.borderColor='var(--bdr)'" title="Clique para editar contratos"><span style="opacity:.6;font-size:10px">📋</span><span><strong>${r.contratos||0}</strong> contratos${r.curva?' · Curva '+r.curva:''}</span></div>
+            <div style="font-size:11px;color:var(--txt3)">· ${safe(r.cs||'Sem CS')}${r.contratos?` · ${r.contratos} contratos`:''}</div>
             ${r.inativado_portal ? `<div style="margin-top:5px"><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(234,88,12,.15);color:#ea580c;border:1px solid rgba(234,88,12,.35);font-weight:600">🔴 Inativado no portal</span></div>` : ''}
             ${prodCheck}
             <!-- Barra de progresso da jornada -->
             <div style="margin-top:8px">
               <div class="pbar"><div class="pfill" style="width:${pct}%;background:${barColor}"></div></div>
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+              <div style="display:flex;justify-content:space-between;margin-top:3px">
                 <span style="font-size:10px;color:var(--txt3)">${fmtDate(r.ingresso)}</span>
                 <span style="font-size:10px;color:${barColor};font-weight:600">${pct}%</span>
               </div>
             </div>
-            ${perfilAtual?.perfil==='Administrador' ? `<div style="display:flex;justify-content:flex-end;margin-top:7px">
-              <button onclick="excluirCard('${r.id}',event)" title="Excluir revenda"
-                style="font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;cursor:pointer;transition:background .15s"
-                onmouseenter="this.style.background='rgba(239,68,68,.28)'"
-                onmouseleave="this.style.background='rgba(239,68,68,.1)'">🗑 Excluir</button>
-            </div>` : ''}
           </div>`;
         }).join('')
       : `<div style="font-size:12px;color:var(--txt3);text-align:center;padding:20px 10px;
@@ -3666,49 +3668,6 @@ async function kDrop(e, newStatus){
   }
 }
 
-function editarContratos(id, event){
-  event.stopPropagation();
-  const div = event.currentTarget;
-  const rev = (DB.revendas||[]).find(r=>r.id===id);
-  if(!rev) return;
-  const val = rev.contratos||0;
-  const curvaText = rev.curva ? ' · Curva '+rev.curva : '';
-  div.style.background = '';
-  div.innerHTML = `<input type="number" min="0" max="9999" value="${val}"
-    onclick="event.stopPropagation()"
-    onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}else if(event.key==='Escape'){this.dataset.cancel='1';this.blur()}"
-    onblur="salvarContratos('${id}',this)"
-    style="width:64px;font-size:11px;padding:1px 5px;border-radius:4px;border:1px solid var(--acc);background:var(--bg2);color:var(--txt);outline:none">`;
-  const inp = div.querySelector('input');
-  inp.focus();
-  inp.select();
-  inp._curvaText = curvaText;
-}
-
-async function salvarContratos(id, inputEl){
-  if(inputEl.dataset.cancel){ renderKanban(); return; }
-  const num = Math.max(0, parseInt(inputEl.value)||0);
-  const ri = (DB.revendas||[]).findIndex(r=>r.id===id);
-  const oldVal = ri>-1 ? (DB.revendas[ri].contratos||0) : 0;
-  if(num === oldVal){ renderKanban(); return; }
-  if(ri>-1) DB.revendas[ri].contratos = num;
-  renderKanban();
-  const {error} = await sb.from('revendas').update({contratos:num,atualizado_em:new Date().toISOString()}).eq('id',id);
-  if(error){ toast('Erro ao salvar contratos: '+error.message,'err'); if(ri>-1) DB.revendas[ri].contratos=oldVal; renderKanban(); }
-}
-
-async function excluirCard(id, event){
-  event.stopPropagation();
-  if(perfilAtual?.perfil !== 'Administrador'){ toast('Sem permissão','err'); return; }
-  const rev = (DB.revendas||[]).find(r=>r.id===id);
-  if(!rev) return;
-  if(!confirm(`Excluir a revenda "${rev.nome}"?\n\nEsta ação não pode ser desfeita.`)) return;
-  const {error} = await sb.from('revendas').delete().eq('id', id);
-  if(error){ toast('Erro ao excluir: '+error.message,'err'); return; }
-  DB.revendas = (DB.revendas||[]).filter(r=>r.id!==id);
-  renderKanban();
-  toast('Revenda excluída');
-}
 
 function kCardClick(e, id){
   if(e.defaultPrevented)return;
