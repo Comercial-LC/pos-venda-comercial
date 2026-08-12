@@ -3537,32 +3537,44 @@ async function toggleProduto(revId, produto, e){
   renderKanban();
 }
 
-function _kbEdgeScroll(e){
-  const wrap = document.getElementById('kb-scroll-wrap');
-  if(!wrap || !dragId) return;
-  const rect = wrap.getBoundingClientRect();
-  const x = e.clientX;
-  const EDGE = 150, SPEED = 12;
-  let vel = 0;
-  if(x >= rect.left  && x < rect.left  + EDGE) vel = -Math.ceil((rect.left  + EDGE - x) / EDGE * SPEED);
-  if(x <= rect.right && x > rect.right - EDGE) vel =  Math.ceil((x - (rect.right - EDGE)) / EDGE * SPEED);
-  if(vel !== 0){
-    wrap.scrollLeft += vel;
-    const top = document.getElementById('kb-scroll-top');
-    if(top) top.scrollLeft = wrap.scrollLeft;
+let _dragCursorX = -1;
+let _kbRAF = null;
+
+function _kbScrollFrame(){
+  if(!dragId){ _kbRAF = null; return; }
+  const board = document.getElementById('kanban-board');
+  if(!board){ _kbRAF = null; return; }
+  if(_dragCursorX >= 0){
+    const rect = board.getBoundingClientRect();
+    const EDGE = 160, SPEED = 14;
+    let vel = 0;
+    if(_dragCursorX < rect.left  + EDGE) vel = -Math.ceil((rect.left  + EDGE - _dragCursorX) / EDGE * SPEED);
+    if(_dragCursorX > rect.right - EDGE) vel =  Math.ceil((_dragCursorX - (rect.right - EDGE)) / EDGE * SPEED);
+    if(vel){
+      board.scrollLeft += vel;
+      const top = document.getElementById('kb-scroll-top');
+      if(top) top.scrollLeft = board.scrollLeft;
+    }
   }
+  _kbRAF = requestAnimationFrame(_kbScrollFrame);
 }
+
+function _kbTrackX(e){ if(e.clientX > 0) _dragCursorX = e.clientX; }
 
 function kDragStart(e, id){
   dragId=id;
   e.dataTransfer.effectAllowed='move';
   e.dataTransfer.setData('text/plain', id);
   setTimeout(()=>{ const el=document.querySelector(`.kcard[data-id="${id}"]`); if(el)el.style.opacity='0.4'; },0);
-  document.addEventListener('dragover', _kbEdgeScroll);
+  _dragCursorX = e.clientX;
+  document.addEventListener('dragover', _kbTrackX);
+  _kbRAF = requestAnimationFrame(_kbScrollFrame);
 }
 
 function kDragEnd(e){
-  document.removeEventListener('dragover', _kbEdgeScroll);
+  document.removeEventListener('dragover', _kbTrackX);
+  if(_kbRAF){ cancelAnimationFrame(_kbRAF); _kbRAF = null; }
+  _dragCursorX = -1;
   if(dragId){
     const el=document.querySelector(`.kcard[data-id="${dragId}"]`);
     if(el)el.style.opacity='1';
