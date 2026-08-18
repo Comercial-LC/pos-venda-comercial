@@ -5414,10 +5414,18 @@ async function carregarMetas(){
             <div style="font-size:13px;font-weight:700">${safe(m.nome)}</div>
             <div style="font-size:11px;color:var(--txt3);margin-top:2px">Meta mensal · ${safe(m.tipo||'quantidade')}</div>
           </div>
-          <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;
-            background:${_s.bg};color:${_s.cor};border:1px solid ${_s.borda}">
-            ${_s.icon} ${_s.label}
-          </span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;
+              background:${_s.bg};color:${_s.cor};border:1px solid ${_s.borda}">
+              ${_s.icon} ${_s.label}
+            </span>
+            <button onclick="ajustarMetaRapido('${m.id}',-1)" title="Diminuir 1"
+              style="background:var(--bg2);border:1px solid var(--bdr);border-radius:6px;width:22px;height:22px;color:var(--txt2);cursor:pointer;font-size:13px;line-height:1">－</button>
+            <button onclick="ajustarMetaRapido('${m.id}',1)" title="Aumentar 1"
+              style="background:var(--bg2);border:1px solid var(--bdr);border-radius:6px;width:22px;height:22px;color:var(--txt2);cursor:pointer;font-size:13px;line-height:1">＋</button>
+            <button onclick="editarMeta('${m.id}')" title="Editar meta"
+              style="background:none;border:none;color:var(--txt3);cursor:pointer;font-size:13px">✏️</button>
+          </div>
         </div>
         <div style="font-size:32px;font-weight:800;color:${_s.cor};margin-bottom:8px">${_s.pct}%</div>
         <div style="position:relative;background:var(--bdr);border-radius:8px;height:8px;overflow:hidden;margin-bottom:6px">
@@ -6535,6 +6543,29 @@ function abrirNovaMeta(){
   document.getElementById('meta-ano').value = now.getFullYear();
   document.getElementById('mo-meta-titulo').textContent = '🎯 Nova meta';
   openMo('mo-meta');
+}
+
+async function ajustarMetaRapido(id, delta){
+  const {data, error} = await sb.from('orion_metas')
+    .select('valor_meta,valor_atual').eq('id', id).single();
+  if(error || !data){ toast('Erro ao carregar meta','err'); return; }
+
+  const novoAtual = Math.max(0, (data.valor_atual||0) + delta);
+  const pct    = data.valor_meta > 0 ? Math.round((novoAtual / data.valor_meta) * 100) : 0;
+  const status = pct >= 100 ? 'atingida' : pct >= 70 ? 'atencao' : 'critica';
+  const jaAtingida = data.valor_meta > 0 && data.valor_atual >= data.valor_meta;
+
+  const {error: upErr} = await sb.from('orion_metas').update({
+    valor_atual:   novoAtual,
+    percentual:    pct,
+    status,
+    atualizado_em: new Date().toISOString(),
+  }).eq('id', id);
+  if(upErr){ toast('Erro ao ajustar meta: '+upErr.message, 'err'); return; }
+
+  if(pct >= 100 && !jaAtingida) toast('🏆 Meta atingida!', 'ok');
+  await carregarMetas();
+  try { await renderMetas(); } catch(e){}
 }
 
 async function editarMeta(id){
