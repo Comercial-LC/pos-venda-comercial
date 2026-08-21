@@ -79,7 +79,7 @@
   --inp:#0F1729;--bdr:#2D3748;--bdr2:#3D4F6A;
   --txt:#F3F4F6;--txt2:#9CA3AF;--txt3:#6B7280;
   --acc:#8B5CF6;--acc2:#C4B5FD;--accl:rgba(139,92,246,.15);
-  --ok:#22C55E;--warn:#F59E0B;--err:#EF4444;--pur:#7C3AED;
+  --ok:#22C55E;--warn:#F59E0B;--err:#EF4444;--pur:#7C3AED;--tel:#14B8A6;
   --sh:0 4px 20px rgba(0,0,0,.4);--sh2:0 8px 32px rgba(0,0,0,.55);
   background:#121824;color:#F3F4F6
 }
@@ -1016,9 +1016,9 @@ select option{background:var(--bg2)}
                 <input type="checkbox" id="tv-show-pipeline" checked style="width:18px;height:18px;accent-color:var(--acc)">
               </label>
               <label class="cb" style="justify-content:space-between;padding:10px;background:var(--bg2);border-radius:var(--r)">
-                <div><div style="font-weight:600;font-size:13px">🕐 Últimas atividades</div>
-                <div style="font-size:11px;color:var(--txt3)">6 atividades mais recentes</div></div>
-                <input type="checkbox" id="tv-show-atividades" checked style="width:18px;height:18px;accent-color:var(--acc)">
+                <div><div style="font-weight:600;font-size:13px">🧭 Análise do Mês</div>
+                <div style="font-size:11px;color:var(--txt3)">Em análise, P1-P4 e cliente previsto</div></div>
+                <input type="checkbox" id="tv-show-analisemes" checked style="width:18px;height:18px;accent-color:var(--acc)">
               </label>
             </div>
             <button class="btn btn-p" style="width:100%;margin-top:14px" onclick="salvarCfgTV()">
@@ -1897,9 +1897,10 @@ function tvCriarEstruturaLayout1(){
         <div id="tv-pipeline" style="display:flex;flex-direction:column;gap:6px;flex:1;overflow-y:auto;scrollbar-width:none"></div>
       </div>
     </div>
-    <div id="tv-atividades-wrap">
-      <div style="font-size:14px;font-weight:700;color:var(--txt);margin-bottom:12px">🕐 Últimas Atividades</div>
-      <div id="tv-atividades" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px"></div>
+    <div id="tv-am-wrap">
+      <div style="font-size:14px;font-weight:700;color:var(--txt);margin-bottom:12px">🧭 Análise do Mês</div>
+      <div id="tv-am-kpis" style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px"></div>
+      <div id="tv-am-nota" style="margin-top:10px;font-size:12px;color:var(--txt3);line-height:1.6;background:var(--bg2);border:1px solid var(--bdr);border-radius:10px;padding:10px 14px"></div>
     </div>`;
 }
 
@@ -1921,7 +1922,12 @@ function tvCriarEstruturaLayout2(){
         <div id="tv-l2-outras-metas" style="display:flex;flex-direction:column;gap:10px"></div>
       </div>
     </div>
-    <div id="tv-l2-kpis" style="display:grid;gap:14px"></div>`;
+    <div id="tv-l2-kpis" style="display:grid;gap:14px;margin-bottom:20px"></div>
+    <div id="tv-l2-am-wrap">
+      <div style="font-size:13px;font-weight:700;color:var(--txt3);margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em">🧭 Análise do Mês</div>
+      <div id="tv-l2-am-kpis" style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px"></div>
+      <div id="tv-l2-am-nota" style="margin-top:10px;font-size:12px;color:var(--txt3);line-height:1.6;background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:10px 14px"></div>
+    </div>`;
 }
 
 async function renderTVLayout2Data(tvCfg, rv, etapas, todosKpis){
@@ -2179,12 +2185,10 @@ async function renderTVDashboard(){
   const tvKpisWrap = document.getElementById('tv-kpis-wrap');
   const tvMetasWrap = document.getElementById('tv-metas-wrap-tv');
   const tvPipeWrap = document.getElementById('tv-pipeline-wrap');
-  const tvAtivWrap = document.getElementById('tv-atividades-wrap');
   // Só oculta se EXPLICITAMENTE false (não quando cfg não carregou)
   if(tvKpisWrap)  tvKpisWrap.style.display  = tvCfg.showKpis       === false ? 'none' : '';
   if(tvMetasWrap) tvMetasWrap.style.display = tvCfg.showMetas      === false ? 'none' : '';
   if(tvPipeWrap)  tvPipeWrap.style.display  = tvCfg.showPipeline   === false ? 'none' : '';
-  if(tvAtivWrap)  tvAtivWrap.style.display  = tvCfg.showAtividades === false ? 'none' : '';
 
   // Grid de KPIs dinâmico
   const tvKpisGrid = document.getElementById('tv-kpis');
@@ -2221,6 +2225,9 @@ async function renderTVDashboard(){
   });
 
   if(tvCfg.kpiInativas) todosKpis.push({icon:'🚫', label:'Inativas', val:tvInativos, cor:'var(--err)'});
+
+  // Análise do Mês — compartilhada pelos dois layouts
+  await renderTVAnaliseMes(tvCfg);
 
   // Delega para Layout 2 e encerra
   if(tvCfg.tvLayout === 'layout2'){
@@ -2325,27 +2332,62 @@ async function renderTVDashboard(){
     }).join('');
   }
 
-  // ── Últimas atividades ────────────────────────────────────
-  const atEl = document.getElementById('tv-atividades');
-  if(atEl){
-    // TV busca atividades direto do banco para ter dados sempre frescos
-    const {data:ativFrescas} = await sb.from('atividades')
-      .select('tipo,revenda_nome,criado_em,descricao')
-      .order('criado_em',{ascending:false})
-      .limit(6);
-    const recentes = (ativFrescas||DB.atividades||[]).map(a=>({
-      tipo:   a.tipo,
-      revenda:a.revenda_nome||a.revenda||'—',
-      data:   a.criado_em||a.data,
-      desc:   a.descricao||a.desc||''
-    }));
-    atEl.innerHTML = recentes.length ? recentes.map(a=>`
-      <div style="background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:14px">
-        <div style="font-size:12px;font-weight:600;margin-bottom:4px">${a.tipo}</div>
-        <div style="font-size:12px;color:var(--txt2);margin-bottom:6px">${a.revenda||'—'}</div>
-        <div style="font-size:11px;color:var(--txt3)">${new Date(a.data||a.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
-      </div>`).join('')
-    : '<div style="color:var(--txt3);font-size:12px;grid-column:span 3;padding:16px">Nenhuma atividade recente.</div>';
+}
+
+// Análise do Mês no modo TV — atende os dois layouts (só um wrap existe por vez).
+// Fetch tem seu próprio throttle de 15min, independente do refresh de 5min da
+// TV, porque uma TV pode ficar ligada o dia todo e essa query não precisa ser
+// tão frequente quanto o resto do dashboard.
+let _tvAmLastFetch = 0;
+async function renderTVAnaliseMes(tvCfg){
+  const wrap1 = document.getElementById('tv-am-wrap');
+  const wrap2 = document.getElementById('tv-l2-am-wrap');
+  const wrap  = wrap1 || wrap2;
+  if(!wrap) return;
+
+  if(tvCfg.showAnaliseMes === false){ wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+
+  const agora = Date.now();
+  if(agora - _tvAmLastFetch > 15*60*1000){
+    await carregarDiagnosticosAnaliseMes();
+    _tvAmLastFetch = agora;
+  }
+
+  const kpisEl = document.getElementById(wrap1 ? 'tv-am-kpis' : 'tv-l2-am-kpis');
+  const notaEl = document.getElementById(wrap1 ? 'tv-am-nota' : 'tv-l2-am-nota');
+  if(!kpisEl) return;
+
+  if(!_amDiagnosticos.length){
+    kpisEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--txt3);font-size:13px;padding:16px">Nenhuma revenda entre Nova Revenda e Decola Produtos</div>';
+    if(notaEl) notaEl.innerHTML = '';
+    return;
+  }
+
+  const cnt = p => _amDiagnosticos.filter(d=>d.prioridade===p).length;
+  const comPrevisto  = _amDiagnosticos.filter(d=>d.clientePrevistoAtivo);
+  const negociacao   = _amDiagnosticos.filter(d=>d.tagAtual==='CLIENTE_EM_NEGOCIACAO');
+  const qtdPrevistos = comPrevisto.reduce((s,d)=>s+(d.clientePrevistoAtivo.quantidade||1),0);
+  const idsPotencial = new Set([...comPrevisto.map(d=>d.revenda.id), ...negociacao.map(d=>d.revenda.id)]);
+
+  const tiles = [
+    {icon:'🧭', label:'Em análise',       val:_amDiagnosticos.length, cor:'var(--acc)'},
+    {icon:'🔥', label:'P1 Quente',        val:cnt('P1'), cor:'var(--err)'},
+    {icon:'📈', label:'P2 Desenvolv.',    val:cnt('P2'), cor:'var(--warn)'},
+    {icon:'👁', label:'P3 Acompanh.',     val:cnt('P3'), cor:'var(--tel)'},
+    {icon:'🚨', label:'P4 Risco',         val:cnt('P4'), cor:'var(--err)'},
+    {icon:'🔮', label:'Cliente previsto', val:comPrevisto.length, cor:'#a78bfa'},
+  ];
+  kpisEl.innerHTML = tiles.map(t=>`
+    <div style="background:var(--card);border:1px solid var(--bdr);border-radius:16px;padding:16px 12px;text-align:center">
+      <div style="font-size:18px;margin-bottom:5px">${t.icon}</div>
+      <div style="font-size:30px;font-weight:800;color:${t.cor};line-height:1">${t.val}</div>
+      <div style="font-size:11px;color:var(--txt2);margin-top:4px">${t.label}</div>
+    </div>`).join('');
+
+  if(notaEl){
+    const mesAtual = MESES_NOMES[new Date().getMonth()+1];
+    notaEl.innerHTML = `Potencial imediato de ${mesAtual}: <b style="color:var(--txt)">${comPrevisto.length}</b> revenda(s) com previsão + <b style="color:var(--txt)">${negociacao.length}</b> em negociação → <b style="color:var(--txt)">${idsPotencial.size}</b> revenda(s), <b style="color:var(--txt)">${qtdPrevistos}</b> cliente(s) previsto(s).`;
   }
 }
 
@@ -6666,7 +6708,7 @@ function getTVCfg(){
     showKpis:       cfg.tvShowKpis       !== false,
     showMetas:      cfg.tvShowMetas      !== false,
     showPipeline:   cfg.tvShowPipeline   !== false,
-    showAtividades: cfg.tvShowAtividades !== false,
+    showAnaliseMes: cfg.tvShowAnaliseMes !== false,
     kpiTotal:       cfg.tvKpiTotal       !== false,
     kpiJornada:     cfg.tvKpiJornada     !== false,
     kpiInativas:    cfg.tvKpiInativas    !== false,
@@ -6690,7 +6732,7 @@ function carregarCfgTVForm(){
   chk('tv-kpi-inativas',    tv.kpiInativas);
   chk('tv-show-metas',      tv.showMetas);
   chk('tv-show-pipeline',   tv.showPipeline);
-  chk('tv-show-atividades', tv.showAtividades);
+  chk('tv-show-analisemes', tv.showAnaliseMes);
   set('tv-titulo',          tv.titulo);
   set('tv-subtitulo',       tv.subtitulo);
   set('tv-cor-destaque',    tv.corDestaque);
@@ -6738,7 +6780,7 @@ function atualizarPreviewTV(){
     {id:'tv-show-kpis',       label:'📊 KPIs'},
     {id:'tv-show-metas',      label:'🎯 Metas'},
     {id:'tv-show-pipeline',   label:'⚡ Pipeline'},
-    {id:'tv-show-atividades', label:'🕐 Atividades'},
+    {id:'tv-show-analisemes', label:'🧭 Análise do Mês'},
   ].filter(b=>document.getElementById(b.id)?.checked);
 
   const t = document.getElementById('tv-preview-titulo');
@@ -6768,7 +6810,7 @@ async function salvarCfgTV(){
     tvEtapasKpi:      etapasKpi,
     tvShowMetas:      g('tv-show-metas')?.checked      !== false,
     tvShowPipeline:   g('tv-show-pipeline')?.checked   !== false,
-    tvShowAtividades: g('tv-show-atividades')?.checked !== false,
+    tvShowAnaliseMes: g('tv-show-analisemes')?.checked !== false,
     tvTitulo:         g('tv-titulo')?.value            || 'Portal Sucesso da Revenda',
     tvSubtitulo:      g('tv-subtitulo')?.value         || 'LC Sistemas',
     tvCorDestaque:    g('tv-cor-destaque')?.value      || '#8B5CF6',
