@@ -1526,6 +1526,24 @@ select option{background:var(--bg2)}
   </div>
 </div>
 
+<!-- Modal: Mensagem sugerida (Análise do Mês / IA) -->
+<div class="mo-ov" id="mo-am-mensagem">
+  <div class="mo" style="width:480px">
+    <div class="moh">
+      <div class="mot">💬 Mensagem sugerida</div>
+      <button class="btn btn-s btn-sm" onclick="closeMo('mo-am-mensagem')">✕</button>
+    </div>
+    <div class="mob">
+      <textarea id="am-mensagem-txt" rows="8" style="width:100%;box-sizing:border-box;font-size:13px;line-height:1.5"></textarea>
+      <div style="font-size:11px;color:var(--txt3);margin-top:6px">Pode editar o texto antes de copiar ou enviar.</div>
+    </div>
+    <div class="mof">
+      <button class="btn btn-s" onclick="copiarMensagemIA()">📋 Copiar</button>
+      <button class="btn btn-p" id="btn-am-whatsapp" onclick="abrirWhatsAppMensagemIA()">💬 Abrir WhatsApp</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Limpar todos os dados -->
 <div class="mo-ov" id="mo-limpar">
   <div class="mo" style="width:480px">
@@ -6739,10 +6757,12 @@ function preencherTemplateIA(template, d){
     dias_sem_atualizacao: d.diasSemAtualizacao ?? '—',
     data_prevista:        d.clientePrevistoAtivo?.data_prevista ? fmtDate(d.clientePrevistoAtivo.data_prevista) : '—',
     quantidade_prevista:  d.clientePrevistoAtivo?.quantidade || '—',
-    responsavel:          d.revenda.cs || '—',
+    responsavel:          perfilAtual?.nome || d.revenda.cs || '—',
   };
   return template.replace(/\{(\w+)\}/g, (m, key) => key in vars ? vars[key] : m);
 }
+
+let _amMensagemTel = '';
 
 function gerarMensagemIA(idx){
   const d = _amDetalheLista[idx];
@@ -6753,9 +6773,31 @@ function gerarMensagemIA(idx){
     return;
   }
   const msg = preencherTemplateIA(templates[0], d);
-  navigator.clipboard.writeText(msg)
-    .then(()=> toast('💬 Mensagem copiada!'))
-    .catch(()=>{ toast(msg, 'ok'); });
+  _amMensagemTel = d.revenda.tel || '';
+  const txtEl = document.getElementById('am-mensagem-txt');
+  if(txtEl) txtEl.value = msg;
+  const btnWa = document.getElementById('btn-am-whatsapp');
+  if(btnWa) btnWa.style.display = _amMensagemTel ? '' : 'none';
+  openMo('mo-am-mensagem');
+}
+
+function copiarMensagemIA(){
+  const txt = document.getElementById('am-mensagem-txt')?.value || '';
+  navigator.clipboard.writeText(txt)
+    .then(()=> toast('📋 Mensagem copiada!'))
+    .catch(()=>{
+      const el = document.getElementById('am-mensagem-txt');
+      el?.select();
+      toast('Não deu pra copiar automático — selecionamos o texto, use Ctrl+C','warn');
+    });
+}
+
+function abrirWhatsAppMensagemIA(){
+  const txt = document.getElementById('am-mensagem-txt')?.value || '';
+  const digitos = (_amMensagemTel||'').replace(/\D/g,'');
+  if(!digitos){ toast('Esta revenda não tem telefone cadastrado','err'); return; }
+  const numero = digitos.startsWith('55') ? digitos : '55'+digitos;
+  window.open(`https://wa.me/${numero}?text=${encodeURIComponent(txt)}`, '_blank');
 }
 
 function renderAnaliseMesIaSugestoes(){
