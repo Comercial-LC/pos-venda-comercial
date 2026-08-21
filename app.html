@@ -270,6 +270,7 @@ select option{background:var(--bg2)}
     <div class="nav-it" onclick="go('tarefas')"><span class="nav-ic">✅</span><span class="nav-label">Tarefas</span></div>
     <div class="nav-it" onclick="go('metas')"><span class="nav-ic">🎯</span><span class="nav-label">Metas</span></div>
     <div class="nav-it" onclick="go('analisemes')"><span class="nav-ic">🧭</span><span class="nav-label">Análise do Mês</span></div>
+    <div class="nav-it" onclick="go('ia')"><span class="nav-ic">🤖</span><span class="nav-label">IA</span></div>
     <div class="nav-sec">Dados</div>
     <div class="nav-it" onclick="go('relatorios')"><span class="nav-ic">📈</span><span class="nav-label">Relatórios</span></div>
     <div class="nav-it" onclick="go('importacao')"><span class="nav-ic">📥</span><span class="nav-label">Importação Excel</span></div>
@@ -522,7 +523,34 @@ select option{background:var(--bg2)}
       <div style="font-size:11px;color:var(--txt3);margin:14px 0 4px">Clique num KPI para ver as revendas dele. O lançamento das informações continua sendo feito no Pipeline Kanban.</div>
       <div class="mg" id="am-kpis" style="margin:10px 0 20px"></div>
 
-      <div id="am-narrativa"></div>
+      <div class="g31">
+        <div id="am-narrativa"></div>
+        <div id="am-ia-sugestoes"></div>
+      </div>
+    </div>
+
+    <!-- IA -->
+    <div class="panel" id="p-ia">
+      <div style="margin-bottom:18px">
+        <div style="font-size:19px;font-weight:700">🤖 Mensagens de IA</div>
+        <div style="font-size:12px;color:var(--txt3);margin-top:2px">Modelos de mensagem por prioridade (P1-P4). A IA só preenche esses modelos com os dados da revenda — não gera texto de fora.</div>
+      </div>
+
+      <div class="card" style="margin-bottom:18px">
+        <div class="ct" style="margin-bottom:10px">Variáveis disponíveis</div>
+        <div style="font-size:12px;color:var(--txt2);line-height:2">
+          <code>{revenda}</code> nome da revenda &nbsp;·&nbsp;
+          <code>{tag_atual}</code> última atualização registrada &nbsp;·&nbsp;
+          <code>{dias_sem_atualizacao}</code> dias sem atualização &nbsp;·&nbsp;
+          <code>{data_prevista}</code> data prevista (se houver) &nbsp;·&nbsp;
+          <code>{quantidade_prevista}</code> qtd. de clientes previstos &nbsp;·&nbsp;
+          <code>{responsavel}</code> CS responsável
+        </div>
+      </div>
+
+      <div id="ia-templates-wrap" style="display:flex;flex-direction:column;gap:18px"></div>
+
+      <button class="btn btn-p" style="margin-top:18px" onclick="salvarIaTemplates()">💾 Salvar modelos</button>
     </div>
 
     <!-- TIMELINE -->
@@ -2692,7 +2720,7 @@ function toggleTheme(){isDark=!isDark;localStorage.setItem('lc_theme',isDark?'da
 applyTheme();
 
 // ─── Nav ───────────────────────────────────────────────────────────
-const TITLES={dashboard:'Dashboard Executivo',revendas:'Cadastro de Revendas',pipeline:'Pipeline de Onboarding',tarefas:'Gestão de Tarefas',timeline:'Timeline de Atividades',treinamentos:'Central de Treinamentos',handover:'Gestão de Handover',relatorios:'Relatórios & Analytics',importacao:'Importação de Dados',usuarios:'Controle de Usuários',integracao:'Integrações',configuracoes:'⚙️ Configurações',analisemes:'Análise do Mês'};
+const TITLES={dashboard:'Dashboard Executivo',revendas:'Cadastro de Revendas',pipeline:'Pipeline de Onboarding',tarefas:'Gestão de Tarefas',timeline:'Timeline de Atividades',treinamentos:'Central de Treinamentos',handover:'Gestão de Handover',relatorios:'Relatórios & Analytics',importacao:'Importação de Dados',usuarios:'Controle de Usuários',integracao:'Integrações',configuracoes:'⚙️ Configurações',analisemes:'Análise do Mês',ia:'Mensagens de IA'};
 function toggleNavGrp(){
   const grp=document.getElementById('nav-cfg-group');
   const sub=document.getElementById('nav-cfg-sub');
@@ -2715,7 +2743,7 @@ function go(name){
   renderPanel(name);
 }
 function renderPanel(name){
-  const fn={dashboard:renderDashboard,revendas:renderRevendas,pipeline:renderKanban,tarefas:renderTasks,timeline:renderTimeline,treinamentos:renderTreinamentos,handover:renderHandover,relatorios:renderRelatorios,usuarios:renderUsers,importacao:renderImport,configuracoes:renderConfiguracoes,integracao:renderIntegracao,analisemes:renderAnaliseMes};
+  const fn={dashboard:renderDashboard,revendas:renderRevendas,pipeline:renderKanban,tarefas:renderTasks,timeline:renderTimeline,treinamentos:renderTreinamentos,handover:renderHandover,relatorios:renderRelatorios,usuarios:renderUsers,importacao:renderImport,configuracoes:renderConfiguracoes,integracao:renderIntegracao,analisemes:renderAnaliseMes,ia:renderIaTemplates};
   if(fn[name]){
     fn[name]();
     if(name==='pipeline') setTimeout(initKanbanScroll, 150);
@@ -6517,6 +6545,7 @@ function classificarRevendaAnaliseMes(historico){
 }
 
 let _amDiagnosticos = [];
+let _amDetalheLista = [];
 
 // Carrega e classifica as revendas em escopo — usado tanto pela página
 // Análise do Mês quanto pelo mini-widget do Dashboard
@@ -6582,6 +6611,7 @@ async function renderAnaliseMes(){
   kEl.innerHTML = kpis.map(k=>`<div class="mc ${k.cls}" style="cursor:pointer" onclick="abrirDetalheAnaliseMes('${k.tipo}','${safe(k.label)}')"><div style="font-size:24px;margin-bottom:8px">${k.icon}</div><div class="mv">${k.val}</div><div class="ml">${safe(k.label)}</div></div>`).join('');
 
   renderNarrativaAnaliseMes();
+  renderAnaliseMesIaSugestoes();
 }
 
 // ── Retrato comercial — leitura narrativa automática dos números ────
@@ -6651,9 +6681,10 @@ function abrirDetalheAnaliseMes(tipo, tituloLabel){
   };
   const cfgEng = {ALTO:'#22c55e',MEDIO:'#f59e0b',BAIXO:'#6b7280'};
   const ordenado = [...lista].sort((a,b)=>a.prioridade.localeCompare(b.prioridade));
+  _amDetalheLista = ordenado;
 
   const listaEl = document.getElementById('am-detalhe-lista');
-  listaEl.innerHTML = ordenado.length ? ordenado.map(d=>{
+  listaEl.innerHTML = ordenado.length ? ordenado.map((d,i)=>{
     const cp = cfgPrio[d.prioridade];
     const tagCfg = TAGS_ANALISE_MES[d.tagAtual] || {label:'Sem tag registrada'};
     const previstoInfo = tipo==='CLIENTE_PREVISTO' && d.clientePrevistoAtivo
@@ -6662,7 +6693,10 @@ function abrirDetalheAnaliseMes(tipo, tituloLabel){
     return `<div style="border:1px solid var(--bdr);border-left:4px solid ${cp.cor};border-radius:var(--r);padding:10px 12px;cursor:pointer" onclick="closeMo('mo-am-detalhe');openCardModal('${d.revenda.id}')">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div style="font-size:13px;font-weight:700">${safe(d.revenda.nome)}</div>
-        <span style="padding:2px 9px;border-radius:20px;font-size:10px;font-weight:600;background:${cp.bg};color:${cp.cor};white-space:nowrap">${cp.label}</span>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <span style="padding:2px 9px;border-radius:20px;font-size:10px;font-weight:600;background:${cp.bg};color:${cp.cor};white-space:nowrap">${cp.label}</span>
+          <button onclick="event.stopPropagation();gerarMensagemIA(${i})" title="Gerar mensagem de abordagem" style="background:var(--accl);border:1px solid rgba(139,92,246,.3);color:var(--acc);border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer">💬</button>
+        </div>
       </div>
       <div style="font-size:12px;color:var(--txt2);margin-top:4px">${safe(tagCfg.label)}</div>
       <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--txt3);margin-top:4px">
@@ -6674,6 +6708,120 @@ function abrirDetalheAnaliseMes(tipo, tituloLabel){
   }).join('') : '<div class="empty" style="padding:20px">Nenhuma revenda aqui</div>';
 
   openMo('mo-am-detalhe');
+}
+
+// ─── IA — MODELOS DE MENSAGEM (motor de templates, sem chamada externa) ──
+// A "IA" aqui não chama nenhum serviço de fora: ela só escolhe o modelo
+// cadastrado pra prioridade da revenda e preenche as variáveis com dados
+// já calculados pela Análise do Mês. Base de conhecimento = os modelos
+// que o próprio time cadastra em Gestão → IA.
+const IA_PRIORIDADES = [
+  {v:'P1', label:'🔥 P1 — Quente',             cor:'#ef4444'},
+  {v:'P2', label:'📈 P2 — Em desenvolvimento', cor:'#f59e0b'},
+  {v:'P3', label:'👁 P3 — Acompanhamento',     cor:'#3b82f6'},
+  {v:'P4', label:'🚨 P4 — Risco',              cor:'#6b7280'},
+];
+
+function getIaTemplates(){
+  const t = getCfg().iaTemplates || {};
+  return {P1:t.P1||[], P2:t.P2||[], P3:t.P3||[], P4:t.P4||[]};
+}
+
+function preencherTemplateIA(template, d){
+  const tagCfg = TAGS_ANALISE_MES[d.tagAtual];
+  const vars = {
+    revenda:              d.revenda.nome,
+    tag_atual:            tagCfg ? tagCfg.label.replace(/^\S+\s*/, '') : 'sem atualização registrada',
+    dias_sem_atualizacao: d.diasSemAtualizacao ?? '—',
+    data_prevista:        d.clientePrevistoAtivo?.data_prevista ? fmtDate(d.clientePrevistoAtivo.data_prevista) : '—',
+    quantidade_prevista:  d.clientePrevistoAtivo?.quantidade || '—',
+    responsavel:          d.revenda.cs || '—',
+  };
+  return template.replace(/\{(\w+)\}/g, (m, key) => key in vars ? vars[key] : m);
+}
+
+function gerarMensagemIA(idx){
+  const d = _amDetalheLista[idx];
+  if(!d) return;
+  const templates = getIaTemplates()[d.prioridade] || [];
+  if(!templates.length){
+    toast('Nenhum modelo cadastrado para '+d.prioridade+' — cadastre em Gestão → IA','warn');
+    return;
+  }
+  const msg = preencherTemplateIA(templates[0], d);
+  navigator.clipboard.writeText(msg)
+    .then(()=> toast('💬 Mensagem copiada!'))
+    .catch(()=>{ toast(msg, 'ok'); });
+}
+
+function renderAnaliseMesIaSugestoes(){
+  const el = document.getElementById('am-ia-sugestoes');
+  if(!el) return;
+  const templates = getIaTemplates();
+  const cnt = p => _amDiagnosticos.filter(d=>d.prioridade===p).length;
+  el.innerHTML = `<div class="card">
+    <div class="ct" style="margin-bottom:12px">🤖 Sugestões de Mensagem</div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      ${IA_PRIORIDADES.map(p=>{
+        const tpl = templates[p.v][0];
+        return `<div style="border-left:3px solid ${p.cor};background:var(--bg2);border-radius:var(--r);padding:10px 12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:12px;font-weight:700;color:${p.cor}">${p.label}</span>
+            <span style="font-size:11px;color:var(--txt3)">${cnt(p.v)} revenda(s)</span>
+          </div>
+          ${tpl
+            ? `<div style="font-size:11px;color:var(--txt2);line-height:1.5;font-style:italic">"${safe(tpl.slice(0,110))}${tpl.length>110?'…':''}"</div>`
+            : `<div style="font-size:11px;color:var(--txt3)">Nenhum modelo cadastrado.</div>`}
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="font-size:11px;color:var(--txt3);margin-top:12px">Abra a lista de um KPI acima e clique em 💬 numa revenda pra gerar a mensagem já preenchida.</div>
+    <button class="btn btn-s btn-sm" style="margin-top:10px;width:100%" onclick="go('ia')">⚙️ Gerenciar modelos</button>
+  </div>`;
+}
+
+function renderIaTemplates(){
+  const wrap = document.getElementById('ia-templates-wrap');
+  if(!wrap) return;
+  const templates = getIaTemplates();
+  wrap.innerHTML = IA_PRIORIDADES.map(p=>`
+    <div class="card">
+      <div class="ch">
+        <div class="ct" style="color:${p.cor}">${p.label}</div>
+        <button class="btn btn-s btn-sm" onclick="adicionarModeloIA('${p.v}')">+ Adicionar modelo</button>
+      </div>
+      <div id="ia-lista-${p.v}" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>`).join('');
+
+  IA_PRIORIDADES.forEach(p=>{
+    const lista = document.getElementById('ia-lista-'+p.v);
+    const itens = templates[p.v].length ? templates[p.v] : [''];
+    lista.innerHTML = itens.map(txt=>`
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <textarea class="ia-tpl-txt" data-prio="${p.v}" rows="2" placeholder="Ex: Oi {revenda}, notei que faz {dias_sem_atualizacao} dias sem retorno..." style="flex:1;font-size:13px">${safe(txt)}</textarea>
+        <button class="btn btn-d btn-sm" onclick="this.parentElement.remove()" title="Remover">🗑</button>
+      </div>`).join('');
+  });
+}
+
+function adicionarModeloIA(prioridade){
+  const lista = document.getElementById('ia-lista-'+prioridade);
+  if(!lista) return;
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;gap:8px;align-items:flex-start';
+  div.innerHTML = `<textarea class="ia-tpl-txt" data-prio="${prioridade}" rows="2" placeholder="Ex: Oi {revenda}, notei que faz {dias_sem_atualizacao} dias sem retorno..." style="flex:1;font-size:13px"></textarea>
+    <button class="btn btn-d btn-sm" onclick="this.parentElement.remove()" title="Remover">🗑</button>`;
+  lista.appendChild(div);
+}
+
+async function salvarIaTemplates(){
+  const templates = {P1:[], P2:[], P3:[], P4:[]};
+  document.querySelectorAll('.ia-tpl-txt').forEach(el=>{
+    const txt = el.value.trim();
+    if(txt) templates[el.dataset.prio].push(txt);
+  });
+  await saveCfg({iaTemplates: templates});
+  toast('✅ Modelos de mensagem salvos!');
 }
 
 // ─── AUDITORIA ────────────────────────────────────────────────────
