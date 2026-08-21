@@ -1534,6 +1534,10 @@ select option{background:var(--bg2)}
       <button class="btn btn-s btn-sm" onclick="closeMo('mo-am-mensagem')">✕</button>
     </div>
     <div class="mob">
+      <div id="am-mensagem-modelo-wrap" style="display:none;margin-bottom:10px">
+        <label style="font-size:11px;color:var(--txt3);display:block;margin-bottom:4px">Modelo</label>
+        <select id="am-mensagem-modelo" onchange="trocarModeloMensagemIA()" style="width:100%"></select>
+      </div>
       <textarea id="am-mensagem-txt" rows="8" style="width:100%;box-sizing:border-box;font-size:13px;line-height:1.5"></textarea>
       <div style="font-size:11px;color:var(--txt3);margin-top:6px">Pode editar o texto antes de copiar ou enviar.</div>
     </div>
@@ -6763,6 +6767,8 @@ function preencherTemplateIA(template, d){
 }
 
 let _amMensagemTel = '';
+let _amMensagemDiag = null;
+let _amMensagemTemplates = [];
 
 function gerarMensagemIA(idx){
   const d = _amDetalheLista[idx];
@@ -6772,13 +6778,33 @@ function gerarMensagemIA(idx){
     toast('Nenhum modelo cadastrado para '+d.prioridade+' — cadastre em Gestão → IA','warn');
     return;
   }
-  const msg = preencherTemplateIA(templates[0], d);
-  _amMensagemTel = d.revenda.tel || '';
+  _amMensagemDiag      = d;
+  _amMensagemTemplates = templates;
+  _amMensagemTel       = d.revenda.tel || '';
+
+  const wrapEl = document.getElementById('am-mensagem-modelo-wrap');
+  const selEl  = document.getElementById('am-mensagem-modelo');
+  if(templates.length > 1 && wrapEl && selEl){
+    wrapEl.style.display = 'block';
+    selEl.innerHTML = templates.map((t,i)=>`<option value="${i}">Modelo ${i+1} — ${safe(t.slice(0,50))}${t.length>50?'…':''}</option>`).join('');
+    selEl.value = '0';
+  } else if(wrapEl){
+    wrapEl.style.display = 'none';
+  }
+
   const txtEl = document.getElementById('am-mensagem-txt');
-  if(txtEl) txtEl.value = msg;
+  if(txtEl) txtEl.value = preencherTemplateIA(templates[0], d);
   const btnWa = document.getElementById('btn-am-whatsapp');
   if(btnWa) btnWa.style.display = _amMensagemTel ? '' : 'none';
   openMo('mo-am-mensagem');
+}
+
+function trocarModeloMensagemIA(){
+  const i = parseInt(document.getElementById('am-mensagem-modelo')?.value) || 0;
+  const template = _amMensagemTemplates[i];
+  if(template === undefined || !_amMensagemDiag) return;
+  const txtEl = document.getElementById('am-mensagem-txt');
+  if(txtEl) txtEl.value = preencherTemplateIA(template, _amMensagemDiag);
 }
 
 function copiarMensagemIA(){
