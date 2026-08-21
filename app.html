@@ -337,7 +337,7 @@ select option{background:var(--bg2)}
         </div>
         <div class="card">
           <div class="ch"><div class="ct">Distribuição por Etapa</div></div>
-          <div id="dash-etapas" style="display:flex;flex-direction:column;gap:10px;padding:8px 0"></div>
+          <div id="dash-etapas" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"></div>
         </div>
       </div>
     </div>
@@ -2860,6 +2860,13 @@ function deleteRevenda(id){
   });
 }
 
+function irParaRevendasPorEtapa(status){
+  revFilterStatus = status; revPage = 0;
+  go('revendas');
+  const sel = document.getElementById('rev-status');
+  if(sel) sel.value = status;
+}
+
 function setRevFilter(status){
   revFilterStatus=status;revPage=0;
   document.querySelectorAll('#rev-filters .fp-p').forEach(b=>b.classList.toggle('on',b.textContent.startsWith(status||'Todas')));
@@ -2961,23 +2968,20 @@ function renderDashboard(){
   const kEl=document.getElementById('dash-kpis');
   if(kEl)kEl.innerHTML=kpis.map(k=>`<div class="mc ${k.cls}"><div style="font-size:24px;margin-bottom:8px">${safe(k.icon)}</div><div class="mv">${k.val}</div><div class="ml">${safe(k.label)}</div></div>`).join('');
 
-  // Distribuição por etapa
+  // Distribuição por etapa — KPI clicável por etapa (leva pra Revendas já filtrado)
   const etapasEl = document.getElementById('dash-etapas');
   if(etapasEl){
     const nomesInativosDash = ['inativo','inativa','perdido','cancelado','churn'];
     const ETAPAS_D = getEtapas().map(e=>({
       id: e.id, icon: e.icon,
-      color: nomesInativosDash.some(n=>e.id.toLowerCase().includes(n)) ? '#ef4444' : (e.cor||'var(--acc)'),
+      cls: nomesInativosDash.some(n=>e.id.toLowerCase().includes(n)) ? 'rd' : 'bl',
     }));
-    const maxCnt = Math.max(...ETAPAS_D.map(e=>rv.filter(r=>r.status===e.id).length), 1);
     etapasEl.innerHTML = ETAPAS_D.map(e=>{
       const cnt = rv.filter(r=>r.status===e.id).length;
-      const pct = Math.round(cnt/maxCnt*100);
-      return `<div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:13px;width:20px;text-align:center">${safe(e.icon)}</span>
-        <span style="font-size:12px;color:var(--txt2);width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${safe(e.id)}</span>
-        <div class="pbar" style="flex:1"><div class="pfill" style="width:${pct}%"></div></div>
-        <span style="font-size:12px;font-weight:700;color:${e.color};min-width:28px;text-align:right">${cnt}</span>
+      return `<div class="mc ${e.cls}" style="cursor:pointer;padding:12px 8px" onclick="irParaRevendasPorEtapa('${e.id}')" title="${safe(e.id)}">
+        <div style="font-size:16px;margin-bottom:4px">${safe(e.icon)}</div>
+        <div class="mv" style="font-size:18px">${cnt}</div>
+        <div class="ml" style="font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${safe(e.id)}</div>
       </div>`;
     }).join('');
   }
