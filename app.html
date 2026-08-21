@@ -22,6 +22,7 @@
   --warn:#F59E0B;--warnl:rgba(245,158,11,.13);
   --err:#EF4444;--errl:rgba(239,68,68,.13);
   --pur:#7C3AED;--purl:rgba(124,58,237,.18);
+  --tel:#14B8A6;--tell:rgba(20,184,166,.15);
   --r:8px;--rl:12px;--rxl:16px;
   --sh:0 4px 20px rgba(0,0,0,.4);--sh2:0 8px 32px rgba(0,0,0,.55);
   --tr:all .2s ease;
@@ -38,6 +39,7 @@
   --warn:#D97706;--warnl:rgba(217,119,6,.1);
   --err:#DC2626;--errl:rgba(220,38,38,.1);
   --pur:#6D28D9;--purl:rgba(109,40,217,.1);
+  --tel:#0D9488;--tell:rgba(13,148,136,.1);
   --sh:0 2px 12px rgba(0,0,0,.07);--sh2:0 4px 24px rgba(0,0,0,.11)
 }
 /* Overrides explícitos para sidebar/topbar — garante modo claro mesmo em browsers com auto-dark */
@@ -6514,17 +6516,20 @@ async function renderAnaliseMes(){
   const cnt = p => _amDiagnosticos.filter(d=>d.prioridade===p).length;
   const comPrevisto   = _amDiagnosticos.filter(d=>d.clientePrevistoAtivo);
   const qtdPrevistos  = comPrevisto.reduce((s,d)=>s+(d.clientePrevistoAtivo.quantidade||1),0);
+  const semInfo       = _amDiagnosticos.filter(d=>!d.tagAtual);
   const kpis=[
     {label:'Em análise',                     val:_amDiagnosticos.length, cls:'bl', icon:'🧭'},
     {label:'P1 — Quente',                    val:cnt('P1'), cls:'rd', icon:'🔥'},
     {label:'P2 — Em desenvolvimento',        val:cnt('P2'), cls:'yw', icon:'📈'},
     {label:'Revendas c/ cliente previsto',   val:comPrevisto.length, cls:'pu', icon:'🔮'},
     {label:'Qtd. clientes previstos',        val:qtdPrevistos, cls:'gn', icon:'👥'},
+    {label:'Sem informações',                val:semInfo.length, cls:'tl', icon:'❔'},
   ];
   kEl.innerHTML = kpis.map(k=>`<div class="mc ${k.cls}"><div style="font-size:24px;margin-bottom:8px">${k.icon}</div><div class="mv">${k.val}</div><div class="ml">${safe(k.label)}</div></div>`).join('');
 
-  // ── Alertas ───────────────────────────────────────────────────
-  const alertasFlat = _amDiagnosticos.flatMap(d=>d.alertas.map(msg=>({revenda:d.revenda.nome, msg})));
+  // ── Alertas — ignora revendas sem nenhuma tag registrada ainda ──
+  // (isso já está contado no KPI "Sem informações", não é um alerta acionável)
+  const alertasFlat = _amDiagnosticos.filter(d=>d.tagAtual).flatMap(d=>d.alertas.map(msg=>({revenda:d.revenda.nome, msg})));
   aEl.innerHTML = alertasFlat.length
     ? alertasFlat.map(a=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--errl);border-radius:var(--r);border-left:3px solid var(--err)">
         <span style="font-size:13px">⚠️</span><span style="font-size:12px"><b>${safe(a.revenda)}</b> — ${safe(a.msg)}</span>
