@@ -1894,7 +1894,7 @@ function tvCriarEstruturaLayout1(){
       </div>
       <div id="tv-pipeline-wrap" style="flex:1;min-height:0;display:flex;flex-direction:column">
         <div style="font-size:12px;font-weight:700;color:var(--txt3);margin-bottom:6px;flex-shrink:0;text-transform:uppercase;letter-spacing:.05em">⚡ Pipeline de Onboarding</div>
-        <div id="tv-pipeline" style="display:flex;flex-direction:column;gap:6px;flex:1;overflow-y:auto;scrollbar-width:none"></div>
+        <div id="tv-pipeline" style="display:grid;grid-auto-flow:column;grid-template-columns:1fr 1fr;gap:6px 16px;flex:1;overflow-y:auto;scrollbar-width:none"></div>
       </div>
     </div>
     <div id="tv-am-wrap">
@@ -2312,22 +2312,24 @@ async function renderTVDashboard(){
     }).join('') : '<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:16px">Nenhuma meta cadastrada para este mês.</div>';
   }
 
-  // ── Pipeline por etapa ────────────────────────────────────
+  // ── Pipeline por etapa — 2 colunas para não esticar a tela ──
   const pipeEl = document.getElementById('tv-pipeline');
   if(pipeEl){
     // Usa cores das etapas configuradas
+    const linhas = Math.ceil(etapas.length/2);
+    pipeEl.style.gridTemplateRows = `repeat(${linhas},auto)`;
     const maxVal = Math.max(...etapas.map(e=>rv.filter(r=>r.status===e.id).length),1);
     pipeEl.innerHTML = etapas.map(e=>{
       const cnt = rv.filter(r=>r.status===e.id).length;
       const pct = Math.round(cnt/maxVal*100);
       const cor = e.cor || 'var(--acc)';
-      return `<div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:16px;width:20px;text-align:center">${e.icon}</span>
-        <span style="font-size:12px;color:var(--txt2);width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.id}</span>
-        <div style="flex:1;background:var(--bdr);border-radius:4px;height:10px;overflow:hidden">
+      return `<div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:14px;width:16px;text-align:center;flex-shrink:0">${e.icon}</span>
+        <span style="font-size:11px;color:var(--txt2);width:88px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0">${e.id}</span>
+        <div style="flex:1;background:var(--bdr);border-radius:4px;height:9px;overflow:hidden">
           <div style="height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));width:${pct}%;border-radius:4px;transition:width .6s ease"></div>
         </div>
-        <span style="font-size:14px;font-weight:700;color:${cor};width:32px;text-align:right">${cnt}</span>
+        <span style="font-size:12px;font-weight:700;color:${cor};width:24px;text-align:right;flex-shrink:0">${cnt}</span>
       </div>`;
     }).join('');
   }
