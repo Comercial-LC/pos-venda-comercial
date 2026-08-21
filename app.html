@@ -331,9 +331,9 @@ select option{background:var(--bg2)}
       </div>
       <div class="g2" style="margin-bottom:18px">
         <div class="card">
-          <div class="ch"><div class="ct">Motivos de Inativação</div></div>
-          <div id="dash-motivos-loading" style="text-align:center;padding:20px;color:var(--txt3);font-size:13px">Carregando...</div>
-          <div id="dash-motivos" style="display:none;flex-direction:column;gap:10px;padding:8px 4px"></div>
+          <div class="ch"><div class="ct">🧭 Análise do Mês</div></div>
+          <div id="dash-am-mini-loading" style="text-align:center;padding:20px;color:var(--txt3);font-size:13px">Carregando...</div>
+          <div id="dash-am-mini" style="display:none;grid-template-columns:repeat(3,1fr);gap:8px"></div>
         </div>
         <div class="card">
           <div class="ch"><div class="ct">Distribuição por Etapa</div></div>
@@ -2982,42 +2982,36 @@ function renderDashboard(){
     }).join('');
   }
 
-  // Motivos de inativação — fetch assíncrono sem bloquear o render
+  // Análise do Mês (mini) — fetch assíncrono sem bloquear o render
   (async () => {
-    const loadEl = document.getElementById('dash-motivos-loading');
-    const barsEl = document.getElementById('dash-motivos');
+    const loadEl = document.getElementById('dash-am-mini-loading');
+    const gridEl = document.getElementById('dash-am-mini');
     try {
-      const {data: hist} = await sb.from('historico_cards')
-        .select('descricao').like('descricao', '%Motivo:%').limit(500);
+      await carregarDiagnosticosAnaliseMes();
       if(loadEl) loadEl.style.display = 'none';
-      const motivoCount = {};
-      (hist||[]).forEach(h => {
-        const motivo = (h.descricao||'').split('Motivo:')[1]?.trim();
-        if(motivo) motivoCount[motivo] = (motivoCount[motivo]||0) + 1;
-      });
-      const entries = Object.entries(motivoCount).sort((a,b)=>b[1]-a[1]);
-      if(barsEl){
-        barsEl.style.display = 'flex';
-        if(!entries.length){
-          barsEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--txt3);font-size:13px">Sem inativações registradas</div>';
-        } else {
-          const colors = ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#ef4444','#06b6d4','#84cc16'];
-          const maxV = entries[0][1];
-          barsEl.innerHTML = entries.map(([label, val], i) => {
-            const pct = Math.round(val/maxV*100);
-            const cor = colors[i % colors.length];
-            return `<div style="display:grid;grid-template-columns:180px 1fr 30px;align-items:center;gap:10px">
-              <div style="font-size:12px;color:var(--txt2);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${label}">${label}</div>
-              <div style="background:var(--card2);border-radius:6px;height:20px;position:relative;overflow:hidden">
-                <div style="position:absolute;left:0;top:0;height:100%;width:${pct}%;background:linear-gradient(90deg,var(--acc),var(--acc2));border-radius:6px"></div>
-              </div>
-              <div style="font-size:12px;font-weight:700;color:${cor}">${val}</div>
-            </div>`;
-          }).join('');
-        }
+      if(!gridEl) return;
+      gridEl.style.display = 'grid';
+      if(!_amDiagnosticos.length){
+        gridEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--txt3);font-size:13px">Nenhuma revenda entre Nova Revenda e Decola Produtos</div>';
+        return;
       }
+      const cnt = p => _amDiagnosticos.filter(d=>d.prioridade===p).length;
+      const comPrevisto = _amDiagnosticos.filter(d=>d.clientePrevistoAtivo);
+      const miniKpis = [
+        {label:'Em análise',       val:_amDiagnosticos.length, cls:'bl', icon:'🧭', tipo:'TOTAL'},
+        {label:'P1 Quente',        val:cnt('P1'), cls:'rd', icon:'🔥', tipo:'P1'},
+        {label:'P2 Desenvolv.',    val:cnt('P2'), cls:'yw', icon:'📈', tipo:'P2'},
+        {label:'P3 Acompanh.',     val:cnt('P3'), cls:'tl', icon:'👁', tipo:'P3'},
+        {label:'P4 Risco',         val:cnt('P4'), cls:'rd', icon:'🚨', tipo:'P4'},
+        {label:'Cliente previsto', val:comPrevisto.length, cls:'pu', icon:'🔮', tipo:'CLIENTE_PREVISTO'},
+      ];
+      gridEl.innerHTML = miniKpis.map(k=>`<div class="mc ${k.cls}" style="cursor:pointer;padding:12px 8px" onclick="abrirDetalheAnaliseMes('${k.tipo}','${safe(k.label)}')">
+        <div style="font-size:16px;margin-bottom:4px">${k.icon}</div>
+        <div class="mv" style="font-size:18px">${k.val}</div>
+        <div class="ml" style="font-size:10px">${safe(k.label)}</div>
+      </div>`).join('');
     } catch(e) {
-      if(loadEl){ loadEl.style.display='block'; loadEl.textContent='Erro ao carregar motivos'; }
+      if(loadEl){ loadEl.style.display='block'; loadEl.textContent='Erro ao carregar Análise do Mês'; }
     }
   })();
 
@@ -6474,10 +6468,9 @@ function classificarRevendaAnaliseMes(historico){
 
 let _amDiagnosticos = [];
 
-async function renderAnaliseMes(){
-  const kEl = document.getElementById('am-kpis');
-  if(!kEl) return;
-
+// Carrega e classifica as revendas em escopo — usado tanto pela página
+// Análise do Mês quanto pelo mini-widget do Dashboard
+async function carregarDiagnosticosAnaliseMes(){
   // Escopo: Nova Revenda até Decola Produtos, na ordem configurada em getEtapas()
   const etapas = getEtapas().map(e=>e.id);
   let ini = etapas.indexOf('Nova Revenda'), fim = etapas.indexOf('Decola Produtos');
@@ -6495,11 +6488,7 @@ async function renderAnaliseMes(){
     return true;
   });
 
-  if(!revendasEscopo.length){
-    kEl.innerHTML = '<div class="empty" style="padding:16px">Nenhuma revenda entre Nova Revenda e Decola Produtos</div>';
-    _amDiagnosticos = [];
-    return;
-  }
+  if(!revendasEscopo.length){ _amDiagnosticos = []; return; }
 
   // Uma única query em lote (não uma por revenda) — só as linhas já tagueadas
   const {data: hist, error} = await sb.from('historico_cards')
@@ -6507,12 +6496,25 @@ async function renderAnaliseMes(){
     .in('revenda_id', revendasEscopo.map(r=>r.id))
     .not('tag','is',null)
     .order('criado_em', {ascending:true});
-  if(error){ toast('Erro ao carregar Análise do Mês: '+error.message,'err'); return; }
+  if(error){ console.error('Análise do Mês:', error.message); _amDiagnosticos = []; return; }
 
   const porRevenda = {};
   (hist||[]).forEach(h=>{ (porRevenda[h.revenda_id] = porRevenda[h.revenda_id]||[]).push(h); });
 
   _amDiagnosticos = revendasEscopo.map(r=>({revenda:r, ...classificarRevendaAnaliseMes(porRevenda[r.id]||[])}));
+}
+
+async function renderAnaliseMes(){
+  const kEl = document.getElementById('am-kpis');
+  if(!kEl) return;
+
+  await carregarDiagnosticosAnaliseMes();
+
+  if(!_amDiagnosticos.length){
+    kEl.innerHTML = '<div class="empty" style="padding:16px">Nenhuma revenda entre Nova Revenda e Decola Produtos</div>';
+    document.getElementById('am-narrativa').innerHTML = '';
+    return;
+  }
 
   // ── KPIs (cada um clicável — abre a lista de revendas correspondente) ──
   const cnt = p => _amDiagnosticos.filter(d=>d.prioridade===p).length;
