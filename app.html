@@ -519,16 +519,8 @@ select option{background:var(--bg2)}
         <button class="btn btn-s" onclick="renderAnaliseMes()">🔄 Atualizar</button>
       </div>
 
-      <div class="mg" id="am-kpis" style="margin:16px 0 20px"></div>
-
-      <div class="card" style="margin-bottom:20px">
-        <div class="ch"><div class="ct">⚠️ Alertas</div></div>
-        <div id="am-alertas" style="display:flex;flex-direction:column;gap:8px;padding:4px 0"></div>
-      </div>
-
-      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap" id="am-filtros"></div>
-
-      <div id="am-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px"></div>
+      <div style="font-size:11px;color:var(--txt3);margin:14px 0 4px">Clique num KPI para ver as revendas dele. O lançamento das informações continua sendo feito no Pipeline Kanban.</div>
+      <div class="mg" id="am-kpis" style="margin:10px 0 20px"></div>
     </div>
 
     <!-- TIMELINE -->
@@ -1483,6 +1475,19 @@ select option{background:var(--bg2)}
     <div class="mof">
       <button class="btn btn-s" onclick="closeMo('mo-meta')">Cancelar</button>
       <button class="btn btn-p" onclick="salvarMeta()">💾 Salvar meta</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Detalhe de KPI da Análise do Mês -->
+<div class="mo-ov" id="mo-am-detalhe">
+  <div class="mo" style="width:560px;max-height:80vh">
+    <div class="moh">
+      <div class="mot" id="am-detalhe-titulo">Revendas</div>
+      <button class="btn btn-s btn-sm" onclick="closeMo('mo-am-detalhe')">✕</button>
+    </div>
+    <div class="mob" style="overflow-y:auto">
+      <div id="am-detalhe-lista" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
   </div>
 </div>
@@ -6466,13 +6471,9 @@ function classificarRevendaAnaliseMes(historico){
 }
 
 let _amDiagnosticos = [];
-let _amFiltroPrio = '';
 
 async function renderAnaliseMes(){
   const kEl = document.getElementById('am-kpis');
-  const aEl = document.getElementById('am-alertas');
-  const cEl = document.getElementById('am-cards');
-  const fEl = document.getElementById('am-filtros');
   if(!kEl) return;
 
   // Escopo: Nova Revenda até Decola Produtos, na ordem configurada em getEtapas()
@@ -6493,9 +6494,8 @@ async function renderAnaliseMes(){
   });
 
   if(!revendasEscopo.length){
-    kEl.innerHTML = '';
-    aEl.innerHTML = '<div class="empty" style="padding:16px">Nenhuma revenda entre Nova Revenda e Decola Produtos</div>';
-    cEl.innerHTML = ''; if(fEl) fEl.innerHTML = '';
+    kEl.innerHTML = '<div class="empty" style="padding:16px">Nenhuma revenda entre Nova Revenda e Decola Produtos</div>';
+    _amDiagnosticos = [];
     return;
   }
 
@@ -6512,44 +6512,30 @@ async function renderAnaliseMes(){
 
   _amDiagnosticos = revendasEscopo.map(r=>({revenda:r, ...classificarRevendaAnaliseMes(porRevenda[r.id]||[])}));
 
-  // ── KPIs ──────────────────────────────────────────────────────
+  // ── KPIs (cada um clicável — abre a lista de revendas correspondente) ──
   const cnt = p => _amDiagnosticos.filter(d=>d.prioridade===p).length;
   const comPrevisto   = _amDiagnosticos.filter(d=>d.clientePrevistoAtivo);
   const qtdPrevistos  = comPrevisto.reduce((s,d)=>s+(d.clientePrevistoAtivo.quantidade||1),0);
-  const semInfo       = _amDiagnosticos.filter(d=>!d.tagAtual);
   const kpis=[
-    {label:'Em análise',                     val:_amDiagnosticos.length, cls:'bl', icon:'🧭'},
-    {label:'P1 — Quente',                    val:cnt('P1'), cls:'rd', icon:'🔥'},
-    {label:'P2 — Em desenvolvimento',        val:cnt('P2'), cls:'yw', icon:'📈'},
-    {label:'Revendas c/ cliente previsto',   val:comPrevisto.length, cls:'pu', icon:'🔮'},
-    {label:'Qtd. clientes previstos',        val:qtdPrevistos, cls:'gn', icon:'👥'},
-    {label:'Sem informações',                val:semInfo.length, cls:'tl', icon:'❔'},
+    {label:'Em análise',                     val:_amDiagnosticos.length, cls:'bl', icon:'🧭', tipo:'TOTAL'},
+    {label:'P1 — Quente',                    val:cnt('P1'), cls:'rd', icon:'🔥', tipo:'P1'},
+    {label:'P2 — Em desenvolvimento',        val:cnt('P2'), cls:'yw', icon:'📈', tipo:'P2'},
+    {label:'P3 — Acompanhamento',            val:cnt('P3'), cls:'tl', icon:'👁', tipo:'P3'},
+    {label:'P4 — Risco',                     val:cnt('P4'), cls:'rd', icon:'🚨', tipo:'P4'},
+    {label:'Revendas c/ cliente previsto',   val:comPrevisto.length, cls:'pu', icon:'🔮', tipo:'CLIENTE_PREVISTO'},
+    {label:'Qtd. clientes previstos',        val:qtdPrevistos, cls:'gn', icon:'👥', tipo:'CLIENTE_PREVISTO'},
   ];
-  kEl.innerHTML = kpis.map(k=>`<div class="mc ${k.cls}"><div style="font-size:24px;margin-bottom:8px">${k.icon}</div><div class="mv">${k.val}</div><div class="ml">${safe(k.label)}</div></div>`).join('');
-
-  // ── Alertas — ignora revendas sem nenhuma tag registrada ainda ──
-  // (isso já está contado no KPI "Sem informações", não é um alerta acionável)
-  const alertasFlat = _amDiagnosticos.filter(d=>d.tagAtual).flatMap(d=>d.alertas.map(msg=>({revenda:d.revenda.nome, msg})));
-  aEl.innerHTML = alertasFlat.length
-    ? alertasFlat.map(a=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--errl);border-radius:var(--r);border-left:3px solid var(--err)">
-        <span style="font-size:13px">⚠️</span><span style="font-size:12px"><b>${safe(a.revenda)}</b> — ${safe(a.msg)}</span>
-      </div>`).join('')
-    : '<div class="empty" style="padding:16px">Nenhum alerta no momento 🎉</div>';
-
-  // ── Filtros de prioridade ─────────────────────────────────────
-  if(fEl){
-    const filtros=[{v:'',label:'Todas'},{v:'P1',label:'🔥 P1 Quente'},{v:'P2',label:'📈 P2 Em desenvolvimento'},{v:'P3',label:'👁 P3 Acompanhamento'},{v:'P4',label:'🚨 P4 Risco'}];
-    fEl.innerHTML = filtros.map(f=>`<button class="fp-p ${_amFiltroPrio===f.v?'on':''}" onclick="_amSetFiltro('${f.v}')">${f.label} (${f.v?cnt(f.v):_amDiagnosticos.length})</button>`).join('');
-  }
-
-  renderAnaliseMesCards();
+  kEl.innerHTML = kpis.map(k=>`<div class="mc ${k.cls}" style="cursor:pointer" onclick="abrirDetalheAnaliseMes('${k.tipo}','${safe(k.label)}')"><div style="font-size:24px;margin-bottom:8px">${k.icon}</div><div class="mv">${k.val}</div><div class="ml">${safe(k.label)}</div></div>`).join('');
 }
 
-function _amSetFiltro(p){ _amFiltroPrio = p; renderAnaliseMes(); }
+function abrirDetalheAnaliseMes(tipo, tituloLabel){
+  let lista;
+  if(tipo==='TOTAL')                lista = _amDiagnosticos;
+  else if(tipo==='CLIENTE_PREVISTO') lista = _amDiagnosticos.filter(d=>d.clientePrevistoAtivo);
+  else                                lista = _amDiagnosticos.filter(d=>d.prioridade===tipo);
 
-function renderAnaliseMesCards(){
-  const cEl = document.getElementById('am-cards');
-  if(!cEl) return;
+  document.getElementById('am-detalhe-titulo').textContent = `${tituloLabel} (${lista.length})`;
+
   const cfgPrio = {
     P1:{cor:'#ef4444',bg:'rgba(239,68,68,.12)',label:'🔥 Quente'},
     P2:{cor:'#f59e0b',bg:'rgba(245,158,11,.12)',label:'📈 Em desenvolvimento'},
@@ -6557,25 +6543,30 @@ function renderAnaliseMesCards(){
     P4:{cor:'#6b7280',bg:'rgba(107,114,128,.12)',label:'🚨 Risco'},
   };
   const cfgEng = {ALTO:'#22c55e',MEDIO:'#f59e0b',BAIXO:'#6b7280'};
-  const lista = _amFiltroPrio ? _amDiagnosticos.filter(d=>d.prioridade===_amFiltroPrio) : _amDiagnosticos;
   const ordenado = [...lista].sort((a,b)=>a.prioridade.localeCompare(b.prioridade));
 
-  cEl.innerHTML = ordenado.length ? ordenado.map(d=>{
+  const listaEl = document.getElementById('am-detalhe-lista');
+  listaEl.innerHTML = ordenado.length ? ordenado.map(d=>{
     const cp = cfgPrio[d.prioridade];
     const tagCfg = TAGS_ANALISE_MES[d.tagAtual] || {label:'Sem tag registrada'};
-    return `<div class="card" style="border-left:4px solid ${cp.cor};cursor:pointer" onclick="openCardModal('${d.revenda.id}')">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+    const previstoInfo = tipo==='CLIENTE_PREVISTO' && d.clientePrevistoAtivo
+      ? `<div style="font-size:11px;color:var(--txt3);margin-top:4px">🔮 ${d.clientePrevistoAtivo.quantidade||1} cliente(s)${d.clientePrevistoAtivo.data_prevista?' · previsto p/ '+fmtDate(d.clientePrevistoAtivo.data_prevista):''}</div>`
+      : '';
+    return `<div style="border:1px solid var(--bdr);border-left:4px solid ${cp.cor};border-radius:var(--r);padding:10px 12px;cursor:pointer" onclick="closeMo('mo-am-detalhe');openCardModal('${d.revenda.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div style="font-size:13px;font-weight:700">${safe(d.revenda.nome)}</div>
-        <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:${cp.bg};color:${cp.cor}">${cp.label}</span>
+        <span style="padding:2px 9px;border-radius:20px;font-size:10px;font-weight:600;background:${cp.bg};color:${cp.cor};white-space:nowrap">${cp.label}</span>
       </div>
-      <div style="font-size:12px;color:var(--txt2);margin-bottom:6px">${safe(tagCfg.label)}</div>
-      <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--txt3)">
+      <div style="font-size:12px;color:var(--txt2);margin-top:4px">${safe(tagCfg.label)}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--txt3);margin-top:4px">
         <span>Engajamento: <b style="color:${cfgEng[d.engajamento]}">${d.engajamento}</b></span>
-        <span>${d.diasSemAtualizacao!==null ? d.diasSemAtualizacao+'d sem att.' : '—'}</span>
+        <span>${d.diasSemAtualizacao!==null ? d.diasSemAtualizacao+'d sem atualização' : '—'}</span>
       </div>
-      ${d.alertas.length?`<div style="margin-top:8px;font-size:11px;color:var(--err)">⚠️ ${safe(d.alertas[0])}</div>`:''}
+      ${previstoInfo}
     </div>`;
-  }).join('') : '<div class="empty" style="padding:24px;grid-column:1/-1">Nenhuma revenda nesta prioridade</div>';
+  }).join('') : '<div class="empty" style="padding:20px">Nenhuma revenda aqui</div>';
+
+  openMo('mo-am-detalhe');
 }
 
 // ─── AUDITORIA ────────────────────────────────────────────────────
