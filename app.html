@@ -521,6 +521,8 @@ select option{background:var(--bg2)}
 
       <div style="font-size:11px;color:var(--txt3);margin:14px 0 4px">Clique num KPI para ver as revendas dele. O lançamento das informações continua sendo feito no Pipeline Kanban.</div>
       <div class="mg" id="am-kpis" style="margin:10px 0 20px"></div>
+
+      <div id="am-narrativa"></div>
     </div>
 
     <!-- TIMELINE -->
@@ -6526,6 +6528,59 @@ async function renderAnaliseMes(){
     {label:'Qtd. clientes previstos',        val:qtdPrevistos, cls:'gn', icon:'👥', tipo:'CLIENTE_PREVISTO'},
   ];
   kEl.innerHTML = kpis.map(k=>`<div class="mc ${k.cls}" style="cursor:pointer" onclick="abrirDetalheAnaliseMes('${k.tipo}','${safe(k.label)}')"><div style="font-size:24px;margin-bottom:8px">${k.icon}</div><div class="mv">${k.val}</div><div class="ml">${safe(k.label)}</div></div>`).join('');
+
+  renderNarrativaAnaliseMes();
+}
+
+// ── Retrato comercial — leitura narrativa automática dos números ────
+function renderNarrativaAnaliseMes(){
+  const nEl = document.getElementById('am-narrativa');
+  if(!nEl) return;
+
+  if(!_amDiagnosticos.length){ nEl.innerHTML=''; return; }
+
+  const comTag       = _amDiagnosticos.filter(d=>d.tagAtual);
+  const treinamento  = comTag.filter(d=>d.tagAtual==='TREINAMENTO');
+  const prospeccao   = comTag.filter(d=>d.tagAtual==='PROSPECCAO');
+  const previsto     = _amDiagnosticos.filter(d=>d.clientePrevistoAtivo);
+  const negociacao   = comTag.filter(d=>d.tagAtual==='CLIENTE_EM_NEGOCIACAO');
+  const semRetorno   = comTag.filter(d=>d.tagAtual==='SEM_RETORNO' || d.tagAtual==='NAO_RESPONDE');
+  const clienteSubiu = comTag.filter(d=>d.tagAtual==='CLIENTE_SUBIDO');
+  const qtdPrevistos = previsto.reduce((s,d)=>s+(d.clientePrevistoAtivo.quantidade||1),0);
+
+  // Potencial imediato = união (sem duplicar revenda que aparece nos dois grupos)
+  const idsPotencial = new Set([...previsto.map(d=>d.revenda.id), ...negociacao.map(d=>d.revenda.id)]);
+  const temMultiplos = qtdPrevistos > previsto.length;
+  const mesAtual = MESES_NOMES[new Date().getMonth()+1];
+
+  const linhaSe = (arr, texto) => arr.length ? `<div>→ <b>${arr.length}</b> ${texto}</div>` : '';
+
+  nEl.innerHTML = `
+    <div class="card" style="margin-bottom:16px">
+      <div class="ct" style="margin-bottom:12px">📊 O retrato comercial</div>
+      <div style="font-size:13px;color:var(--txt2);line-height:1.7">
+        <div style="margin-bottom:8px">Das <b>${_amDiagnosticos.length}</b> revendas em análise, <b>${comTag.length}</b> já têm alguma atualização registrada no histórico:</div>
+        <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:14px;padding-left:4px">
+          ${linhaSe(treinamento,'treinando')}
+          ${linhaSe(prospeccao,'prospectando')}
+          ${linhaSe(previsto,`com previsão de cliente em ${mesAtual}`)}
+          ${linhaSe(negociacao,'com clientes em negociação')}
+          ${linhaSe(semRetorno,'sem retorno')}
+          ${linhaSe(clienteSubiu,'já conseguiram subir cliente')}
+        </div>
+        <div style="font-size:11px;color:var(--txt3);margin-bottom:14px">Existe sobreposição natural entre esses grupos — uma revenda pode ter mais de um sinal ativo.</div>
+
+        <div style="font-weight:700;color:var(--txt);margin-bottom:6px">O número mais importante para ${mesAtual}</div>
+        <div style="margin-bottom:6px">Hoje você tem <b>${previsto.length}</b> revenda(s) com previsão de gerar cliente em ${mesAtual}, representando <b>${qtdPrevistos}</b> cliente(s) previsto(s).</div>
+        ${negociacao.length?`<div style="margin-bottom:6px">Além delas, existem <b>${negociacao.length}</b> revenda(s) com oportunidades em negociação, que podem aumentar esse número.</div>`:''}
+        <div style="margin-bottom:10px">Portanto, o pipeline de ${mesAtual} é maior que simplesmente as ${previsto.length} promessa(s).</div>
+        <div style="padding:10px 12px;background:var(--accl);border-radius:var(--r);border-left:3px solid var(--acc);margin-bottom:${temMultiplos?'6':'0'}px">
+          <b>Potencial imediato: ${idsPotencial.size} revenda(s)</b>
+          <div style="font-size:11px;color:var(--txt3);margin-top:2px">(${previsto.length} com previsão + ${negociacao.length} em negociação${idsPotencial.size < previsto.length+negociacao.length ? ', com sobreposição':''})</div>
+        </div>
+        ${temMultiplos?`<div style="font-size:12px;margin-top:8px">Dentro dessas ${idsPotencial.size}, existem oportunidades para <b>${qtdPrevistos}</b> clientes — algumas revendas possuem mais de um cliente em potencial.</div>`:''}
+      </div>
+    </div>`;
 }
 
 function abrirDetalheAnaliseMes(tipo, tituloLabel){
