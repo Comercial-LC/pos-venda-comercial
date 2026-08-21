@@ -267,6 +267,7 @@ select option{background:var(--bg2)}
     <div class="nav-sec">Gestão</div>
     <div class="nav-it" onclick="go('tarefas')"><span class="nav-ic">✅</span><span class="nav-label">Tarefas</span></div>
     <div class="nav-it" onclick="go('metas')"><span class="nav-ic">🎯</span><span class="nav-label">Metas</span></div>
+    <div class="nav-it" onclick="go('analisemes')"><span class="nav-ic">🧭</span><span class="nav-label">Análise do Mês</span></div>
     <div class="nav-sec">Dados</div>
     <div class="nav-it" onclick="go('relatorios')"><span class="nav-ic">📈</span><span class="nav-label">Relatórios</span></div>
     <div class="nav-it" onclick="go('importacao')"><span class="nav-ic">📥</span><span class="nav-label">Importação Excel</span></div>
@@ -504,6 +505,28 @@ select option{background:var(--bg2)}
           </table>
         </div>
       </div>
+    </div>
+
+    <!-- ANÁLISE DO MÊS -->
+    <div class="panel" id="p-analisemes">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div>
+          <div style="font-size:19px;font-weight:700">🧭 Análise do Mês</div>
+          <div style="font-size:12px;color:var(--txt3);margin-top:2px">Leitura do histórico comercial das revendas entre Nova Revenda e Decola Produtos</div>
+        </div>
+        <button class="btn btn-s" onclick="renderAnaliseMes()">🔄 Atualizar</button>
+      </div>
+
+      <div class="mg" id="am-kpis" style="margin:16px 0 20px"></div>
+
+      <div class="card" style="margin-bottom:20px">
+        <div class="ch"><div class="ct">⚠️ Alertas</div></div>
+        <div id="am-alertas" style="display:flex;flex-direction:column;gap:8px;padding:4px 0"></div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap" id="am-filtros"></div>
+
+      <div id="am-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px"></div>
     </div>
 
     <!-- TIMELINE -->
@@ -1173,15 +1196,36 @@ select option{background:var(--bg2)}
         <!-- Formulário de anotação (oculto por padrão) -->
         <div id="card-nota-area" style="display:none;padding:12px 16px;border-bottom:1px solid var(--bdr);background:var(--bg2)">
           <textarea id="card-nota-txt" rows="2" placeholder="Escreva uma observação, contato realizado, decisão..." style="margin-bottom:8px;font-size:12px;width:100%;box-sizing:border-box"></textarea>
-          <div style="display:flex;gap:8px;align-items:center">
-            <select id="card-nota-tipo" style="flex:1;padding:7px 10px;font-size:12px;border-radius:var(--r);border:1px solid var(--bdr);background:var(--bg2);color:var(--txt)">
-              <option>📝 Anotação</option>
-              <option>📞 Contato realizado</option>
-              <option>✅ Tarefa concluída</option>
-              <option>⚠️ Alerta</option>
-              <option>📄 Documento</option>
-              <option>🤝 Reunião</option>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+            <select id="card-nota-tag" onchange="atualizarCamposNotaTag()" style="flex:1;padding:7px 10px;font-size:12px;border-radius:var(--r);border:1px solid var(--bdr);background:var(--bg2);color:var(--txt)">
+              <option value="TREINAMENTO">🎓 Treinamento</option>
+              <option value="PROSPECCAO">🔍 Prospecção</option>
+              <option value="DEMONSTRACAO">🖥️ Demonstração</option>
+              <option value="CLIENTE_EM_NEGOCIACAO">🤝 Cliente em negociação</option>
+              <option value="CLIENTE_PREVISTO">🔮 Cliente previsto</option>
+              <option value="CLIENTE_SUBIDO">🎉 Cliente subido</option>
+              <option value="INSTALACAO">🔧 Instalação</option>
+              <option value="SEM_RETORNO">🔇 Sem retorno</option>
+              <option value="SEM_PREVISAO">❔ Sem previsão</option>
+              <option value="PAUSADO">⏸️ Pausado</option>
+              <option value="DIFICULDADE">⚠️ Dificuldade comercial</option>
+              <option value="DOENCA_AUSENCIA">🏥 Doença/Ausência</option>
+              <option value="PROMESSA_SEM_EVOLUCAO">🕓 Promessa sem evolução</option>
+              <option value="NAO_RESPONDE">🚫 Não responde</option>
+              <option value="OUTROS" selected>📝 Outros</option>
             </select>
+          </div>
+          <div id="card-nota-extra" style="display:none;gap:8px;margin-bottom:8px">
+            <div style="flex:1">
+              <label style="font-size:10px;color:var(--txt3);display:block;margin-bottom:3px">Data prevista</label>
+              <input type="date" id="card-nota-data" style="width:100%;box-sizing:border-box;padding:6px 8px;font-size:12px">
+            </div>
+            <div id="card-nota-qtd-wrap" style="width:110px;display:none">
+              <label style="font-size:10px;color:var(--txt3);display:block;margin-bottom:3px">Qtd. clientes</label>
+              <input type="number" id="card-nota-qtd" min="1" value="1" style="width:100%;box-sizing:border-box;padding:6px 8px;font-size:12px">
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
             <button class="btn btn-p btn-sm" onclick="salvarNotaCard()" style="font-size:12px">Salvar</button>
             <button class="btn btn-s btn-sm" onclick="toggleCardNota()" style="font-size:12px">✕</button>
           </div>
@@ -2593,7 +2637,7 @@ function toggleTheme(){isDark=!isDark;localStorage.setItem('lc_theme',isDark?'da
 applyTheme();
 
 // ─── Nav ───────────────────────────────────────────────────────────
-const TITLES={dashboard:'Dashboard Executivo',revendas:'Cadastro de Revendas',pipeline:'Pipeline de Onboarding',tarefas:'Gestão de Tarefas',timeline:'Timeline de Atividades',treinamentos:'Central de Treinamentos',handover:'Gestão de Handover',relatorios:'Relatórios & Analytics',importacao:'Importação de Dados',usuarios:'Controle de Usuários',integracao:'Integrações',configuracoes:'⚙️ Configurações'};
+const TITLES={dashboard:'Dashboard Executivo',revendas:'Cadastro de Revendas',pipeline:'Pipeline de Onboarding',tarefas:'Gestão de Tarefas',timeline:'Timeline de Atividades',treinamentos:'Central de Treinamentos',handover:'Gestão de Handover',relatorios:'Relatórios & Analytics',importacao:'Importação de Dados',usuarios:'Controle de Usuários',integracao:'Integrações',configuracoes:'⚙️ Configurações',analisemes:'Análise do Mês'};
 function toggleNavGrp(){
   const grp=document.getElementById('nav-cfg-group');
   const sub=document.getElementById('nav-cfg-sub');
@@ -2616,7 +2660,7 @@ function go(name){
   renderPanel(name);
 }
 function renderPanel(name){
-  const fn={dashboard:renderDashboard,revendas:renderRevendas,pipeline:renderKanban,tarefas:renderTasks,timeline:renderTimeline,treinamentos:renderTreinamentos,handover:renderHandover,relatorios:renderRelatorios,usuarios:renderUsers,importacao:renderImport,configuracoes:renderConfiguracoes,integracao:renderIntegracao};
+  const fn={dashboard:renderDashboard,revendas:renderRevendas,pipeline:renderKanban,tarefas:renderTasks,timeline:renderTimeline,treinamentos:renderTreinamentos,handover:renderHandover,relatorios:renderRelatorios,usuarios:renderUsers,importacao:renderImport,configuracoes:renderConfiguracoes,integracao:renderIntegracao,analisemes:renderAnaliseMes};
   if(fn[name]){
     fn[name]();
     if(name==='pipeline') setTimeout(initKanbanScroll, 150);
@@ -3635,13 +3679,16 @@ async function getCardHistorico(id){
   console.log(`Histórico ${nome}: ${hist?.length||0} registros, ${ativs?.length||0} atividades`);
 
   const fromCard = (hist||[]).map(h=>({
-    id:           h.id,
-    tipo:         h.tipo,
-    desc:         h.descricao,
-    data:         h.criado_em,
-    _src:         'card',
-    manual:       h.manual,
-    usuario_nome: h.usuario_nome,
+    id:            h.id,
+    tipo:          h.tipo,
+    desc:          h.descricao,
+    data:          h.criado_em,
+    _src:          'card',
+    manual:        h.manual,
+    usuario_nome:  h.usuario_nome,
+    tag:           h.tag,
+    data_prevista: h.data_prevista,
+    quantidade:    h.quantidade,
   }));
 
   const fromAtiv = (ativs||[]).map(a=>({
@@ -3729,19 +3776,58 @@ async function renderCardHistorico(id){
   }).join('');
 }
 
+// ─── TAGS DE PROGRESSO COMERCIAL (Análise do Mês) ───────────────────
+const TAGS_ANALISE_MES = {
+  TREINAMENTO:            {label:'🎓 Treinamento',               requerData:false, requerQtd:false},
+  PROSPECCAO:             {label:'🔍 Prospecção',                requerData:false, requerQtd:false},
+  DEMONSTRACAO:           {label:'🖥️ Demonstração',              requerData:false, requerQtd:false},
+  CLIENTE_EM_NEGOCIACAO:  {label:'🤝 Cliente em negociação',     requerData:true,  requerQtd:false},
+  CLIENTE_PREVISTO:       {label:'🔮 Cliente previsto',          requerData:true,  requerQtd:true},
+  CLIENTE_SUBIDO:         {label:'🎉 Cliente subido',            requerData:false, requerQtd:false},
+  INSTALACAO:             {label:'🔧 Instalação',                requerData:false, requerQtd:false},
+  SEM_RETORNO:            {label:'🔇 Sem retorno',               requerData:false, requerQtd:false},
+  SEM_PREVISAO:           {label:'❔ Sem previsão',              requerData:false, requerQtd:false},
+  PAUSADO:                {label:'⏸️ Pausado',                   requerData:false, requerQtd:false},
+  DIFICULDADE:            {label:'⚠️ Dificuldade comercial',     requerData:false, requerQtd:false},
+  DOENCA_AUSENCIA:        {label:'🏥 Doença/Ausência',           requerData:false, requerQtd:false},
+  PROMESSA_SEM_EVOLUCAO:  {label:'🕓 Promessa sem evolução',     requerData:false, requerQtd:false},
+  NAO_RESPONDE:           {label:'🚫 Não responde',              requerData:false, requerQtd:false},
+  OUTROS:                 {label:'📝 Outros',                    requerData:false, requerQtd:false},
+};
+
+function atualizarCamposNotaTag(){
+  const tag = document.getElementById('card-nota-tag')?.value;
+  const cfg = TAGS_ANALISE_MES[tag];
+  const extra = document.getElementById('card-nota-extra');
+  const qtdWrap = document.getElementById('card-nota-qtd-wrap');
+  if(!extra) return;
+  extra.style.display = cfg?.requerData ? 'flex' : 'none';
+  if(qtdWrap) qtdWrap.style.display = cfg?.requerQtd ? 'block' : 'none';
+}
+
 async function salvarNotaCard(){
   if(!currentCardId)return;
   const txt=document.getElementById('card-nota-txt')?.value.trim();
   if(!txt){toast('Escreva uma anotação antes de salvar','err');return}
-  const tipo=document.getElementById('card-nota-tipo')?.value||'📝 Anotação';
-  const {error}=await sb.from('historico_cards').insert({
-    revenda_id:currentCardId, tipo, descricao:txt,
+  const tag = document.getElementById('card-nota-tag')?.value || 'OUTROS';
+  const cfg = TAGS_ANALISE_MES[tag] || TAGS_ANALISE_MES.OUTROS;
+  if(cfg.requerData && !document.getElementById('card-nota-data')?.value){
+    toast('Informe a data prevista para esta tag','err');return;
+  }
+  const payload = {
+    revenda_id:currentCardId, tipo:cfg.label, descricao:txt, tag,
     manual:true,
     usuario_id:sessaoAtual?.user?.id,
     usuario_nome:perfilAtual?.nome||'Você',
-  });
+  };
+  if(cfg.requerData)  payload.data_prevista = document.getElementById('card-nota-data').value;
+  if(cfg.requerQtd)   payload.quantidade    = parseInt(document.getElementById('card-nota-qtd')?.value) || 1;
+
+  const {error}=await sb.from('historico_cards').insert(payload);
   if(error){toast('Erro: '+error.message,'err');return}
   document.getElementById('card-nota-txt').value='';
+  document.getElementById('card-nota-tag').value='OUTROS';
+  atualizarCamposNotaTag();
   toast('Anotação salva!');
   setTimeout(()=>renderCardHistorico(currentCardId), 200);
 }
@@ -4188,8 +4274,13 @@ function exportarParticipantesCSV(){
 async function concludeTask(id){
   const {error}=await sb.from('tarefas').update({status:'Concluída',atualizado_em:new Date().toISOString()}).eq('id',id);
   if(error){toast('Erro: '+error.message,'err');return}
+  // Atualiza o cache local imediatamente — evita que refetches concorrentes
+  // (várias tarefas concluídas em sequência rápida) percam esta atualização na tela
+  const t = DB.tarefas.find(x=>x.id===id);
+  if(t) t.status='Concluída';
   toast('Tarefa concluída! ✓');
-  await _refreshTabela('tarefas');renderTasks();
+  renderTasks();
+  await _refreshTabela('tarefas');
 }
 
 function deleteTask(id){
@@ -4198,15 +4289,23 @@ function deleteTask(id){
   const msg = eventId
     ? 'Excluir esta tarefa e o evento do Google Calendar?'
     : 'Excluir esta tarefa?';
-  confirmAction(msg, async()=>{
-    // Remove do Google Calendar se possível
-    if(eventId && _gcalToken) await _deletarEventoGcal(eventId);
-    else if(eventId && !_gcalToken) toast('⚠️ Evento do Google Calendar não foi excluído (sessão expirada). Remova manualmente.','warn');
-    const {error}=await sb.from('tarefas').delete().eq('id',id);
-    if(error){toast('Erro: '+error.message,'err');return}
-    toast(eventId&&_gcalToken ? 'Tarefa e evento do Meet excluídos' : 'Tarefa excluída','warn');
-    await _refreshTabela('tarefas');renderTasks();
-  });
+  confirmAction(msg, async()=>{ await _excluirTarefa(id, eventId); });
+}
+
+async function _excluirTarefa(id, eventId){
+  // Sem token válido: pede login do Google e retoma a exclusão automaticamente
+  // ao receber o token, em vez de só avisar e apagar apenas do portal
+  if(eventId && !_gcalToken){
+    if(!_gcalTokenClient){ toast('Google ainda carregando, tente novamente em instantes','warn'); return; }
+    window._gcalPendenteDelete = {id, eventId};
+    _gcalTokenClient.requestAccessToken({prompt:''});
+    return;
+  }
+  if(eventId && _gcalToken) await _deletarEventoGcal(eventId);
+  const {error}=await sb.from('tarefas').delete().eq('id',id);
+  if(error){toast('Erro: '+error.message,'err');return}
+  toast(eventId ? 'Tarefa e evento do Meet excluídos' : 'Tarefa excluída','warn');
+  await _refreshTabela('tarefas');renderTasks();
 }
 
 function renderTasks(){
@@ -6280,6 +6379,200 @@ function calcMetaStatus(m){
   return {pct,esperado,ritmoPct,delta,faltam,mesAtual,diaHoje,diasMes,cor,bg,borda,icon,label};
 }
 
+// ─── ANÁLISE DO MÊS ──────────────────────────────────────────────
+// Lê o histórico tagueado (TAGS_ANALISE_MES) das revendas entre
+// Nova Revenda e Decola Produtos e classifica em prioridade/engajamento.
+const _AM_TERMINAIS_NEGATIVOS = new Set(['SEM_RETORNO','NAO_RESPONDE','PAUSADO','DOENCA_AUSENCIA','PROMESSA_SEM_EVOLUCAO']);
+const _AM_ORDEM_EVOLUCAO = ['TREINAMENTO','PROSPECCAO','DEMONSTRACAO','CLIENTE_EM_NEGOCIACAO','CLIENTE_PREVISTO','INSTALACAO','CLIENTE_SUBIDO'];
+
+function _amDiasEntre(a,b){ return Math.round((b-a)/86400000); }
+
+function classificarRevendaAnaliseMes(historico){
+  // historico: [{tag,descricao,data_prevista,quantidade,criado_em}], mais antigo → mais novo, só com tag
+  const hoje = new Date(today()+'T00:00:00');
+
+  if(!historico.length){
+    return {prioridade:'P4', engajamento:'BAIXO', tagAtual:null, diasSemAtualizacao:null,
+      clientePrevistoAtivo:null, evolucao:'sem_historico', alertas:['Nenhuma atualização com tag registrada']};
+  }
+
+  const ultimo = historico[historico.length-1];
+  const tagAtual = ultimo.tag;
+  const diasSemAtualizacao = _amDiasEntre(new Date(ultimo.criado_em), hoje);
+  const diasAteData = (dataStr) => dataStr ? _amDiasEntre(hoje, new Date(dataStr+'T00:00:00')) : null;
+
+  // Cliente previsto ainda ativo — não superado por conversão/perda depois dele
+  let clientePrevistoAtivo = null;
+  for(let i=historico.length-1;i>=0;i--){
+    const h = historico[i];
+    if(h.tag==='CLIENTE_PREVISTO'){ clientePrevistoAtivo = h; break; }
+    if(h.tag==='CLIENTE_SUBIDO' || _AM_TERMINAIS_NEGATIVOS.has(h.tag)) break;
+  }
+
+  // ── Prioridade ────────────────────────────────────────────────
+  const diasPrevisto = diasAteData(ultimo.data_prevista);
+  let prioridade;
+  if(_AM_TERMINAIS_NEGATIVOS.has(tagAtual) || diasSemAtualizacao > 15){
+    prioridade = 'P4';
+  } else if(
+    ((tagAtual==='CLIENTE_PREVISTO' || tagAtual==='CLIENTE_EM_NEGOCIACAO') && diasPrevisto!==null && diasPrevisto<=7) ||
+    tagAtual==='INSTALACAO' || tagAtual==='CLIENTE_SUBIDO' || tagAtual==='DEMONSTRACAO'
+  ){
+    prioridade = 'P1';
+  } else if(
+    tagAtual==='CLIENTE_PREVISTO' || tagAtual==='CLIENTE_EM_NEGOCIACAO' ||
+    (tagAtual==='PROSPECCAO' && historico.filter(h=>h.tag==='PROSPECCAO').length>1)
+  ){
+    prioridade = 'P2';
+  } else {
+    prioridade = 'P3'; // TREINAMENTO, início de PROSPECCAO, DIFICULDADE, SEM_PREVISAO, OUTROS
+  }
+
+  // ── Engajamento ───────────────────────────────────────────────
+  let engajamento;
+  if(_AM_TERMINAIS_NEGATIVOS.has(tagAtual) || diasSemAtualizacao>15 || tagAtual==='SEM_PREVISAO'){
+    engajamento = 'BAIXO';
+  } else if(['CLIENTE_PREVISTO','CLIENTE_EM_NEGOCIACAO','DEMONSTRACAO','INSTALACAO','CLIENTE_SUBIDO'].includes(tagAtual) && diasSemAtualizacao<=7){
+    engajamento = 'ALTO';
+  } else {
+    engajamento = 'MEDIO';
+  }
+
+  // ── Evolução — compara os 2 últimos sinais da esteira comercial ──
+  const relevantes = historico.filter(h=>_AM_ORDEM_EVOLUCAO.includes(h.tag));
+  let evolucao = 'estavel';
+  if(relevantes.length>=2){
+    const a = _AM_ORDEM_EVOLUCAO.indexOf(relevantes[relevantes.length-2].tag);
+    const b = _AM_ORDEM_EVOLUCAO.indexOf(relevantes[relevantes.length-1].tag);
+    evolucao = b>a ? 'positiva' : (b<a ? 'negativa' : 'estavel');
+  }
+
+  // ── Alertas ───────────────────────────────────────────────────
+  const alertas = [];
+  if(clientePrevistoAtivo?.data_prevista && diasAteData(clientePrevistoAtivo.data_prevista)<0){
+    alertas.push(`Cliente previsto com data vencida (${fmtDate(clientePrevistoAtivo.data_prevista)})`);
+  }
+  if(diasSemAtualizacao>7) alertas.push(`${diasSemAtualizacao} dias sem atualização`);
+  const idxTr = historico.findIndex(h=>h.tag==='TREINAMENTO');
+  if(idxTr!==-1 && !historico.slice(idxTr+1).some(h=>h.tag==='PROSPECCAO')){
+    const diasTr = _amDiasEntre(new Date(historico[idxTr].criado_em), hoje);
+    if(diasTr>15) alertas.push(`${diasTr} dias em treinamento sem iniciar prospecção`);
+  }
+  if(tagAtual==='CLIENTE_EM_NEGOCIACAO' && !ultimo.data_prevista) alertas.push('Negociação sem próxima ação definida');
+
+  return {prioridade, engajamento, tagAtual, diasSemAtualizacao, clientePrevistoAtivo, evolucao, alertas, ultimo};
+}
+
+let _amDiagnosticos = [];
+let _amFiltroPrio = '';
+
+async function renderAnaliseMes(){
+  const kEl = document.getElementById('am-kpis');
+  const aEl = document.getElementById('am-alertas');
+  const cEl = document.getElementById('am-cards');
+  const fEl = document.getElementById('am-filtros');
+  if(!kEl) return;
+
+  // Escopo: Nova Revenda até Decola Produtos, na ordem configurada em getEtapas()
+  const etapas = getEtapas().map(e=>e.id);
+  let ini = etapas.indexOf('Nova Revenda'), fim = etapas.indexOf('Decola Produtos');
+  if(ini===-1) ini = 0;
+  if(fim===-1 || fim<ini) fim = etapas.length-1;
+  const statusEscopo = new Set(etapas.slice(ini, fim+1));
+
+  // Dedup: já é 1 linha por revenda (id único); reforça por CNPJ conforme pedido
+  const vistosCnpj = new Set();
+  const revendasEscopo = (DB.revendas||[]).filter(r=>{
+    if(!statusEscopo.has(r.status) || r.inativado_portal) return false;
+    const chave = (r.cnpj||'').replace(/\D/g,'') || r.id;
+    if(vistosCnpj.has(chave)) return false;
+    vistosCnpj.add(chave);
+    return true;
+  });
+
+  if(!revendasEscopo.length){
+    kEl.innerHTML = '';
+    aEl.innerHTML = '<div class="empty" style="padding:16px">Nenhuma revenda entre Nova Revenda e Decola Produtos</div>';
+    cEl.innerHTML = ''; if(fEl) fEl.innerHTML = '';
+    return;
+  }
+
+  // Uma única query em lote (não uma por revenda) — só as linhas já tagueadas
+  const {data: hist, error} = await sb.from('historico_cards')
+    .select('revenda_id,tag,descricao,data_prevista,quantidade,criado_em')
+    .in('revenda_id', revendasEscopo.map(r=>r.id))
+    .not('tag','is',null)
+    .order('criado_em', {ascending:true});
+  if(error){ toast('Erro ao carregar Análise do Mês: '+error.message,'err'); return; }
+
+  const porRevenda = {};
+  (hist||[]).forEach(h=>{ (porRevenda[h.revenda_id] = porRevenda[h.revenda_id]||[]).push(h); });
+
+  _amDiagnosticos = revendasEscopo.map(r=>({revenda:r, ...classificarRevendaAnaliseMes(porRevenda[r.id]||[])}));
+
+  // ── KPIs ──────────────────────────────────────────────────────
+  const cnt = p => _amDiagnosticos.filter(d=>d.prioridade===p).length;
+  const comPrevisto   = _amDiagnosticos.filter(d=>d.clientePrevistoAtivo);
+  const qtdPrevistos  = comPrevisto.reduce((s,d)=>s+(d.clientePrevistoAtivo.quantidade||1),0);
+  const kpis=[
+    {label:'Em análise',                     val:_amDiagnosticos.length, cls:'bl', icon:'🧭'},
+    {label:'P1 — Quente',                    val:cnt('P1'), cls:'rd', icon:'🔥'},
+    {label:'P2 — Em desenvolvimento',        val:cnt('P2'), cls:'yw', icon:'📈'},
+    {label:'Revendas c/ cliente previsto',   val:comPrevisto.length, cls:'pu', icon:'🔮'},
+    {label:'Qtd. clientes previstos',        val:qtdPrevistos, cls:'gn', icon:'👥'},
+  ];
+  kEl.innerHTML = kpis.map(k=>`<div class="mc ${k.cls}"><div style="font-size:24px;margin-bottom:8px">${k.icon}</div><div class="mv">${k.val}</div><div class="ml">${safe(k.label)}</div></div>`).join('');
+
+  // ── Alertas ───────────────────────────────────────────────────
+  const alertasFlat = _amDiagnosticos.flatMap(d=>d.alertas.map(msg=>({revenda:d.revenda.nome, msg})));
+  aEl.innerHTML = alertasFlat.length
+    ? alertasFlat.map(a=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--errl);border-radius:var(--r);border-left:3px solid var(--err)">
+        <span style="font-size:13px">⚠️</span><span style="font-size:12px"><b>${safe(a.revenda)}</b> — ${safe(a.msg)}</span>
+      </div>`).join('')
+    : '<div class="empty" style="padding:16px">Nenhum alerta no momento 🎉</div>';
+
+  // ── Filtros de prioridade ─────────────────────────────────────
+  if(fEl){
+    const filtros=[{v:'',label:'Todas'},{v:'P1',label:'🔥 P1 Quente'},{v:'P2',label:'📈 P2 Em desenvolvimento'},{v:'P3',label:'👁 P3 Acompanhamento'},{v:'P4',label:'🚨 P4 Risco'}];
+    fEl.innerHTML = filtros.map(f=>`<button class="fp-p ${_amFiltroPrio===f.v?'on':''}" onclick="_amSetFiltro('${f.v}')">${f.label} (${f.v?cnt(f.v):_amDiagnosticos.length})</button>`).join('');
+  }
+
+  renderAnaliseMesCards();
+}
+
+function _amSetFiltro(p){ _amFiltroPrio = p; renderAnaliseMes(); }
+
+function renderAnaliseMesCards(){
+  const cEl = document.getElementById('am-cards');
+  if(!cEl) return;
+  const cfgPrio = {
+    P1:{cor:'#ef4444',bg:'rgba(239,68,68,.12)',label:'🔥 Quente'},
+    P2:{cor:'#f59e0b',bg:'rgba(245,158,11,.12)',label:'📈 Em desenvolvimento'},
+    P3:{cor:'#3b82f6',bg:'rgba(59,130,246,.12)',label:'👁 Acompanhamento'},
+    P4:{cor:'#6b7280',bg:'rgba(107,114,128,.12)',label:'🚨 Risco'},
+  };
+  const cfgEng = {ALTO:'#22c55e',MEDIO:'#f59e0b',BAIXO:'#6b7280'};
+  const lista = _amFiltroPrio ? _amDiagnosticos.filter(d=>d.prioridade===_amFiltroPrio) : _amDiagnosticos;
+  const ordenado = [...lista].sort((a,b)=>a.prioridade.localeCompare(b.prioridade));
+
+  cEl.innerHTML = ordenado.length ? ordenado.map(d=>{
+    const cp = cfgPrio[d.prioridade];
+    const tagCfg = TAGS_ANALISE_MES[d.tagAtual] || {label:'Sem tag registrada'};
+    return `<div class="card" style="border-left:4px solid ${cp.cor};cursor:pointer" onclick="openCardModal('${d.revenda.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:700">${safe(d.revenda.nome)}</div>
+        <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:${cp.bg};color:${cp.cor}">${cp.label}</span>
+      </div>
+      <div style="font-size:12px;color:var(--txt2);margin-bottom:6px">${safe(tagCfg.label)}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--txt3)">
+        <span>Engajamento: <b style="color:${cfgEng[d.engajamento]}">${d.engajamento}</b></span>
+        <span>${d.diasSemAtualizacao!==null ? d.diasSemAtualizacao+'d sem att.' : '—'}</span>
+      </div>
+      ${d.alertas.length?`<div style="margin-top:8px;font-size:11px;color:var(--err)">⚠️ ${safe(d.alertas[0])}</div>`:''}
+    </div>`;
+  }).join('') : '<div class="empty" style="padding:24px;grid-column:1/-1">Nenhuma revenda nesta prioridade</div>';
+}
+
 // ─── AUDITORIA ────────────────────────────────────────────────────
 async function renderAuditoria(){
   if(!perfilAtual || perfilAtual.perfil !== 'Administrador'){
@@ -6843,12 +7136,26 @@ function inicializarGoogleCalendar(){
         client_id: GCAL_CLIENT_ID,
         scope: GCAL_SCOPE,
         callback: (resp) => {
-          if(resp.error){ toast('Erro Google: '+resp.error,'err'); return; }
+          if(resp.error){
+            toast('Erro Google: '+resp.error,'err');
+            if(window._gcalPendenteDelete){
+              const {id, eventId} = window._gcalPendenteDelete;
+              window._gcalPendenteDelete = null;
+              toast('⚠️ Evento do Google Calendar não foi excluído. Remova manualmente.','warn');
+              _excluirTarefa(id, null);
+            }
+            return;
+          }
           _gcalToken = resp.access_token;
           _gcalUserEmail = resp.email || '';
           atualizarUIMeetAuth();
           atualizarUIMeetTask();
           if(window._gcalPendente) _criarEventoMeet();
+          if(window._gcalPendenteDelete){
+            const {id, eventId} = window._gcalPendenteDelete;
+            window._gcalPendenteDelete = null;
+            _excluirTarefa(id, eventId);
+          }
         }
       });
     } else if(n < 30) {
