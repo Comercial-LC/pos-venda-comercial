@@ -729,6 +729,19 @@ select option{background:var(--bg2)}
           </div>
         </div>
       </div>
+
+      <!-- Importação em massa de histórico (Análise do Mês) -->
+      <div class="card" style="margin-top:16px">
+        <div class="ch">
+          <div class="ct">🗂️ Importação em massa — Análise do Mês</div>
+          <button class="btn btn-s btn-sm" onclick="processarImportacaoAM()">🔍 Processar e conferir</button>
+        </div>
+        <div style="font-size:12px;color:var(--txt3);margin-bottom:10px">Cole um lote de atualizações (JSON) pra lançar no histórico de várias revendas de uma vez, sem precisar abrir card por card. Cada item: <code>{busca, tag, nota, data_prevista?, quantidade?, mudarEtapaPara?}</code> — <code>busca</code> é o CNPJ (formato 00.000.000) ou o nome da revenda.</div>
+        <textarea id="import-am-json" rows="6" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:11px"></textarea>
+        <script>document.getElementById('import-am-json').value = "[\n  {\n    \"busca\": \"ANDRE FREIRE\",\n    \"tag\": \"TREINAMENTO\",\n    \"nota\": \"Treinando\"\n  },\n  {\n    \"busca\": \"LUIS CARLOS RODRIGUES\",\n    \"tag\": \"PROSPECCAO\",\n    \"nota\": \"Prospectando\"\n  },\n  {\n    \"busca\": \"26.978.018\",\n    \"tag\": \"TREINAMENTO\",\n    \"nota\": \"Treinando\"\n  },\n  {\n    \"busca\": \"48.193.785\",\n    \"tag\": \"TREINAMENTO\",\n    \"nota\": \"Treinando\"\n  },\n  {\n    \"busca\": \"52.508.564\",\n    \"tag\": \"TREINAMENTO\",\n    \"nota\": \"Treinando\"\n  },\n  {\n    \"busca\": \"60.648.111\",\n    \"tag\": \"INSTALACAO\",\n    \"nota\": \"Instalando no cliente\"\n  },\n  {\n    \"busca\": \"57.866.098\",\n    \"tag\": \"TREINAMENTO\",\n    \"nota\": \"Treinando\"\n  },\n  {\n    \"busca\": \"57.866.098\",\n    \"tag\": \"PROSPECCAO\",\n    \"nota\": \"Estava ausente por saúde, começou prospectar.\"\n  },\n  {\n    \"busca\": \"AZUL SISTEMAS\",\n    \"tag\": \"TREINAMENTO\",\n    \"nota\": \"Treinando\"\n  },\n  {\n    \"busca\": \"TIAGO DE LIMA SILVA\",\n    \"tag\": \"CLIENTE_PREVISTO\",\n    \"nota\": \"Treinando com previsão para esse mês\",\n    \"data_prevista\": \"2026-08-31\",\n    \"quantidade\": 1\n  },\n  {\n    \"busca\": \"G.R.I.F.O\",\n    \"tag\": \"CLIENTE_SUBIDO\",\n    \"nota\": \"Já fez a ativação do cliente\",\n    \"mudarEtapaPara\": \"Decola 1 Cliente\"\n  },\n  {\n    \"busca\": \"DIPRIMA CARBURADORES\",\n    \"tag\": \"TREINAMENTO\",\n    \"nota\": \"FICTICIO/Gabriel - Treinando\"\n  },\n  {\n    \"busca\": \"MEMORY INFORMATICA\",\n    \"tag\": \"PROSPECCAO\",\n    \"nota\": \"Treinando e prospectando\"\n  },\n  {\n    \"busca\": \"MEMORY INFORMATICA\",\n    \"tag\": \"TREINAMENTO\",\n    \"nota\": \"Treinando\"\n  },\n  {\n    \"busca\": \"ONIX JOALHERIA\",\n    \"tag\": \"TREINAMENTO\",\n    \"nota\": \"FICTICIO/Leandro -Treinando\"\n  },\n  {\n    \"busca\": \"29.732.818\",\n    \"tag\": \"TREINAMENTO\",\n    \"nota\": \"Treinando\"\n  },\n  {\n    \"busca\": \"29.732.818\",\n    \"tag\": \"DEMONSTRACAO\",\n    \"nota\": \"Realizando demonstrações.\"\n  },\n  {\n    \"busca\": \"38.179.717\",\n    \"tag\": \"TREINAMENTO\",\n    \"nota\": \"FICTICIO/Dionisio - Finalizando o Academy\"\n  },\n  {\n    \"busca\": \"53.631.961\",\n    \"tag\": \"CLIENTE_PREVISTO\",\n    \"nota\": \"Em prospecção e com um cliente previsto nesta semana\",\n    \"data_prevista\": \"2026-08-24\",\n    \"quantidade\": 1\n  },\n  {\n    \"busca\": \"53.631.961\",\n    \"tag\": \"PROSPECCAO\",\n    \"nota\": \"Prospectando com foco em farmacia\"\n  },\n  {\n    \"busca\": \"62.854.315\",\n    \"tag\": \"TREINAMENTO\",\n    \"nota\": \"Treinando\"\n  },\n  {\n    \"busca\": \"64.477.283\",\n    \"tag\": \"TREINAMENTO\",\n    \"nota\": \"FICTICIO - Treinando\"\n  },\n  {\n    \"busca\": \"64.477.283\",\n    \"tag\": \"PROSPECCAO\",\n    \"nota\": \"FICTICIO/Cristiano - Prospectando/desejava mudanças na funçao pague x e leve y\"\n  },\n  {\n    \"busca\": \"67.714.413\",\n    \"tag\": \"TREINAMENTO\",\n    \"nota\": \"Treinando\"\n  },\n  {\n    \"busca\": \"68.321.461\",\n    \"tag\": \"CLIENTE_SUBIDO\",\n    \"nota\": \"Subiu o cliente\"\n  },\n  {\n    \"busca\": \"ACC TECNOLOGIA\",\n    \"tag\": \"PROSPECCAO\",\n    \"nota\": \"PROSPECTANDO\"\n  },\n  {\n    \"busca\": \"PANIFICADORA E MERCERAIA DO GOMES\",\n    \"tag\": \"TREINAMENTO\",\n    \"nota\": \"FICTICIO/HEDER - Treinando\"\n  },\n  {\n    \"busca\": \"ALETECH\",\n    \"tag\": \"TREINAMENTO\",\n    \"nota\": \"Treinando\"\n  },\n  {\n    \"busca\": \"53.635.752\",\n    \"tag\": \"SEM_RETORNO\",\n    \"nota\": \"Sem retorno\"\n  },\n  {\n    \"busca\": \"63.440.443\",\n    \"tag\": \"DIFICULDADE\",\n    \"nota\": \"Com dificuldades em captar leads\"\n  },\n  {\n    \"busca\": \"AGRO PECUARIA MARABAENSE LTDA\",\n    \"tag\": \"SEM_RETORNO\",\n    \"nota\": \"Sem retorno\"\n  },\n  {\n    \"busca\": \"CONTECH\",\n    \"tag\": \"CLIENTE_EM_NEGOCIACAO\",\n    \"nota\": \"CONTABILIDADE & INFORMATICA/Hercules - Negociando duas migrações\",\n    \"data_prevista\": \"2026-08-28\"\n  },\n  {\n    \"busca\": \"EDMAR DE JESUS ALMEIDA JUNIOR 64374467300\",\n    \"tag\": \"PROMESSA_SEM_EVOLUCAO\",\n    \"nota\": \"FICTICIO/Ednalva - Só promessas\"\n  },\n  {\n    \"busca\": \"GRUPO ENTER\",\n    \"tag\": \"SEM_RETORNO\",\n    \"nota\": \"Sem retorno\"\n  },\n  {\n    \"busca\": \"55.575.083\",\n    \"tag\": \"CLIENTE_EM_NEGOCIACAO\",\n    \"nota\": \"Em negociação com o cliente\",\n    \"data_prevista\": \"2026-08-28\"\n  },\n  {\n    \"busca\": \"44.764.922\",\n    \"tag\": \"PROSPECCAO\",\n    \"nota\": \"Prospectando infinitamente\"\n  },\n  {\n    \"busca\": \"21.789.266\",\n    \"tag\": \"SEM_PREVISAO\",\n    \"nota\": \"Sem previsão\"\n  },\n  {\n    \"busca\": \"21.237.258\",\n    \"tag\": \"CLIENTE_EM_NEGOCIACAO\",\n    \"nota\": \"Cliente em negociação\",\n    \"data_prevista\": \"2026-08-28\"\n  },\n  {\n    \"busca\": \"20.848.402\",\n    \"tag\": \"DOENCA_AUSENCIA\",\n    \"nota\": \"Alegou estar doente.\"\n  },\n  {\n    \"busca\": \"15.175.253\",\n    \"tag\": \"SEM_PREVISAO\",\n    \"nota\": \"Sem previsão\"\n  },\n  {\n    \"busca\": \"14.250.737\",\n    \"tag\": \"DIFICULDADE\",\n    \"nota\": \"Alegou dificuldades na região, está prospectando\"\n  },\n  {\n    \"busca\": \"55.717.286\",\n    \"tag\": \"PROSPECCAO\",\n    \"nota\": \"Estava doente, começou prospectar agora.\"\n  },\n  {\n    \"busca\": \"57.604.450\",\n    \"tag\": \"NAO_RESPONDE\",\n    \"nota\": \"Não conseguiu atender nem\"\n  },\n  {\n    \"busca\": \"61.176.184\",\n    \"tag\": \"CLIENTE_SUBIDO\",\n    \"nota\": \"Subiu o cliente\"\n  },\n  {\n    \"busca\": \"66.458.772\",\n    \"tag\": \"SEM_RETORNO\",\n    \"nota\": \"Sem retorno\"\n  },\n  {\n    \"busca\": \"64.779.080\",\n    \"tag\": \"SEM_RETORNO\",\n    \"nota\": \"Sem retorno\"\n  },\n  {\n    \"busca\": \"64.709.239\",\n    \"tag\": \"PAUSADO\",\n    \"nota\": \"Em pausa\"\n  },\n  {\n    \"busca\": \"CEY SOLUCOES\",\n    \"tag\": \"CLIENTE_PREVISTO\",\n    \"nota\": \"Cliente previsto essa semana\",\n    \"data_prevista\": \"2026-08-24\",\n    \"quantidade\": 1\n  },\n  {\n    \"busca\": \"FAUSTEC COMERCIO DE MOVEIS LTDA FICTICIO\",\n    \"tag\": \"CLIENTE_PREVISTO\",\n    \"nota\": \"Previsão de cliente dia 24\",\n    \"data_prevista\": \"2026-08-24\",\n    \"quantidade\": 1\n  },\n  {\n    \"busca\": \"FUSAO DE DADOS\",\n    \"tag\": \"PROSPECCAO\",\n    \"nota\": \"Prospectando, fechando parcerias na cidade para indicações\"\n  },\n  {\n    \"busca\": \"G2 SISTEME\",\n    \"tag\": \"SEM_PREVISAO\",\n    \"nota\": \"Sem previsão\"\n  },\n  {\n    \"busca\": \"IMPERIO SUPERMERCADO\",\n    \"tag\": \"DEMONSTRACAO\",\n    \"nota\": \"Realizou demonstração aguardando cliente decidir.\"\n  },\n  {\n    \"busca\": \"GABRIEL MEIRA SERVICOS MEDICOS LTDA\",\n    \"tag\": \"PROSPECCAO\",\n    \"nota\": \"Em prospecçao\"\n  },\n  {\n    \"busca\": \"KANATRON SERVICOS DE MONTAGEM INDUSTRIAL LTDA\",\n    \"tag\": \"PROMESSA_SEM_EVOLUCAO\",\n    \"nota\": \"Só promessas\"\n  },\n  {\n    \"busca\": \"ORIGGO SISTEMAS\",\n    \"tag\": \"PAUSADO\",\n    \"nota\": \"Em pausa, mudança de empresa.\"\n  },\n  {\n    \"busca\": \"VALTER BEZERRA COSTA 03489553403\",\n    \"tag\": \"PROMESSA_SEM_EVOLUCAO\",\n    \"nota\": \"Só promessas\"\n  },\n  {\n    \"busca\": \"TECNOPAG SOLUCOES EMPRESARIAIS E FINANCEIRAS\",\n    \"tag\": \"SEM_RETORNO\",\n    \"nota\": \"Sem retorno\"\n  },\n  {\n    \"busca\": \"SEMPRE CERT\",\n    \"tag\": \"PROSPECCAO\",\n    \"nota\": \"Prospectando\"\n  },\n  {\n    \"busca\": \"PLATAFORMA 153\",\n    \"tag\": \"PROSPECCAO\",\n    \"nota\": \"Prospectando\"\n  },\n  {\n    \"busca\": \"PETRVS TECNOLOGIA E SISTEMAS LTDA\",\n    \"tag\": \"PROSPECCAO\",\n    \"nota\": \"Prospectando\"\n  },\n  {\n    \"busca\": \"61.524.715\",\n    \"tag\": \"CLIENTE_PREVISTO\",\n    \"nota\": \"Previsão de cliente na semana que vem\",\n    \"data_prevista\": \"2026-08-31\",\n    \"quantidade\": 1\n  },\n  {\n    \"busca\": \"65.780.159\",\n    \"tag\": \"DEMONSTRACAO\",\n    \"nota\": \"Essa semana tem apresentações agendadas\"\n  },\n  {\n    \"busca\": \"31.443.495\",\n    \"tag\": \"SEM_RETORNO\",\n    \"nota\": \"Sem retorno\"\n  },\n  {\n    \"busca\": \"32.867.997\",\n    \"tag\": \"NAO_RESPONDE\",\n    \"nota\": \"Não responde\"\n  },\n  {\n    \"busca\": \"40.566.491\",\n    \"tag\": \"DEMONSTRACAO\",\n    \"nota\": \"Clientes agendados para apresentar essa semana\"\n  },\n  {\n    \"busca\": \"50.091.822\",\n    \"tag\": \"PROSPECCAO\",\n    \"nota\": \"Prospectando, esperando um cliente cancelar com outra revenda.\"\n  },\n  {\n    \"busca\": \"53.893.065\",\n    \"tag\": \"NAO_RESPONDE\",\n    \"nota\": \"Não responde\"\n  },\n  {\n    \"busca\": \"61.131.615\",\n    \"tag\": \"CLIENTE_PREVISTO\",\n    \"nota\": \"Prospectando, com previsão para esse mês.\",\n    \"data_prevista\": \"2026-08-31\",\n    \"quantidade\": 1\n  },\n  {\n    \"busca\": \"ANTONIO\",\n    \"tag\": \"TREINAMENTO\",\n    \"nota\": \"Treinando\"\n  },\n  {\n    \"busca\": \"REDE DE FARMACIAS USIMED\",\n    \"tag\": \"CLIENTE_EM_NEGOCIACAO\",\n    \"nota\": \"Clientes em negociação\",\n    \"data_prevista\": \"2026-08-28\"\n  },\n  {\n    \"busca\": \"JOSIEL CORREIA LIMA 87166771291\",\n    \"tag\": \"DOENCA_AUSENCIA\",\n    \"nota\": \"Estava doente, retomou agora\"\n  },\n  {\n    \"busca\": \"J. R. XEROX\",\n    \"tag\": \"DIFICULDADE\",\n    \"nota\": \"Estudando parte fiscal que tem mais dificuldade\"\n  },\n  {\n    \"busca\": \"J M FARMA\",\n    \"tag\": \"CLIENTE_PREVISTO\",\n    \"nota\": \"Previsão de dois clientes\",\n    \"data_prevista\": \"2026-08-28\",\n    \"quantidade\": 2\n  },\n  {\n    \"busca\": \"J L MUNIZ\",\n    \"tag\": \"TREINAMENTO\",\n    \"nota\": \"Inseguro por isso ainda estudando\"\n  },\n  {\n    \"busca\": \"GB INFORMATICA\",\n    \"tag\": \"PROMESSA_SEM_EVOLUCAO\",\n    \"nota\": \"Possivel cliente final, só enrola a respeito de subir clientes, dei o prazo até esse mês.\"\n  },\n  {\n    \"busca\": \"FREIRE AUTOMAÇAO\",\n    \"tag\": \"TREINAMENTO\",\n    \"nota\": \"Treinando\"\n  }\n]";</script>
+        <div id="import-am-resultado" style="margin-top:14px"></div>
+        <button class="btn btn-p" id="btn-confirmar-import-am" style="display:none;margin-top:14px" onclick="confirmarImportacaoAM()">✅ Confirmar importação</button>
+      </div>
     </div>
 
     <!-- USUÁRIOS -->
@@ -5171,6 +5184,156 @@ async function forceSyncDB(){
   renderDashboard(); renderRevendas();
   toast(`✅ ${DB.revendas.length} revendas carregadas`);
   verificarBanco();
+}
+
+// ─── IMPORTAÇÃO EM MASSA DE HISTÓRICO (Análise do Mês) ──────────────
+// Casa cada item colado contra DB.revendas (já em cache — zero query nova
+// pro casamento) e só grava depois de revisão explícita.
+let _importAmItens = [];
+
+function _normalizarNomeAM(s){
+  return (s||'').toUpperCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^A-Z0-9 ]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function _buscarRevendaPorTextoAM(busca){
+  const isCnpjFrag = /^\d{2}\.\d{3}\.\d{3}$/.test((busca||'').trim());
+  if(isCnpjFrag){
+    return (DB.revendas||[]).filter(r => (r.nome||'').trim().startsWith(busca.trim()));
+  }
+  const buscaNorm = _normalizarNomeAM(busca);
+  if(!buscaNorm) return [];
+  return (DB.revendas||[]).filter(r=>{
+    const nomeNorm = _normalizarNomeAM(r.nome);
+    return nomeNorm === buscaNorm || nomeNorm.startsWith(buscaNorm) || buscaNorm.startsWith(nomeNorm) || nomeNorm.includes(buscaNorm);
+  });
+}
+
+function processarImportacaoAM(){
+  let itens;
+  try {
+    itens = JSON.parse(document.getElementById('import-am-json').value);
+  } catch(e){
+    toast('JSON inválido: '+e.message, 'err');
+    return;
+  }
+  if(!Array.isArray(itens) || !itens.length){
+    toast('Nenhum item encontrado no JSON', 'err');
+    return;
+  }
+
+  _importAmItens = itens.map((item, idx)=>{
+    const candidatos = _buscarRevendaPorTextoAM(item.busca);
+    let status, revendaId = null;
+    if(candidatos.length === 1){ status='ok'; revendaId = candidatos[0].id; }
+    else if(candidatos.length > 1){ status='ambiguo'; }
+    else status = 'nao_encontrado';
+    return {...item, idx, candidatos, status, revendaId, incluir: status==='ok'};
+  });
+
+  renderImportacaoAMResultado();
+}
+
+function renderImportacaoAMResultado(){
+  const el = document.getElementById('import-am-resultado');
+  if(!el) return;
+  const ok  = _importAmItens.filter(i=>i.status==='ok').length;
+  const amb = _importAmItens.filter(i=>i.status==='ambiguo').length;
+  const nf  = _importAmItens.filter(i=>i.status==='nao_encontrado').length;
+
+  const todasRevendas = [...(DB.revendas||[])].sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt-BR'));
+
+  const linhas = _importAmItens.map(item=>{
+    const tagCfg = TAGS_ANALISE_MES[item.tag] || {label: item.tag};
+    let matchHtml;
+    if(item.status === 'ok'){
+      const rev = DB.revendas.find(r=>r.id===item.revendaId);
+      matchHtml = `<span style="color:var(--ok)">✅ ${safe(rev?.nome||'')}</span>`;
+    } else {
+      const opcoes = item.status==='ambiguo' ? item.candidatos : todasRevendas;
+      matchHtml = `<select onchange="_selecionarMatchAM(${item.idx},this.value)" style="font-size:11px;padding:2px 4px;max-width:220px">
+        <option value="">${item.status==='ambiguo'?'— escolha entre '+opcoes.length+' —':'— buscar manualmente —'}</option>
+        ${opcoes.map(c=>`<option value="${c.id}">${safe(c.nome)}</option>`).join('')}
+      </select>`;
+    }
+    return `<tr style="opacity:${item.incluir?1:0.55}">
+      <td><input type="checkbox" ${item.incluir?'checked':''} ${item.revendaId?'':'disabled'} onchange="_toggleIncluirAM(${item.idx},this.checked)"></td>
+      <td style="white-space:nowrap">${safe(item.busca)}</td>
+      <td><span style="font-size:11px">${safe(tagCfg.label)}</span></td>
+      <td style="font-size:11px;color:var(--txt3);max-width:280px">${safe(item.nota||'')}${item.mudarEtapaPara?`<div style="color:var(--acc)">→ muda etapa p/ ${safe(item.mudarEtapaPara)}</div>`:''}</td>
+      <td>${matchHtml}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="display:flex;gap:14px;margin-bottom:10px;font-size:12px">
+      <span style="color:var(--ok)">✅ ${ok} prontos</span>
+      <span style="color:var(--warn)">⚠️ ${amb} ambíguos</span>
+      <span style="color:var(--err)">❌ ${nf} não encontrados</span>
+    </div>
+    <div style="overflow-x:auto;max-height:420px;overflow-y:auto;border:1px solid var(--bdr);border-radius:var(--r)">
+      <table style="width:100%">
+        <thead style="position:sticky;top:0;background:var(--card)"><tr><th></th><th>Busca</th><th>Tag</th><th>Nota</th><th>Revenda encontrada</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    </div>`;
+
+  const btnConfirmar = document.getElementById('btn-confirmar-import-am');
+  if(btnConfirmar) btnConfirmar.style.display = '';
+}
+
+function _toggleIncluirAM(idx, checked){
+  const item = _importAmItens.find(i=>i.idx===idx);
+  if(item) item.incluir = checked;
+}
+
+function _selecionarMatchAM(idx, revendaId){
+  const item = _importAmItens.find(i=>i.idx===idx);
+  if(!item) return;
+  item.revendaId = revendaId || null;
+  item.incluir = !!revendaId;
+  renderImportacaoAMResultado();
+}
+
+async function confirmarImportacaoAM(){
+  const validos = _importAmItens.filter(i=>i.incluir && i.revendaId);
+  if(!validos.length){ toast('Nenhum item selecionado pra importar','warn'); return; }
+
+  const registros = validos.map(item=>{
+    const tagCfg = TAGS_ANALISE_MES[item.tag] || {label: item.tag};
+    const registro = {
+      revenda_id: item.revendaId,
+      tipo: tagCfg.label,
+      tag: item.tag,
+      descricao: item.nota || '',
+      manual: true,
+      usuario_id: sessaoAtual?.user?.id,
+      usuario_nome: perfilAtual?.nome || 'Importação em massa',
+    };
+    if(item.data_prevista) registro.data_prevista = item.data_prevista;
+    if(item.quantidade)    registro.quantidade    = item.quantidade;
+    return registro;
+  });
+
+  const {error} = await sb.from('historico_cards').insert(registros);
+  if(error){ toast('Erro ao importar: '+error.message, 'err'); return; }
+
+  // Mudanças de etapa vindas junto com o item (ex: cliente subiu e muda de raia)
+  const mudancasEtapa = validos.filter(i=>i.mudarEtapaPara);
+  for(const item of mudancasEtapa){
+    await sb.from('revendas').update({status: item.mudarEtapaPara}).eq('id', item.revendaId);
+  }
+
+  toast(`✅ ${registros.length} registro(s) importado(s)!`);
+  if(mudancasEtapa.length) await _refreshTabela('revendas');
+
+  document.getElementById('btn-confirmar-import-am').style.display = 'none';
+  document.getElementById('import-am-resultado').innerHTML = '';
+  document.getElementById('import-am-json').value = '';
+  _importAmItens = [];
 }
 
 async function renderImport(){
