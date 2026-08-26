@@ -1212,6 +1212,7 @@ select option{background:var(--bg2)}
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn btn-s btn-sm" onclick="toggleCardProdutos()">📦 Produtos</button>
+        <button class="btn btn-s btn-sm" onclick="toggleCardIA()">🤖 LC Success AI</button>
         <button class="btn btn-s btn-sm" id="mo-card-edit-btn" onclick="openCardEdit()">✏️ Editar</button>
         <button class="btn btn-s btn-sm" onclick="closeMo('mo-card')">✕</button>
       </div>
@@ -1288,6 +1289,18 @@ select option{background:var(--bg2)}
         </div>
         <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">Marque os produtos já ativados nesta revenda</div>
         <div id="card-produtos-list" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+
+      <!-- Overlay LC Success AI (cobre as 2 colunas) -->
+      <div id="card-tab-ia" style="display:none;position:absolute;inset:0;background:var(--bg);z-index:10;overflow-y:auto;padding:20px 24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div style="font-size:14px;font-weight:600">🤖 LC Success AI</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-p btn-sm" id="btn-analisar-ia" onclick="analisarComLcSuccessAI()">🤖 Analisar com IA</button>
+            <button class="btn btn-s btn-sm" onclick="toggleCardIA()">✕ Fechar</button>
+          </div>
+        </div>
+        <div id="card-ia-content"></div>
       </div>
 
     </div>
@@ -3728,9 +3741,11 @@ function openCardModal(id){
      &nbsp;·&nbsp; ${r.contratos||'0'} contratos`;
   document.getElementById('mo-card-edit-btn').dataset.id = id;
 
-  // Fecha overlay de produtos se estava aberto
+  // Fecha overlays (produtos / LC Success AI) se estavam abertos
   const prodEl = document.getElementById('card-tab-produtos');
   if(prodEl) prodEl.style.display = 'none';
+  const iaEl = document.getElementById('card-tab-ia');
+  if(iaEl) iaEl.style.display = 'none';
 
   openMo('mo-card');
 
@@ -3768,6 +3783,126 @@ function toggleCardProdutos(){
   const el = document.getElementById('card-tab-produtos');
   if(!el) return;
   el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// ─── LC SUCCESS AI ───────────────────────────────────────────────────
+const LC_SUCCESS_AI_URL = 'https://xuymxedyuywahcfcdcah.supabase.co/functions/v1/lc-success-ai';
+
+async function toggleCardIA(){
+  const el = document.getElementById('card-tab-ia');
+  if(!el) return;
+  const abrindo = el.style.display === 'none';
+  el.style.display = abrindo ? 'block' : 'none';
+  if(abrindo) await renderCardIA(currentCardId);
+}
+
+async function renderCardIA(id){
+  const el = document.getElementById('card-ia-content');
+  if(!el || !id) return;
+  el.innerHTML = '<div style="text-align:center;padding:30px;color:var(--txt3)">Carregando...</div>';
+
+  const {data, error} = await sb.from('analises_ia')
+    .select('*').eq('revenda_id', id).order('criado_em', {ascending:false}).limit(10);
+
+  if(error){
+    el.innerHTML = `<div class="empty" style="padding:30px;color:var(--err)">Erro ao carregar análises: ${safe(error.message)}</div>`;
+    return;
+  }
+
+  if(!data?.length){
+    el.innerHTML = `<div class="empty" style="padding:40px">
+      <div class="empty-ic">🤖</div>
+      <div>Nenhuma análise ainda</div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:6px">Clique em "Analisar com IA" pra gerar o primeiro diagnóstico</div>
+    </div>`;
+    return;
+  }
+
+  const ultima = data[0];
+  const a = ultima.resultado_completo;
+  const riscoCor = {BAIXO:'#22c55e','MÉDIO':'#f59e0b',ALTO:'#f97316','CRÍTICO':'#ef4444'}[ultima.nivel_risco] || 'var(--txt3)';
+
+  let painel;
+  if(ultima.status === 'erro' || !a){
+    painel = `<div class="empty" style="padding:24px;color:var(--err)">⚠️ A última tentativa falhou: ${safe(ultima.erro_mensagem||'erro desconhecido')}</div>`;
+  } else {
+    const planoHtml = (a.plano_de_acao||[]).map(p=>{
+      const corP = p.prioridade==='ALTA' ? 'var(--err)' : p.prioridade==='MÉDIA' ? 'var(--warn)' : 'var(--txt3)';
+      return `<div style="font-size:11px;padding:8px 10px;background:var(--bg2);border-radius:var(--r);border-left:3px solid ${corP};margin-bottom:6px">
+        <b>[${safe(p.prioridade||'—')}]</b> ${safe(p.acao||'')}
+        ${p.responsavel_sugerido?' · 👤 '+safe(p.responsavel_sugerido):''}${p.prazo?' · ⏱ '+safe(p.prazo):''}
+      </div>`;
+    }).join('');
+
+    const produtosHtml = (a.produtos_com_oportunidade||[]).map(p=>
+      `<div style="font-size:11px;padding:6px 10px;background:var(--accl);border-radius:var(--r);margin-bottom:5px"><b>${safe(p.produto||'')}</b> — ${safe(p.justificativa||'')}</div>`
+    ).join('');
+
+    painel = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div style="text-align:center;padding:16px;background:var(--bg2);border-radius:var(--rxl)">
+          <div style="font-size:36px;font-weight:800;color:${riscoCor};line-height:1">${ultima.score_saude ?? '—'}</div>
+          <div style="font-size:10px;color:var(--txt3);margin-top:4px">SCORE DE SAÚDE / 100</div>
+        </div>
+        <div style="text-align:center;padding:16px;background:var(--bg2);border-radius:var(--rxl);display:flex;flex-direction:column;justify-content:center">
+          <div style="font-size:18px;font-weight:800;color:${riscoCor}">${safe(ultima.nivel_risco||'—')}</div>
+          <div style="font-size:10px;color:var(--txt3);margin-top:4px">NÍVEL DE RISCO</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--txt2);margin-bottom:12px;line-height:1.5">${safe(a.resumo_executivo||'')}</div>
+      <div style="margin-bottom:10px"><b style="font-size:11px;color:var(--txt3)">PRINCIPAL GARGALO</b><div style="font-size:12px;margin-top:2px">${safe((a.principais_gargalos||[])[0]||'—')}</div></div>
+      <div style="margin-bottom:14px;padding:10px 12px;background:var(--accl);border-radius:var(--r)">
+        <div style="font-size:11px;color:var(--acc);font-weight:700">🎯 PRÓXIMA MELHOR AÇÃO</div>
+        <div style="font-size:12px;margin-top:2px">${safe(a.proxima_melhor_acao||'—')}</div>
+      </div>
+      ${planoHtml ? `<div style="margin-bottom:14px"><b style="font-size:11px;color:var(--txt3)">PLANO DE AÇÃO</b><div style="margin-top:6px">${planoHtml}</div></div>` : ''}
+      ${produtosHtml ? `<div style="margin-bottom:14px"><b style="font-size:11px;color:var(--txt3)">PRODUTOS COM OPORTUNIDADE</b><div style="margin-top:6px">${produtosHtml}</div></div>` : ''}
+      ${(a.dados_insuficientes||[]).length ? `<div style="font-size:11px;color:var(--txt3);margin-top:8px">⚠️ Dados insuficientes usados nesta análise: ${a.dados_insuficientes.map(safe).join(', ')}</div>` : ''}
+      <div style="font-size:10px;color:var(--txt3);margin-top:10px">Gerado em ${new Date(ultima.criado_em).toLocaleString('pt-BR')} · confiança: ${safe(a.confianca_da_analise||'—')} · modelo: ${safe(ultima.modelo||'—')}</div>
+    `;
+  }
+
+  const anteriores = data.slice(1);
+  const historicoHtml = anteriores.length ? `
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--bdr)">
+      <div style="font-size:12px;font-weight:700;margin-bottom:8px">📜 Análises anteriores</div>
+      ${anteriores.map(h=>`<div style="font-size:11px;color:var(--txt3);padding:6px 0;border-bottom:1px solid var(--bdr)">
+        ${new Date(h.criado_em).toLocaleDateString('pt-BR')} — ${h.status==='erro' ? 'falhou' : `Score ${h.score_saude ?? '—'} · Risco ${safe(h.nivel_risco||'—')}`}
+      </div>`).join('')}
+    </div>` : '';
+
+  el.innerHTML = painel + historicoHtml;
+}
+
+async function analisarComLcSuccessAI(){
+  const id = currentCardId;
+  if(!id) return;
+  const btn = document.getElementById('btn-analisar-ia');
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ Analisando...'; }
+  const el = document.getElementById('card-ia-content');
+  if(el) el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--txt3)"><div style="font-size:28px;margin-bottom:8px">🤖</div>Gerando análise com IA...<br><span style="font-size:11px">Pode levar alguns segundos</span></div>';
+
+  try {
+    const {data:{session}} = await sb.auth.getSession();
+    if(!session) throw new Error('Sessão expirada — faça login novamente');
+
+    const resp = await fetch(LC_SUCCESS_AI_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+      body: JSON.stringify({revenda_id: id, trigger: 'manual'}),
+    });
+    const json = await resp.json();
+    if(!resp.ok) throw new Error(json.error || 'Erro ao gerar análise');
+
+    toast('✅ Análise gerada!');
+    await renderCardIA(id);
+    setTimeout(()=>renderCardHistorico(id), 300); // mostra a referência resumida na timeline
+  } catch(e){
+    toast('Erro: '+e.message, 'err');
+    if(el) el.innerHTML = `<div class="empty" style="padding:30px;color:var(--err)">⚠️ ${safe(e.message)}</div>`;
+  } finally {
+    if(btn){ btn.disabled = false; btn.textContent = '🤖 Analisar com IA'; }
+  }
 }
 
 async function getCardHistorico(id){
