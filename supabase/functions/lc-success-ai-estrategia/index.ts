@@ -101,11 +101,12 @@ async function chamarGemini(contexto: string): Promise<any> {
       responseMimeType: 'application/json',
       responseSchema: RESPONSE_SCHEMA,
       temperature: 0.4,
+      thinkingConfig: { thinkingBudget: 0 }, // sem raciocínio estendido — tarefa é síntese estruturada, não precisa
     },
   }
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 30000)
+  const timeoutId = setTimeout(() => controller.abort(), 55000)
 
   let resp: Response
   try {
