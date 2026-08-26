@@ -527,6 +527,15 @@ select option{background:var(--bg2)}
         <div id="am-narrativa"></div>
         <div id="am-ia-sugestoes"></div>
       </div>
+
+      <div class="card" style="margin-top:20px">
+        <div class="ch">
+          <div class="ct">🤖 Estratégia do Mês (IA)</div>
+          <button class="btn btn-p btn-sm" id="btn-gerar-estrategia-mes" onclick="gerarEstrategiaMes()">🤖 Gerar Estratégia do Mês</button>
+        </div>
+        <div style="font-size:11px;color:var(--txt3);margin-bottom:12px">Lê a distribuição de tags de todas as revendas em análise + a meta comercial do mês, e sugere onde focar pra bater a meta.</div>
+        <div id="am-estrategia-content"></div>
+      </div>
     </div>
 
     <!-- IA -->
@@ -3786,7 +3795,8 @@ function toggleCardProdutos(){
 }
 
 // ─── LC SUCCESS AI ───────────────────────────────────────────────────
-const LC_SUCCESS_AI_URL = 'https://xuymxedyuywahcfcdcah.supabase.co/functions/v1/lc-success-ai';
+const LC_SUCCESS_AI_URL            = 'https://xuymxedyuywahcfcdcah.supabase.co/functions/v1/lc-success-ai';
+const LC_SUCCESS_AI_ESTRATEGIA_URL = 'https://xuymxedyuywahcfcdcah.supabase.co/functions/v1/lc-success-ai-estrategia';
 
 async function toggleCardIA(){
   const el = document.getElementById('card-tab-ia');
@@ -6936,6 +6946,7 @@ async function renderAnaliseMes(){
 
   renderNarrativaAnaliseMes();
   renderAnaliseMesIaSugestoes();
+  carregarUltimaEstrategiaMes();
 }
 
 // ── Retrato comercial — leitura narrativa automática dos números ────
@@ -7148,6 +7159,149 @@ function renderAnaliseMesIaSugestoes(){
     <div style="font-size:11px;color:var(--txt3);margin-top:12px">Abra a lista de um KPI acima e clique em 💬 numa revenda pra gerar a mensagem já preenchida.</div>
     <button class="btn btn-s btn-sm" style="margin-top:10px;width:100%" onclick="go('ia')">⚙️ Gerenciar modelos</button>
   </div>`;
+}
+
+// ─── ESTRATÉGIA DO MÊS (IA, nível portfólio) ─────────────────────────
+// Reaproveita _amDiagnosticos (já classificado pelo motor da Análise do
+// Mês) — a Edge Function não reclassifica nada, só recebe o resumo pronto.
+async function montarResumoEstrategiaMes(){
+  const hoje = new Date();
+  const mes = hoje.getMonth()+1, ano = hoje.getFullYear();
+
+  const {data: metas} = await sb.from('orion_metas').select('*').eq('mes', mes).eq('ano', ano);
+
+  const linhas = [];
+  linhas.push(`Mês de referência: ${MESES_NOMES[mes]} ${ano}`);
+
+  if(metas?.length){
+    linhas.push(`\nMetas comerciais do mês:`);
+    metas.forEach(m=>{
+      linhas.push(`- ${m.nome}: meta ${m.valor_meta}, atual ${m.valor_atual} (${m.percentual||0}%), faltam ${Math.max(0, m.valor_meta-m.valor_atual)}`);
+    });
+  } else {
+    linhas.push(`\nNenhuma meta comercial cadastrada para este mês.`);
+  }
+
+  const cnt = p => _amDiagnosticos.filter(d=>d.prioridade===p).length;
+  const comPrevisto  = _amDiagnosticos.filter(d=>d.clientePrevistoAtivo);
+  const negociacao   = _amDiagnosticos.filter(d=>d.tagAtual==='CLIENTE_EM_NEGOCIACAO');
+  const qtdPrevistos = comPrevisto.reduce((s,d)=>s+(d.clientePrevistoAtivo.quantidade||1),0);
+
+  linhas.push(`\nDistribuição das ${_amDiagnosticos.length} revendas em análise (Nova Revenda a Decola Produtos) por prioridade comercial:`);
+  linhas.push(`- P1 Quente: ${cnt('P1')}`);
+  linhas.push(`- P2 Em desenvolvimento: ${cnt('P2')}`);
+  linhas.push(`- P3 Acompanhamento: ${cnt('P3')}`);
+  linhas.push(`- P4 Risco: ${cnt('P4')}`);
+  linhas.push(`- Revendas com cliente previsto ativo: ${comPrevisto.length} (totalizando ${qtdPrevistos} cliente(s) previsto(s))`);
+  linhas.push(`- Revendas em negociação: ${negociacao.length}`);
+
+  const detalhar = (lista, max=25) => lista.slice(0, max).map(d=>{
+    const tagCfg = TAGS_ANALISE_MES[d.tagAtual];
+    const label = tagCfg ? tagCfg.label.replace(/^\S+\s*/, '') : 'sem tag registrada';
+    let extra = '';
+    if(d.clientePrevistoAtivo?.data_prevista) extra += ` · previsto p/ ${fmtDate(d.clientePrevistoAtivo.data_prevista)}`;
+    return `  - ${d.revenda.nome}: ${label}${d.diasSemAtualizacao!=null ? ` (${d.diasSemAtualizacao}d sem atualização)` : ''}${extra}`;
+  }).join('\n');
+
+  const p1 = _amDiagnosticos.filter(d=>d.prioridade==='P1');
+  const p4 = _amDiagnosticos.filter(d=>d.prioridade==='P4');
+
+  if(p1.length) linhas.push(`\nRevendas P1 (quente — oportunidade próxima, atenção prioritária):\n${detalhar(p1)}`);
+  if(p4.length) linhas.push(`\nRevendas P4 (risco — sem retorno/pausadas/etc; até 25 de ${p4.length} listadas):\n${detalhar(p4)}`);
+
+  const comPrevistoDetalhe = detalhar(comPrevisto);
+  if(comPrevistoDetalhe) linhas.push(`\nDetalhe das revendas com cliente previsto:\n${comPrevistoDetalhe}`);
+
+  linhas.push(`\nOBSERVAÇÃO: P2 e P3 aparecem só em contagem aqui (não revenda a revenda), pra manter o resumo objetivo — use os focos prioritários pra indicar se algum desses grupos merece atenção especial esse mês.`);
+
+  return {texto: linhas.join('\n'), mes, ano};
+}
+
+async function gerarEstrategiaMes(){
+  const btn = document.getElementById('btn-gerar-estrategia-mes');
+  const el  = document.getElementById('am-estrategia-content');
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ Gerando...'; }
+  if(el) el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--txt3)"><div style="font-size:28px;margin-bottom:8px">🤖</div>Analisando o portfólio e montando a estratégia...<br><span style="font-size:11px">Pode levar alguns segundos</span></div>';
+
+  try {
+    if(!_amDiagnosticos.length) throw new Error('Abra a Análise do Mês (Atualizar) antes de gerar a estratégia');
+    const {texto, mes, ano} = await montarResumoEstrategiaMes();
+
+    const {data:{session}} = await sb.auth.getSession();
+    if(!session) throw new Error('Sessão expirada — faça login novamente');
+
+    const resp = await fetch(LC_SUCCESS_AI_ESTRATEGIA_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+      body: JSON.stringify({mes, ano, resumo: texto}),
+    });
+    const json = await resp.json();
+    if(!resp.ok) throw new Error(json.error || 'Erro ao gerar estratégia');
+
+    toast('✅ Estratégia gerada!');
+    renderEstrategiaMes(json.analise, new Date().toISOString());
+  } catch(e){
+    toast('Erro: '+e.message, 'err');
+    if(el) el.innerHTML = `<div class="empty" style="padding:30px;color:var(--err)">⚠️ ${safe(e.message)}</div>`;
+  } finally {
+    if(btn){ btn.disabled = false; btn.textContent = '🤖 Gerar Estratégia do Mês'; }
+  }
+}
+
+function renderEstrategiaMes(a, criadoEm){
+  const el = document.getElementById('am-estrategia-content');
+  if(!el || !a) return;
+  const corProb = {BAIXA:'var(--err)','MÉDIA':'var(--warn)',ALTA:'var(--ok)'}[a.probabilidade_meta] || 'var(--txt3)';
+  const listaSimples = arr => (arr||[]).map(x=>`<li style="margin-bottom:4px">${safe(x)}</li>`).join('');
+
+  const revendasHtml = (a.revendas_para_agir_agora||[]).map(r=>
+    `<div style="font-size:11px;padding:8px 10px;background:var(--bg2);border-radius:var(--r);margin-bottom:6px">
+      <b>${safe(r.revenda)}</b> — ${safe(r.motivo)}<br><span style="color:var(--acc)">→ ${safe(r.acao)}</span>
+    </div>`).join('');
+
+  const planoHtml = (a.plano_de_acao||[]).map(p=>{
+    const corP = p.prioridade==='ALTA' ? 'var(--err)' : p.prioridade==='MÉDIA' ? 'var(--warn)' : 'var(--txt3)';
+    return `<div style="font-size:11px;padding:8px 10px;background:var(--bg2);border-radius:var(--r);border-left:3px solid ${corP};margin-bottom:6px">
+      <b>[${safe(p.prioridade)}]</b> ${safe(p.acao)}${p.responsavel_sugerido?' · 👤 '+safe(p.responsavel_sugerido):''}${p.prazo?' · ⏱ '+safe(p.prazo):''}
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+      <div style="text-align:center;padding:14px 18px;background:var(--bg2);border-radius:var(--rxl)">
+        <div style="font-size:20px;font-weight:800;color:${corProb}">${safe(a.probabilidade_meta||'—')}</div>
+        <div style="font-size:10px;color:var(--txt3)">PROBABILIDADE DE BATER A META</div>
+      </div>
+      <div style="font-size:12px;color:var(--txt2);flex:1;min-width:200px">${safe(a.justificativa_probabilidade||'')}</div>
+    </div>
+    <div style="font-size:12px;color:var(--txt2);margin-bottom:14px;line-height:1.6">${safe(a.resumo_executivo||'')}</div>
+    ${a.focos_prioritarios?.length ? `<div style="margin-bottom:14px"><b style="font-size:11px;color:var(--txt3)">FOCOS PRIORITÁRIOS</b><ul style="margin:6px 0 0;padding-left:18px;font-size:12px">${listaSimples(a.focos_prioritarios)}</ul></div>` : ''}
+    ${revendasHtml ? `<div style="margin-bottom:14px"><b style="font-size:11px;color:var(--txt3)">REVENDAS PRA AGIR AGORA</b><div style="margin-top:6px">${revendasHtml}</div></div>` : ''}
+    ${a.alavancas_rapidas?.length ? `<div style="margin-bottom:14px"><b style="font-size:11px;color:var(--txt3)">ALAVANCAS RÁPIDAS</b><ul style="margin:6px 0 0;padding-left:18px;font-size:12px">${listaSimples(a.alavancas_rapidas)}</ul></div>` : ''}
+    ${planoHtml ? `<div style="margin-bottom:14px"><b style="font-size:11px;color:var(--txt3)">PLANO DE AÇÃO</b><div style="margin-top:6px">${planoHtml}</div></div>` : ''}
+    ${a.riscos?.length ? `<div style="margin-bottom:14px"><b style="font-size:11px;color:var(--err)">RISCOS</b><ul style="margin:6px 0 0;padding-left:18px;font-size:12px;color:var(--txt2)">${listaSimples(a.riscos)}</ul></div>` : ''}
+    ${a.dados_insuficientes?.length ? `<div style="font-size:11px;color:var(--txt3)">⚠️ Dados insuficientes: ${a.dados_insuficientes.map(safe).join(', ')}</div>` : ''}
+    <div style="font-size:10px;color:var(--txt3);margin-top:10px">Gerado em ${new Date(criadoEm).toLocaleString('pt-BR')} · confiança: ${safe(a.confianca_da_analise||'—')}</div>
+  `;
+}
+
+async function carregarUltimaEstrategiaMes(){
+  const el = document.getElementById('am-estrategia-content');
+  if(!el) return;
+  const hoje = new Date();
+  const {data} = await sb.from('analises_estrategia_mes')
+    .select('*').eq('mes', hoje.getMonth()+1).eq('ano', hoje.getFullYear())
+    .eq('status', 'sucesso').order('criado_em', {ascending:false}).limit(1);
+
+  if(data?.length){
+    renderEstrategiaMes(data[0].resultado_completo, data[0].criado_em);
+  } else {
+    el.innerHTML = `<div class="empty" style="padding:30px">
+      <div class="empty-ic">🤖</div>
+      <div>Nenhuma estratégia gerada este mês ainda</div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:6px">Clique em "Gerar Estratégia do Mês" pra criar o primeiro plano</div>
+    </div>`;
+  }
 }
 
 function renderIaTemplates(){
