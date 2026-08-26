@@ -270,7 +270,8 @@ select option{background:var(--bg2)}
     <div class="nav-it" onclick="go('tarefas')"><span class="nav-ic">✅</span><span class="nav-label">Tarefas</span></div>
     <div class="nav-it" onclick="go('metas')"><span class="nav-ic">🎯</span><span class="nav-label">Metas</span></div>
     <div class="nav-it" onclick="go('analisemes')"><span class="nav-ic">🧭</span><span class="nav-label">Análise do Mês</span></div>
-    <div class="nav-it" onclick="go('ia')"><span class="nav-ic">🤖</span><span class="nav-label">IA</span></div>
+    <div class="nav-it" onclick="go('estrategiames')"><span class="nav-ic">🧠</span><span class="nav-label">Estratégia do Mês</span></div>
+    <div class="nav-it" onclick="go('ia')"><span class="nav-ic">🤖</span><span class="nav-label">Modelo de mensagens</span></div>
     <div class="nav-sec">Dados</div>
     <div class="nav-it" onclick="go('relatorios')"><span class="nav-ic">📈</span><span class="nav-label">Relatórios</span></div>
     <div class="nav-it" onclick="go('importacao')"><span class="nav-ic">📥</span><span class="nav-label">Importação Excel</span></div>
@@ -527,21 +528,24 @@ select option{background:var(--bg2)}
         <div id="am-narrativa"></div>
         <div id="am-ia-sugestoes"></div>
       </div>
+    </div>
 
-      <div class="card" style="margin-top:20px">
-        <div class="ch">
-          <div class="ct">🤖 Estratégia do Mês (IA)</div>
-          <button class="btn btn-p btn-sm" id="btn-gerar-estrategia-mes" onclick="gerarEstrategiaMes()">🤖 Gerar Estratégia do Mês</button>
+    <!-- ESTRATÉGIA DO MÊS -->
+    <div class="panel" id="p-estrategiames">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div>
+          <div style="font-size:19px;font-weight:700">🧠 Estratégia do Mês (IA)</div>
+          <div style="font-size:12px;color:var(--txt3);margin-top:2px">Lê a distribuição de tags de todas as revendas em análise + a meta comercial do mês, e sugere onde focar pra bater a meta.</div>
         </div>
-        <div style="font-size:11px;color:var(--txt3);margin-bottom:12px">Lê a distribuição de tags de todas as revendas em análise + a meta comercial do mês, e sugere onde focar pra bater a meta.</div>
-        <div id="am-estrategia-content"></div>
+        <button class="btn btn-p" id="btn-gerar-estrategia-mes" onclick="gerarEstrategiaMes()">🤖 Gerar Estratégia do Mês</button>
       </div>
+      <div id="am-estrategia-content" style="margin-top:16px"></div>
     </div>
 
     <!-- IA -->
     <div class="panel" id="p-ia">
       <div style="margin-bottom:18px">
-        <div style="font-size:19px;font-weight:700">🤖 Mensagens de IA</div>
+        <div style="font-size:19px;font-weight:700">🤖 Modelo de Mensagens</div>
         <div style="font-size:12px;color:var(--txt3);margin-top:2px">Modelos de mensagem por prioridade (P1-P4). A IA só preenche esses modelos com os dados da revenda — não gera texto de fora.</div>
       </div>
 
@@ -2781,7 +2785,7 @@ function toggleTheme(){isDark=!isDark;localStorage.setItem('lc_theme',isDark?'da
 applyTheme();
 
 // ─── Nav ───────────────────────────────────────────────────────────
-const TITLES={dashboard:'Dashboard Executivo',revendas:'Cadastro de Revendas',pipeline:'Pipeline de Onboarding',tarefas:'Gestão de Tarefas',timeline:'Timeline de Atividades',treinamentos:'Central de Treinamentos',handover:'Gestão de Handover',relatorios:'Relatórios & Analytics',importacao:'Importação de Dados',usuarios:'Controle de Usuários',integracao:'Integrações',configuracoes:'⚙️ Configurações',analisemes:'Análise do Mês',ia:'Mensagens de IA'};
+const TITLES={dashboard:'Dashboard Executivo',revendas:'Cadastro de Revendas',pipeline:'Pipeline de Onboarding',tarefas:'Gestão de Tarefas',timeline:'Timeline de Atividades',treinamentos:'Central de Treinamentos',handover:'Gestão de Handover',relatorios:'Relatórios & Analytics',importacao:'Importação de Dados',usuarios:'Controle de Usuários',integracao:'Integrações',configuracoes:'⚙️ Configurações',analisemes:'Análise do Mês',estrategiames:'Estratégia do Mês',ia:'Modelo de mensagens'};
 function toggleNavGrp(){
   const grp=document.getElementById('nav-cfg-group');
   const sub=document.getElementById('nav-cfg-sub');
@@ -2804,7 +2808,7 @@ function go(name){
   renderPanel(name);
 }
 function renderPanel(name){
-  const fn={dashboard:renderDashboard,revendas:renderRevendas,pipeline:renderKanban,tarefas:renderTasks,timeline:renderTimeline,treinamentos:renderTreinamentos,handover:renderHandover,relatorios:renderRelatorios,usuarios:renderUsers,importacao:renderImport,configuracoes:renderConfiguracoes,integracao:renderIntegracao,analisemes:renderAnaliseMes,ia:renderIaTemplates};
+  const fn={dashboard:renderDashboard,revendas:renderRevendas,pipeline:renderKanban,tarefas:renderTasks,timeline:renderTimeline,treinamentos:renderTreinamentos,handover:renderHandover,relatorios:renderRelatorios,usuarios:renderUsers,importacao:renderImport,configuracoes:renderConfiguracoes,integracao:renderIntegracao,analisemes:renderAnaliseMes,estrategiames:renderEstrategiaMesPage,ia:renderIaTemplates};
   if(fn[name]){
     fn[name]();
     if(name==='pipeline') setTimeout(initKanbanScroll, 150);
@@ -6946,7 +6950,13 @@ async function renderAnaliseMes(){
 
   renderNarrativaAnaliseMes();
   renderAnaliseMesIaSugestoes();
-  carregarUltimaEstrategiaMes();
+}
+
+// Página própria de Estratégia do Mês — garante que _amDiagnosticos está
+// carregado mesmo se o usuário chegar aqui direto, sem passar pela Análise do Mês
+async function renderEstrategiaMesPage(){
+  await carregarDiagnosticosAnaliseMes();
+  await carregarUltimaEstrategiaMes();
 }
 
 // ── Retrato comercial — leitura narrativa automática dos números ────
