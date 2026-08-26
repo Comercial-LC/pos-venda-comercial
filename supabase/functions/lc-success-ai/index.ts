@@ -212,7 +212,7 @@ async function chamarGemini(contexto: string): Promise<any> {
       signal: controller.signal,
     })
   } catch (err: any) {
-    if (err.name === 'AbortError') throw new Error('TIMEOUT: Gemini não respondeu em 30s')
+    if (err.name === 'AbortError') throw new Error('TIMEOUT: Gemini não respondeu em 55s')
     throw new Error(`Falha de rede ao chamar Gemini: ${err.message}`)
   } finally {
     clearTimeout(timeoutId)
