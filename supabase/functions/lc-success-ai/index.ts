@@ -196,7 +196,6 @@ async function chamarGemini(contexto: string): Promise<any> {
       responseMimeType: 'application/json',
       responseSchema: RESPONSE_SCHEMA,
       temperature: 0.4,
-      thinkingConfig: { thinkingBudget: 0 }, // sem raciocínio estendido — tarefa é síntese estruturada, não precisa
     },
   }
 
