@@ -1097,6 +1097,11 @@ select option{background:var(--bg2)}
                   <option value="layout4">Layout 4 — Dividido: Visão Geral | Estratégia</option>
                 </select>
               </div>
+              <label class="cb" style="justify-content:space-between;padding:10px;background:var(--bg2);border-radius:var(--r);margin-bottom:14px">
+                <div><div style="font-weight:600;font-size:13px">🔄 Alternar automaticamente</div>
+                <div style="font-size:11px;color:var(--txt3)">Layout 1 por 50min, Layout 3 por 10min, o dia todo (ignora o layout selecionado acima)</div></div>
+                <input type="checkbox" id="tv-rotacao-ativa" style="width:18px;height:18px;accent-color:var(--acc)">
+              </label>
               <div class="fg">
                 <label>Título exibido na TV</label>
                 <input id="tv-titulo" value="Portal Sucesso da Revenda" placeholder="Título principal">
@@ -2264,6 +2269,17 @@ function ativarModoTV(){
   // (celebrações detectadas em carregarMetas(), disparado pelo canal orion_metas_ch)
   setInterval(renderTVDashboard, 300000);
 
+  // Checagem leve da rotação automática de layout — só lê config em cache
+  // (sem ida ao Supabase) e só dispara um render de verdade quando o layout
+  // efetivo muda (2x por hora), pra pegar a transição no horário certo em
+  // vez de esperar o próximo refresh de 5min.
+  setInterval(()=>{
+    const tvCfg = getTVCfg();
+    if(!tvCfg.rotacaoAtiva) return;
+    const tvBody = document.getElementById('tv-body');
+    if(tvBody && tvBody.dataset.layout !== tvLayoutEfetivo(tvCfg)) renderTVDashboard();
+  }, 20000);
+
   console.log('TV: Realtime ativo (celebrações via carregarMetas)');
 }
 
@@ -2322,13 +2338,17 @@ async function renderTVDashboard(){
   const tvBorda = document.querySelector('#tv-dash .tv-borda');
   if(tvBorda) tvBorda.style.borderBottomColor = tvCfg.corDestaque;
 
+  // Layout efetivo — igual ao configurado, exceto quando a rotação automática
+  // está ativa (Layout 1 <-> Layout 3 conforme o horário, ver tvLayoutEfetivo)
+  const layoutAtivo = tvLayoutEfetivo(tvCfg);
+
   // Injeta estrutura HTML conforme o layout — só reconstrói quando muda
   const tvBody = document.getElementById('tv-body');
-  if(tvBody && tvBody.dataset.layout !== tvCfg.tvLayout){
-    tvBody.dataset.layout = tvCfg.tvLayout;
-    tvBody.innerHTML = tvCfg.tvLayout === 'layout2' ? tvCriarEstruturaLayout2()
-      : tvCfg.tvLayout === 'layout3' ? tvCriarEstruturaLayout3()
-      : tvCfg.tvLayout === 'layout4' ? tvCriarEstruturaLayout4()
+  if(tvBody && tvBody.dataset.layout !== layoutAtivo){
+    tvBody.dataset.layout = layoutAtivo;
+    tvBody.innerHTML = layoutAtivo === 'layout2' ? tvCriarEstruturaLayout2()
+      : layoutAtivo === 'layout3' ? tvCriarEstruturaLayout3()
+      : layoutAtivo === 'layout4' ? tvCriarEstruturaLayout4()
       : tvCriarEstruturaLayout1();
   }
 
@@ -2381,7 +2401,7 @@ async function renderTVDashboard(){
   await renderTVAnaliseMes(tvCfg);
 
   // Delega para Layout 2 e encerra
-  if(tvCfg.tvLayout === 'layout2'){
+  if(layoutAtivo === 'layout2'){
     await renderTVLayout2Data(tvCfg, rv, etapas, todosKpis);
     return;
   }
@@ -7532,7 +7552,17 @@ function getTVCfg(){
     corDestaque:    cfg.tvCorDestaque    || '#8B5CF6',
     kpisColunas:    cfg.tvKpisColunas    || 4,
     tvLayout:       cfg.tvLayout        || 'layout1',
+    rotacaoAtiva:   cfg.tvRotacaoAtiva  === true,
   };
+}
+
+// Layout 1 (50min) <-> Layout 3 (10min), ciclo de 60min alinhado ao relógio
+// (minutos desde a época mod 60) — todas as TVs trocam no mesmo instante
+// sem precisar de estado compartilhado nem gravação extra no Supabase.
+function tvLayoutEfetivo(tvCfg){
+  if(!tvCfg.rotacaoAtiva) return tvCfg.tvLayout;
+  const cicloMin = Math.floor(Date.now()/60000) % 60;
+  return cicloMin < 50 ? 'layout1' : 'layout3';
 }
 
 function carregarCfgTVForm(){
@@ -7552,6 +7582,7 @@ function carregarCfgTVForm(){
   set('tv-cor-destaque',    tv.corDestaque);
   set('tv-kpis-colunas',    tv.kpisColunas);
   set('tv-layout',          tv.tvLayout);
+  chk('tv-rotacao-ativa',   tv.rotacaoAtiva);
 
   // Gera checkboxes para cada etapa do pipeline
   const listEl = document.getElementById('tv-kpis-etapas-list');
@@ -7630,6 +7661,7 @@ async function salvarCfgTV(){
     tvCorDestaque:    g('tv-cor-destaque')?.value      || '#8B5CF6',
     tvKpisColunas:    parseInt(g('tv-kpis-colunas')?.value)||4,
     tvLayout:         g('tv-layout')?.value || 'layout1',
+    tvRotacaoAtiva:   g('tv-rotacao-ativa')?.checked === true,
   });
   toast('✅ Configurações da TV salvas!');
 }
