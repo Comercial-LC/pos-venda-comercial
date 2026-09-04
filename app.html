@@ -1093,6 +1093,8 @@ select option{background:var(--bg2)}
                 <select id="tv-layout" onchange="atualizarPreviewTV()">
                   <option value="layout1">Layout 1 — Compacto (padrão)</option>
                   <option value="layout2">Layout 2 — Gauge + Destaque de Meta</option>
+                  <option value="layout3">Layout 3 — Resumo Executivo</option>
+                  <option value="layout4">Layout 4 — Dividido: Visão Geral | Estratégia</option>
                 </select>
               </div>
               <div class="fg">
@@ -2025,6 +2027,47 @@ function tvCriarEstruturaLayout2(){
     </div>`;
 }
 
+// Layout 3 — Resumo Executivo: KPIs em linha cheia no topo, Meta e
+// Estratégia do Mês lado a lado embaixo. Sem Pipeline, sem lista de revendas.
+function tvCriarEstruturaLayout3(){
+  return `
+    <div id="tv-kpis-wrap" style="margin-bottom:24px">
+      <div id="tv-kpis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div id="tv-metas-wrap-tv">
+        <div style="font-size:14px;font-weight:700;color:var(--txt);margin-bottom:12px">🎯 Meta Comercial do Mês</div>
+        <div id="tv-metas" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px"></div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--bdr);border-radius:20px;padding:22px">
+        <div style="font-size:14px;font-weight:700;color:var(--txt);margin-bottom:14px">🧠 Estratégia do Mês</div>
+        <div id="tv-estrategia-content"></div>
+      </div>
+    </div>`;
+}
+
+// Layout 4 — Dividido ao meio: Visão Geral + Meta empilhadas à esquerda,
+// Estratégia do Mês ocupando a coluna inteira à direita.
+function tvCriarEstruturaLayout4(){
+  return `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+      <div style="display:flex;flex-direction:column;gap:20px">
+        <div id="tv-kpis-wrap">
+          <div style="font-size:13px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Visão Geral</div>
+          <div id="tv-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px"></div>
+        </div>
+        <div id="tv-metas-wrap-tv" style="background:var(--card);border:1px solid var(--bdr);border-radius:20px;padding:22px">
+          <div style="font-size:14px;font-weight:700;color:var(--txt);margin-bottom:12px">🎯 Meta Comercial do Mês</div>
+          <div id="tv-metas" style="display:flex;flex-direction:column;gap:10px"></div>
+        </div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--bdr);border-radius:20px;padding:24px;height:100%">
+        <div style="font-size:14px;font-weight:700;color:var(--txt);margin-bottom:14px">🧠 Estratégia do Mês</div>
+        <div id="tv-estrategia-content"></div>
+      </div>
+    </div>`;
+}
+
 async function renderTVLayout2Data(tvCfg, rv, etapas, todosKpis){
   const now = new Date();
   const {data:metas} = await sb.from('orion_metas')
@@ -2271,8 +2314,9 @@ async function renderTVDashboard(){
   const tvBody = document.getElementById('tv-body');
   if(tvBody && tvBody.dataset.layout !== tvCfg.tvLayout){
     tvBody.dataset.layout = tvCfg.tvLayout;
-    tvBody.innerHTML = tvCfg.tvLayout === 'layout2'
-      ? tvCriarEstruturaLayout2()
+    tvBody.innerHTML = tvCfg.tvLayout === 'layout2' ? tvCriarEstruturaLayout2()
+      : tvCfg.tvLayout === 'layout3' ? tvCriarEstruturaLayout3()
+      : tvCfg.tvLayout === 'layout4' ? tvCriarEstruturaLayout4()
       : tvCriarEstruturaLayout1();
   }
 
@@ -2429,6 +2473,47 @@ async function renderTVDashboard(){
     }).join('');
   }
 
+  // ── Estratégia do Mês (resumo) — só existe nos Layouts 3 e 4 ──────
+  await renderTVEstrategiaMes();
+}
+
+async function renderTVEstrategiaMes(){
+  const el = document.getElementById('tv-estrategia-content');
+  if(!el) return;
+
+  const hoje = new Date();
+  const {data} = await sb.from('analises_estrategia_mes')
+    .select('resultado_completo,criado_em')
+    .eq('mes', hoje.getMonth()+1).eq('ano', hoje.getFullYear())
+    .eq('status', 'sucesso')
+    .order('criado_em', {ascending:false})
+    .limit(1);
+
+  const a = data?.[0]?.resultado_completo;
+  if(!a){
+    el.innerHTML = '<div style="color:var(--txt3);font-size:13px;padding:20px;text-align:center">Nenhuma estratégia gerada este mês ainda — gere em Gestão → Estratégia do Mês.</div>';
+    return;
+  }
+
+  const corProb = {BAIXA:'var(--err)','MÉDIA':'var(--warn)',ALTA:'var(--ok)'}[a.probabilidade_meta] || 'var(--txt3)';
+  const focosHtml = (a.focos_prioritarios||[]).slice(0,3).map(f=>
+    `<div style="font-size:13px;color:var(--txt2);padding-left:18px;position:relative;margin-bottom:8px;line-height:1.4"><span style="position:absolute;left:0;color:var(--acc2);font-weight:700">→</span>${safe(f)}</div>`
+  ).join('');
+  const primeiraAcao = (a.revendas_para_agir_agora||[])[0];
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="text-align:center;padding:14px 18px;background:rgba(255,255,255,0.04);border-radius:14px;flex-shrink:0">
+        <div style="font-size:20px;font-weight:800;color:${corProb}">${safe(a.probabilidade_meta||'—')}</div>
+        <div style="font-size:9px;color:var(--txt3);margin-top:2px;white-space:nowrap">PROB. BATER A META</div>
+      </div>
+      <div style="font-size:13px;color:var(--txt2);line-height:1.6;flex:1;min-width:220px">${safe(a.resumo_executivo||'')}</div>
+    </div>
+    ${focosHtml}
+    ${primeiraAcao ? `<div style="margin-top:14px;padding:12px 14px;background:var(--accl);border-radius:10px;font-size:12px">
+      <b style="color:var(--acc2)">Ação prioritária:</b> ${safe(primeiraAcao.acao)} <span style="color:var(--txt3)">(${safe(primeiraAcao.revenda)})</span>
+    </div>` : ''}
+  `;
 }
 
 // Análise do Mês no modo TV — atende os dois layouts (só um wrap existe por vez).
