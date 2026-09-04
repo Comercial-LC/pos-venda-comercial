@@ -6122,8 +6122,12 @@ async function saveCfg(obj){
     valor: JSON.stringify(nova),
     atualizado_em: new Date().toISOString()
   }, {onConflict: 'chave'});
-  if(error) console.error('saveCfg Supabase erro:', error.message);
-  else console.log('✅ Config salva no Supabase');
+  if(error){
+    console.error('saveCfg Supabase erro:', error.message);
+    toast('⚠️ Salvo só neste dispositivo — não sincronizou com o servidor ('+error.message+')', 'err');
+  } else {
+    console.log('✅ Config salva no Supabase');
+  }
 }
 
 async function carregarCfgDoSupabase(){
