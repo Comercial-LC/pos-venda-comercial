@@ -272,6 +272,7 @@ select option{background:var(--bg2)}
     <div class="nav-it" onclick="go('analisemes')"><span class="nav-ic">🧭</span><span class="nav-label">Análise do Mês</span></div>
     <div class="nav-it" onclick="go('estrategiames')"><span class="nav-ic">🧠</span><span class="nav-label">Estratégia do Mês</span></div>
     <div class="nav-it" onclick="go('ia')"><span class="nav-ic">🤖</span><span class="nav-label">Modelo de mensagens</span></div>
+    <div class="nav-it" onclick="go('trilha')"><span class="nav-ic">🕵️</span><span class="nav-label">Trilha de Alterações</span></div>
     <div class="nav-sec">Dados</div>
     <div class="nav-it" onclick="go('relatorios')"><span class="nav-ic">📈</span><span class="nav-label">Relatórios</span></div>
     <div class="nav-it" onclick="go('importacao')"><span class="nav-ic">📥</span><span class="nav-label">Importação Excel</span></div>
@@ -567,6 +568,47 @@ select option{background:var(--bg2)}
 
       <div style="margin-top:18px;padding:12px 14px;background:var(--bg2);border:1px solid var(--bdr);border-radius:var(--r);font-size:12px;color:var(--txt3);line-height:1.6">
         🔒 Hoje as mensagens saem só dos modelos acima. No futuro dá pra plugar uma IA externa (Claude, GPT etc.) pra criar mensagens novas em vez de só preencher esses modelos — é uma extensão pontual da <code>gerarMensagemIA()</code>, sem precisar redesenhar nada. Avise quando quiser habilitar.
+      </div>
+    </div>
+
+    <!-- TRILHA DE ALTERAÇÕES -->
+    <div class="panel" id="p-trilha">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-size:19px;font-weight:700">🕵️ Trilha de Alterações</div>
+          <div style="font-size:12px;color:var(--txt3);margin-top:2px">Quem da equipe alterou o quê em cada card — etapa, dados de cadastro e produtos</div>
+        </div>
+        <button class="btn btn-s" onclick="renderTrilhaAlteracoes()">🔄 Atualizar</button>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0">
+        <div class="fg" style="margin:0;min-width:200px">
+          <label>Funcionário</label>
+          <select id="trilha-usuario" onchange="renderTrilhaAlteracoes()">
+            <option value="">Todos</option>
+          </select>
+        </div>
+        <div class="fg" style="margin:0;min-width:170px">
+          <label>Período</label>
+          <select id="trilha-periodo" onchange="renderTrilhaAlteracoes()">
+            <option value="7">Últimos 7 dias</option>
+            <option value="30" selected>Últimos 30 dias</option>
+            <option value="90">Últimos 90 dias</option>
+          </select>
+        </div>
+        <div class="fg" style="margin:0;flex:1;min-width:220px">
+          <label>Buscar revenda</label>
+          <input id="trilha-busca" placeholder="Nome da revenda..." oninput="renderTrilhaAlteracoes()">
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>Quando</th><th>Funcionário</th><th>Revenda</th><th>O que mudou</th></tr></thead>
+            <tbody id="trilha-tbody"><tr><td colspan="4" style="text-align:center;padding:20px;color:var(--txt3)">Carregando...</td></tr></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -2929,7 +2971,7 @@ function toggleTheme(){isDark=!isDark;localStorage.setItem('lc_theme',isDark?'da
 applyTheme();
 
 // ─── Nav ───────────────────────────────────────────────────────────
-const TITLES={dashboard:'Dashboard Executivo',revendas:'Cadastro de Revendas',pipeline:'Pipeline de Onboarding',tarefas:'Gestão de Tarefas',timeline:'Timeline de Atividades',treinamentos:'Central de Treinamentos',handover:'Gestão de Handover',relatorios:'Relatórios & Analytics',importacao:'Importação de Dados',usuarios:'Controle de Usuários',integracao:'Integrações',configuracoes:'⚙️ Configurações',analisemes:'Análise do Mês',estrategiames:'Estratégia do Mês',ia:'Modelo de mensagens'};
+const TITLES={dashboard:'Dashboard Executivo',revendas:'Cadastro de Revendas',pipeline:'Pipeline de Onboarding',tarefas:'Gestão de Tarefas',timeline:'Timeline de Atividades',treinamentos:'Central de Treinamentos',handover:'Gestão de Handover',relatorios:'Relatórios & Analytics',importacao:'Importação de Dados',usuarios:'Controle de Usuários',integracao:'Integrações',configuracoes:'⚙️ Configurações',analisemes:'Análise do Mês',estrategiames:'Estratégia do Mês',ia:'Modelo de mensagens',trilha:'Trilha de Alterações'};
 function toggleNavGrp(){
   const grp=document.getElementById('nav-cfg-group');
   const sub=document.getElementById('nav-cfg-sub');
@@ -2952,7 +2994,7 @@ function go(name){
   renderPanel(name);
 }
 function renderPanel(name){
-  const fn={dashboard:renderDashboard,revendas:renderRevendas,pipeline:renderKanban,tarefas:renderTasks,timeline:renderTimeline,treinamentos:renderTreinamentos,handover:renderHandover,relatorios:renderRelatorios,usuarios:renderUsers,importacao:renderImport,configuracoes:renderConfiguracoes,integracao:renderIntegracao,analisemes:renderAnaliseMes,estrategiames:renderEstrategiaMesPage,ia:renderIaTemplates};
+  const fn={dashboard:renderDashboard,revendas:renderRevendas,pipeline:renderKanban,tarefas:renderTasks,timeline:renderTimeline,treinamentos:renderTreinamentos,handover:renderHandover,relatorios:renderRelatorios,usuarios:renderUsers,importacao:renderImport,configuracoes:renderConfiguracoes,integracao:renderIntegracao,analisemes:renderAnaliseMes,estrategiames:renderEstrategiaMesPage,ia:renderIaTemplates,trilha:renderTrilhaAlteracoes};
   if(fn[name]){
     fn[name]();
     if(name==='pipeline') setTimeout(initKanbanScroll, 150);
@@ -7533,6 +7575,64 @@ async function salvarIaTemplates(){
   });
   await saveCfg({iaTemplates: templates});
   toast('✅ Modelos de mensagem salvos!');
+}
+
+// ─── TRILHA DE ALTERAÇÕES ───────────────────────────────────────────
+// Visão consolidada de quem editou o quê em qualquer card — puxa direto
+// do historico_cards (já enriquecido por registrarEdicaoCard/inserirHistorico
+// com usuario_nome), sem depender da tela de Auditoria (admin-only).
+async function renderTrilhaAlteracoes(){
+  const tb = document.getElementById('trilha-tbody');
+  if(!tb) return;
+  tb.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--txt3)">Carregando...</td></tr>';
+
+  const dias = parseInt(document.getElementById('trilha-periodo')?.value) || 30;
+  const cutoff = new Date(Date.now() - dias*24*60*60*1000).toISOString();
+
+  const {data, error} = await sb.from('historico_cards')
+    .select('id,revenda_id,tipo,descricao,usuario_nome,criado_em')
+    .gte('criado_em', cutoff)
+    .order('criado_em', {ascending:false})
+    .limit(300);
+
+  if(error){
+    tb.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--err)">Erro ao carregar: '+safe(error.message)+'</td></tr>';
+    return;
+  }
+
+  // Notas de WhatsApp são log de comunicação, não "alteração" — fora daqui
+  const registros = (data||[]).filter(h => h.tipo !== '📤 WhatsApp enviado' && h.tipo !== '💬 WhatsApp');
+
+  // Popula o filtro de funcionário com quem aparece no período carregado
+  const selUser = document.getElementById('trilha-usuario');
+  if(selUser){
+    const atual = selUser.value;
+    const nomes = [...new Set(registros.map(h=>h.usuario_nome).filter(Boolean))].sort();
+    selUser.innerHTML = '<option value="">Todos</option>'
+      + nomes.map(n=>`<option value="${safe(n)}"${n===atual?' selected':''}>${safe(n)}</option>`).join('');
+  }
+
+  const usuarioFiltro = selUser?.value || '';
+  const busca = (document.getElementById('trilha-busca')?.value || '').toLowerCase().trim();
+
+  let linhas = registros.map(h => ({...h, _nome: DB.revendas.find(r=>r.id===h.revenda_id)?.nome || '—'}));
+  if(usuarioFiltro) linhas = linhas.filter(h => h.usuario_nome === usuarioFiltro);
+  if(busca) linhas = linhas.filter(h => h._nome.toLowerCase().includes(busca));
+
+  if(!linhas.length){
+    tb.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--txt3)">Nenhuma alteração encontrada nesse período</td></tr>';
+    return;
+  }
+
+  tb.innerHTML = linhas.map(h => {
+    const dt = new Date(h.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    return `<tr>
+      <td style="font-size:11px;white-space:nowrap;color:var(--txt2)">${dt}</td>
+      <td style="font-size:12px;font-weight:600">${safe(h.usuario_nome||'—')}</td>
+      <td style="font-size:12px;color:var(--acc)">${safe(h._nome)}</td>
+      <td style="font-size:11px;color:var(--txt2)"><b>${safe(h.tipo||'—')}</b>${h.descricao?' — '+safe(h.descricao):''}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ─── AUDITORIA ────────────────────────────────────────────────────
