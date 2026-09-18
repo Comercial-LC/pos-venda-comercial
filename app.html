@@ -3036,8 +3036,34 @@ function clearAllData(){
 }
 
 // ─── REVENDAS ──────────────────────────────────────────────────────
+// Campos de cadastro rastreados na trilha de edição do card (rótulo p/ exibição)
+const CARD_CAMPO_LABEL = {
+  nome:'Nome', cnpj:'CNPJ', cidade:'Cidade', uf:'UF', email:'E-mail', tel:'Telefone',
+  cs:'Responsável', segmento:'Segmento', porte:'Porte', obs:'Observações',
+  ingresso:'Data de ingresso', contratos:'Contratos', curva:'Curva',
+};
+
+// Registra no histórico do próprio card quem editou o quê — visível direto
+// no card, sem precisar abrir a tela de Auditoria (admin-only).
+async function registrarEdicaoCard(revendaId, antes, depois){
+  const quem = perfilAtual?.nome || 'Você';
+
+  if((antes.status||'') !== (depois.status||'')){
+    await inserirHistorico(revendaId, 'Mudança de etapa', (antes.status||'—')+' → '+(depois.status||'—'), quem);
+  }
+
+  const mudancas = Object.keys(CARD_CAMPO_LABEL)
+    .filter(campo => (antes[campo] ?? '') !== (depois[campo] ?? ''))
+    .map(campo => CARD_CAMPO_LABEL[campo]+': '+(antes[campo] ?? '—')+' → '+(depois[campo] ?? '—'));
+
+  if(mudancas.length){
+    await inserirHistorico(revendaId, '✏️ Edição de cadastro', mudancas.join(' | '), quem);
+  }
+}
+
 async function saveRevenda(){
   const editId = document.getElementById('rev-edit-id').value;
+  const antes  = editId ? DB.revendas.find(x=>x.id===editId) : null;
   const nome   = document.getElementById('r-nome').value.trim();
   if(!nome){toast('Nome obrigatório','err');return}
 
@@ -3079,6 +3105,7 @@ async function saveRevenda(){
     usuario_id:sessaoAtual?.user?.id, usuario_nome:perfilAtual?.nome,
   });
   logAuditoria(editId?'UPDATE':'CREATE','revendas',savedId,{nome,status:payload.status});
+  if(editId && antes) await registrarEdicaoCard(savedId, antes, payload);
   await Promise.all([_refreshTabela('revendas'), _refreshTabela('atividades')]);
   renderRevendas(); renderDashboard();
 }
@@ -3734,6 +3761,7 @@ async function toggleProduto(revId, produto, e){
   const rev=DB.revendas.find(r=>r.id===revId);if(!rev)return;
   const prods=[...(rev.produtos||[])];
   const idx=prods.indexOf(produto);
+  const adicionado = idx===-1;
   if(idx>-1)prods.splice(idx,1); else prods.push(produto);
   const {error}=await sb.from('revendas').update({produtos:prods,atualizado_em:new Date().toISOString()}).eq('id',revId);
   if(error){toast('Erro: '+error.message,'err');return}
@@ -3741,6 +3769,7 @@ async function toggleProduto(revId, produto, e){
   const ri=DB.revendas.findIndex(r=>r.id===revId);
   if(ri>-1) DB.revendas[ri].produtos=prods;
   renderKanban();
+  inserirHistorico(revId, '✏️ Edição de cadastro', 'Produto '+(adicionado?'adicionado':'removido')+': '+produto, perfilAtual?.nome||'Você');
 }
 
 let _dragCursorX = -1;
