@@ -148,10 +148,11 @@ async function chamarGemini(contexto: string): Promise<any> {
   return analise
 }
 
-// Falhas de timeout, rate limit (429) e erro momentâneo do Gemini (5xx) costumam
-// se resolver numa segunda tentativa — evita expor uma falha passageira como
-// "o gerador não funciona". Erros de conteúdo/formato (400, JSON inválido
-// persistente) não são retentados aqui porque tendem a repetir sem mudança.
+// Falhas de timeout, rate limit (429) e erro momentâneo do Gemini (5xx —
+// inclui o "503 UNAVAILABLE: model is currently experiencing high demand",
+// o mais comum na prática) costumam se resolver em poucos segundos. Erros
+// de conteúdo/formato (400, JSON inválido persistente) não são retentados
+// aqui porque tendem a repetir sem mudança.
 function isErroRetentavel(msg: string): boolean {
   if (msg.startsWith('TIMEOUT')) return true
   if (msg.startsWith('Falha de rede')) return true
@@ -160,14 +161,25 @@ function isErroRetentavel(msg: string): boolean {
   return false
 }
 
-async function chamarGeminiComRetry(contexto: string): Promise<any> {
-  try {
-    return await chamarGemini(contexto)
-  } catch (err: any) {
-    if (!isErroRetentavel(err.message || '')) throw err
-    console.warn('lc-success-ai-estrategia: 1ª tentativa falhou, retentando —', err.message)
-    return await chamarGemini(contexto)
+// 3 tentativas com backoff crescente (1,5s, 3s) — um "high demand" momentâneo
+// do Gemini costuma passar em segundos; uma única retentativa imediata (como
+// era antes) não é suficiente quando a alta demanda dura mais que isso.
+async function chamarGeminiComRetry(contexto: string, tentativas = 3): Promise<any> {
+  for (let i = 0; i < tentativas; i++) {
+    try {
+      return await chamarGemini(contexto)
+    } catch (err: any) {
+      const ultimaTentativa = i === tentativas - 1
+      if (!isErroRetentavel(err.message || '') || ultimaTentativa) {
+        if (i > 0) throw new Error(`Gemini indisponível após ${i + 1} tentativa(s) — ${err.message}`)
+        throw err
+      }
+      const espera = 1500 * (i + 1)
+      console.warn(`lc-success-ai-estrategia: tentativa ${i + 1} falhou (${err.message}), retentando em ${espera}ms`)
+      await new Promise(resolve => setTimeout(resolve, espera))
+    }
   }
+  throw new Error('Falha inesperada ao chamar Gemini')
 }
 
 Deno.serve(async (req: Request) => {
