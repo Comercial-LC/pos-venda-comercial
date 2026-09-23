@@ -101,6 +101,9 @@ async function chamarGemini(contexto: string): Promise<any> {
       responseMimeType: 'application/json',
       responseSchema: RESPONSE_SCHEMA,
       temperature: 0.4,
+      // Schema tem vários arrays (plano_de_acao, revendas_para_agir_agora etc.) —
+      // sem isso a resposta pode truncar no meio do JSON e falhar no parse
+      maxOutputTokens: 8192,
     },
   }
 
@@ -143,6 +146,28 @@ async function chamarGemini(contexto: string): Promise<any> {
   }
 
   return analise
+}
+
+// Falhas de timeout, rate limit (429) e erro momentâneo do Gemini (5xx) costumam
+// se resolver numa segunda tentativa — evita expor uma falha passageira como
+// "o gerador não funciona". Erros de conteúdo/formato (400, JSON inválido
+// persistente) não são retentados aqui porque tendem a repetir sem mudança.
+function isErroRetentavel(msg: string): boolean {
+  if (msg.startsWith('TIMEOUT')) return true
+  if (msg.startsWith('Falha de rede')) return true
+  const m = msg.match(/^Gemini retornou erro (\d+)/)
+  if (m) { const codigo = Number(m[1]); return codigo === 429 || codigo >= 500 }
+  return false
+}
+
+async function chamarGeminiComRetry(contexto: string): Promise<any> {
+  try {
+    return await chamarGemini(contexto)
+  } catch (err: any) {
+    if (!isErroRetentavel(err.message || '')) throw err
+    console.warn('lc-success-ai-estrategia: 1ª tentativa falhou, retentando —', err.message)
+    return await chamarGemini(contexto)
+  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -191,7 +216,7 @@ Deno.serve(async (req: Request) => {
   let erroMsg: string | null = null
 
   try {
-    analise = await chamarGemini(resumo)
+    analise = await chamarGeminiComRetry(resumo)
   } catch (err: any) {
     status = 'erro'
     erroMsg = err.message
@@ -215,7 +240,10 @@ Deno.serve(async (req: Request) => {
   }
 
   if (status === 'erro') {
-    return Response.json({ error: 'Não foi possível gerar a estratégia. Tente novamente em instantes.', analise_id: registro.id }, { status: 502, headers: corsHeaders })
+    return Response.json({
+      error: `Não foi possível gerar a estratégia (${erroMsg}). Tente novamente em instantes.`,
+      analise_id: registro.id,
+    }, { status: 502, headers: corsHeaders })
   }
 
   return Response.json({ success: true, analise_id: registro.id, analise }, { headers: corsHeaders })
