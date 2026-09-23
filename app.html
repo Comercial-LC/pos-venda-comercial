@@ -592,11 +592,24 @@ select option{background:var(--bg2)}
         </div>
         <div class="fg" style="margin:0;min-width:170px">
           <label>Período</label>
-          <select id="trilha-periodo" onchange="renderTrilhaAlteracoes()">
-            <option value="7">Últimos 7 dias</option>
-            <option value="30" selected>Últimos 30 dias</option>
-            <option value="90">Últimos 90 dias</option>
+          <select id="trilha-periodo" onchange="onTrilhaPeriodoChange()">
+            <option value="1">Dia (hoje)</option>
+            <option value="7">Semana</option>
+            <option value="15">Quinzena</option>
+            <option value="30" selected>Mês</option>
+            <option value="90">Trimestre</option>
+            <option value="custom">Personalizado</option>
           </select>
+        </div>
+        <div id="trilha-custom-wrap" style="display:none;gap:10px">
+          <div class="fg" style="margin:0;min-width:150px">
+            <label>De</label>
+            <input type="date" id="trilha-data-ini" onchange="renderTrilhaAlteracoes()">
+          </div>
+          <div class="fg" style="margin:0;min-width:150px">
+            <label>Até</label>
+            <input type="date" id="trilha-data-fim" onchange="renderTrilhaAlteracoes()">
+          </div>
         </div>
         <div class="fg" style="margin:0;flex:1;min-width:220px">
           <label>Buscar revenda</label>
@@ -7583,24 +7596,49 @@ async function salvarIaTemplates(){
 // Visão consolidada de quem editou o quê em qualquer card — puxa direto
 // do historico_cards (já enriquecido por registrarEdicaoCard/inserirHistorico
 // com usuario_nome), sem depender da tela de Auditoria (admin-only).
+// Alterna a exibição dos campos "De"/"Até" conforme o período escolhido
+function onTrilhaPeriodoChange(){
+  const isCustom = document.getElementById('trilha-periodo')?.value === 'custom';
+  const wrap = document.getElementById('trilha-custom-wrap');
+  if(wrap) wrap.style.display = isCustom ? 'flex' : 'none';
+  renderTrilhaAlteracoes();
+}
+
+// Resolve o período escolhido em {de, ate} — dia/semana/quinzena/mês/trimestre
+// são janelas rolantes (N dias até agora); personalizado usa os dois inputs de data
+function trilhaObterIntervalo(){
+  const periodo = document.getElementById('trilha-periodo')?.value || '30';
+  const agora = new Date();
+
+  if(periodo === 'custom'){
+    const iniStr = document.getElementById('trilha-data-ini')?.value;
+    const fimStr = document.getElementById('trilha-data-fim')?.value;
+    const de  = iniStr ? new Date(iniStr+'T00:00:00') : new Date(agora.getFullYear(), agora.getMonth(), 1);
+    const ate = fimStr ? new Date(fimStr+'T23:59:59') : agora;
+    return de <= ate ? {de, ate} : {de: ate, ate: de};
+  }
+
+  const dias = parseInt(periodo) || 30;
+  return {de: new Date(Date.now() - dias*24*60*60*1000), ate: agora};
+}
+
 async function renderTrilhaAlteracoes(){
   const tb = document.getElementById('trilha-tbody');
   if(!tb) return;
   tb.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--txt3)">Carregando...</td></tr>';
 
-  const dias = parseInt(document.getElementById('trilha-periodo')?.value) || 30;
+  const {de, ate} = trilhaObterIntervalo();
   const agora = new Date();
   const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
-  const cutoffPeriodo = new Date(Date.now() - dias*24*60*60*1000);
   // Busca cobrindo o maior dos dois intervalos (período da tabela x mês corrente)
   // numa query só, pra alimentar tabela + resumo do mês sem ida dupla ao Supabase
-  const cutoff = new Date(Math.min(inicioMes.getTime(), cutoffPeriodo.getTime())).toISOString();
+  const cutoff = new Date(Math.min(inicioMes.getTime(), de.getTime())).toISOString();
 
   const {data, error} = await sb.from('historico_cards')
     .select('id,revenda_id,tipo,descricao,usuario_nome,criado_em')
     .gte('criado_em', cutoff)
     .order('criado_em', {ascending:false})
-    .limit(500);
+    .limit(1000);
 
   if(error){
     tb.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--err)">Erro ao carregar: '+safe(error.message)+'</td></tr>';
@@ -7614,7 +7652,10 @@ async function renderTrilhaAlteracoes(){
 
   renderTrilhaResumoMes(registros.filter(h => new Date(h.criado_em) >= inicioMes));
 
-  const registrosPeriodo = registros.filter(h => new Date(h.criado_em) >= cutoffPeriodo);
+  const registrosPeriodo = registros.filter(h => {
+    const t = new Date(h.criado_em);
+    return t >= de && t <= ate;
+  });
 
   // Popula o filtro de funcionário com quem aparece no período carregado
   const selUser = document.getElementById('trilha-usuario');
