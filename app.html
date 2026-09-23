@@ -7622,21 +7622,23 @@ function trilhaObterIntervalo(){
   return {de: new Date(Date.now() - dias*24*60*60*1000), ate: agora};
 }
 
+// Texto do período pra exibir no card de resumo (ex: "hoje", "na semana")
+function trilhaPeriodoLabel(){
+  const periodo = document.getElementById('trilha-periodo')?.value || '30';
+  const labels = {'1':'hoje', '7':'na semana', '15':'na quinzena', '30':'no mês', '90':'no trimestre'};
+  return labels[periodo] || 'no período selecionado';
+}
+
 async function renderTrilhaAlteracoes(){
   const tb = document.getElementById('trilha-tbody');
   if(!tb) return;
   tb.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--txt3)">Carregando...</td></tr>';
 
   const {de, ate} = trilhaObterIntervalo();
-  const agora = new Date();
-  const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
-  // Busca cobrindo o maior dos dois intervalos (período da tabela x mês corrente)
-  // numa query só, pra alimentar tabela + resumo do mês sem ida dupla ao Supabase
-  const cutoff = new Date(Math.min(inicioMes.getTime(), de.getTime())).toISOString();
 
   const {data, error} = await sb.from('historico_cards')
     .select('id,revenda_id,tipo,descricao,usuario_nome,criado_em')
-    .gte('criado_em', cutoff)
+    .gte('criado_em', de.toISOString())
     .order('criado_em', {ascending:false})
     .limit(1000);
 
@@ -7650,12 +7652,15 @@ async function renderTrilhaAlteracoes(){
   // Notas de WhatsApp são log de comunicação, não "alteração" — fora daqui
   const registros = (data||[]).filter(h => h.tipo !== '📤 WhatsApp enviado' && h.tipo !== '💬 WhatsApp');
 
-  renderTrilhaResumoMes(registros.filter(h => new Date(h.criado_em) >= inicioMes));
-
   const registrosPeriodo = registros.filter(h => {
     const t = new Date(h.criado_em);
     return t >= de && t <= ate;
   });
+
+  // Resumo segue o mesmo período da tabela abaixo — ranking de todos os
+  // funcionários, sem aplicar o filtro de funcionário/busca (esses são só
+  // pra recortar a lista detalhada)
+  renderTrilhaResumoMes(registrosPeriodo, trilhaPeriodoLabel());
 
   // Popula o filtro de funcionário com quem aparece no período carregado
   const selUser = document.getElementById('trilha-usuario');
@@ -7689,28 +7694,27 @@ async function renderTrilhaAlteracoes(){
   }).join('');
 }
 
-// Card de resumo — total de alterações por funcionário no mês corrente,
-// independente do filtro de período usado na tabela detalhada abaixo.
-function renderTrilhaResumoMes(registrosMes){
+// Card de resumo — total de alterações por funcionário no mesmo período
+// selecionado no filtro da tabela abaixo (dia/semana/quinzena/mês/etc).
+function renderTrilhaResumoMes(registrosPeriodo, labelPeriodo){
   const wrap = document.getElementById('trilha-resumo-mes');
   if(!wrap) return;
-  const nomeMes = MESES_NOMES[new Date().getMonth()+1];
 
-  if(!registrosMes.length){
-    wrap.innerHTML = `<div class="card"><div class="ct" style="margin-bottom:6px">📊 Alterações em ${nomeMes}</div>
-      <div style="font-size:12px;color:var(--txt3)">Nenhuma alteração registrada este mês ainda.</div></div>`;
+  if(!registrosPeriodo.length){
+    wrap.innerHTML = `<div class="card"><div class="ct" style="margin-bottom:6px">📊 Alterações ${labelPeriodo}</div>
+      <div style="font-size:12px;color:var(--txt3)">Nenhuma alteração registrada nesse período.</div></div>`;
     return;
   }
 
   const contagem = {};
-  registrosMes.forEach(h=>{ const n = h.usuario_nome||'—'; contagem[n]=(contagem[n]||0)+1; });
+  registrosPeriodo.forEach(h=>{ const n = h.usuario_nome||'—'; contagem[n]=(contagem[n]||0)+1; });
   const ranking = Object.entries(contagem).sort((a,b)=>b[1]-a[1]);
-  const total = registrosMes.length;
+  const total = registrosPeriodo.length;
   const maior = ranking[0][1];
 
   wrap.innerHTML = `<div class="card">
     <div class="ch" style="margin-bottom:10px">
-      <div class="ct">📊 Alterações em ${nomeMes}</div>
+      <div class="ct">📊 Alterações ${labelPeriodo}</div>
       <span style="font-size:12px;color:var(--txt3)">${total} no total</span>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">
