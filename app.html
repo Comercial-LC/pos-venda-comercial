@@ -627,56 +627,6 @@ select option{background:var(--bg2)}
       </div>
     </div>
 
-    <!-- TIMELINE -->
-    <div class="panel" id="p-timeline">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-        <div><div style="font-size:19px;font-weight:700">Timeline de Atividades</div><div style="font-size:12px;color:var(--txt3)">Histórico de ações e eventos</div></div>
-        <button class="btn btn-p" onclick="openMo('mo-ativ')">+ Registrar Atividade</button>
-      </div>
-      <div class="g31">
-        <div class="card"><div class="tl" id="timeline-list"></div></div>
-        <div style="display:flex;flex-direction:column;gap:16px">
-          <div class="card"><div class="ct" style="margin-bottom:12px">Resumo</div><div id="timeline-resumo" style="display:flex;flex-direction:column;gap:8px"></div></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- TREINAMENTOS -->
-    <div class="panel" id="p-treinamentos">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-        <div><div style="font-size:19px;font-weight:700">Central de Treinamentos</div></div>
-        <button class="btn btn-p" onclick="openMo('mo-train')">+ Criar Treinamento</button>
-      </div>
-      <div class="mg" style="grid-template-columns:repeat(4,1fr)">
-        <div class="mc bl"><div class="mv" id="tr-total">0</div><div class="ml">Trilhas ativas</div></div>
-        <div class="mc gn"><div class="mv" id="tr-conc">0%</div><div class="ml">Taxa conclusão</div></div>
-        <div class="mc yw"><div class="mv" id="tr-rev">0</div><div class="ml">Revendas treinando</div></div>
-        <div class="mc pu"><div class="mv" id="tr-cert">0</div><div class="ml">Certificados emitidos</div></div>
-      </div>
-      <div class="g2">
-        <div><div style="font-size:14px;font-weight:600;margin-bottom:12px">Trilhas disponíveis</div><div id="train-list" style="display:flex;flex-direction:column;gap:10px"></div></div>
-        <div class="card">
-          <div class="ct" style="margin-bottom:12px">Progresso por Revenda</div>
-          <div style="overflow-x:auto"><table><thead><tr><th>Revenda</th><th>Trilha</th><th>Progresso</th><th>Status</th></tr></thead><tbody id="train-prog-tbody"></tbody></table></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- HANDOVER -->
-    <div class="panel" id="p-handover">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-        <div><div style="font-size:19px;font-weight:700">Gestão de Handover</div><div style="font-size:12px;color:var(--txt3)">Transferência formal para parceria ativa</div></div>
-        <button class="btn btn-p" onclick="openMo('mo-handover')">+ Iniciar Handover</button>
-      </div>
-      <div class="card" style="margin-bottom:18px" id="handover-checklist-area">
-        <div style="font-size:13px;color:var(--txt3);text-align:center;padding:24px">Selecione um handover abaixo para ver o checklist detalhado.</div>
-      </div>
-      <div class="card">
-        <div class="ch"><div class="ct">Todos os Handovers</div></div>
-        <div style="overflow-x:auto"><table><thead><tr><th>Revenda</th><th>CS</th><th>Início</th><th>Prazo</th><th>Progresso</th><th>Status</th><th>Ações</th></tr></thead><tbody id="handover-tbody"></tbody></table></div>
-      </div>
-    </div>
-
     <!-- RELATÓRIOS -->
     <div class="panel" id="p-relatorios">
       <div style="margin-bottom:18px">
@@ -1382,10 +1332,6 @@ select option{background:var(--bg2)}
 
     </div>
 
-    <!-- Elementos legados ocultos (compatibilidade) -->
-    <div id="card-tab-historico" style="display:none"></div>
-    <div id="card-tab-info"      style="display:none"></div>
-
   </div>
 </div>
 
@@ -1497,45 +1443,6 @@ select option{background:var(--bg2)}
     <div class="mof" style="justify-content:flex-end">
       <button class="btn btn-s" onclick="closeMo('mo-participantes')">Fechar</button>
     </div>
-  </div>
-</div>
-
-<!-- Atividade -->
-<div class="mo-ov" id="mo-ativ">
-  <div class="mo" style="width:460px">
-    <div class="moh"><div class="mot">Registrar Atividade</div><button class="btn btn-s btn-sm" onclick="closeMo('mo-ativ')">✕</button></div>
-    <div class="mob">
-      <div class="fg"><label>Tipo</label><select id="a-tipo"><option>Contato realizado</option><option>Treinamento concluído</option><option>Handover iniciado</option><option>Ativação</option><option>Alerta criado</option><option>Documento enviado</option><option>Reunião</option></select></div>
-      <div class="fg"><label>Revenda</label><select id="a-revenda"><option value="">Selecione</option></select></div>
-      <div class="fg"><label>Descrição *</label><textarea id="a-desc" rows="4" placeholder="Descreva o que aconteceu..."></textarea></div>
-    </div>
-    <div class="mof"><button class="btn btn-s" onclick="closeMo('mo-ativ')">Cancelar</button><button class="btn btn-p" onclick="saveAtividade()">📝 Registrar</button></div>
-  </div>
-</div>
-
-<!-- Treinamento -->
-<div class="mo-ov" id="mo-train">
-  <div class="mo" style="width:460px">
-    <div class="moh"><div class="mot">Novo Treinamento</div><button class="btn btn-s btn-sm" onclick="closeMo('mo-train')">✕</button></div>
-    <div class="mob">
-      <div class="fg"><label>Nome da Trilha *</label><input id="tr-nome" placeholder="Ex: Onboarding Básico LC"></div>
-      <div class="fr"><div class="fg"><label>Nº de Módulos</label><input id="tr-mod" type="number" value="4" min="1"></div><div class="fg"><label>Duração estimada</label><input id="tr-dur" placeholder="Ex: 3h"></div></div>
-      <div class="fg"><label>Descrição</label><textarea id="tr-desc" rows="3" placeholder="Conteúdo e objetivos..."></textarea></div>
-    </div>
-    <div class="mof"><button class="btn btn-s" onclick="closeMo('mo-train')">Cancelar</button><button class="btn btn-p" onclick="saveTreinamento()">💾 Criar Trilha</button></div>
-  </div>
-</div>
-
-<!-- Handover -->
-<div class="mo-ov" id="mo-handover">
-  <div class="mo" style="width:460px">
-    <div class="moh"><div class="mot">Iniciar Handover</div><button class="btn btn-s btn-sm" onclick="closeMo('mo-handover')">✕</button></div>
-    <div class="mob">
-      <div class="fg"><label>Revenda *</label><select id="h-revenda"><option value="">Selecione</option></select></div>
-      <div class="fr"><div class="fg"><label>CS Responsável</label><select id="h-cs"><option value="">Selecione</option></select></div><div class="fg"><label>Prazo</label><input id="h-prazo" type="date"></div></div>
-      <div class="fg"><label>Observações</label><textarea id="h-obs" rows="3" placeholder="Notas para o handover..."></textarea></div>
-    </div>
-    <div class="mof"><button class="btn btn-s" onclick="closeMo('mo-handover')">Cancelar</button><button class="btn btn-p" onclick="saveHandover()">🚀 Iniciar</button></div>
   </div>
 </div>
 
@@ -1667,9 +1574,7 @@ select option{background:var(--bg2)}
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
         <label class="cb"><input type="checkbox" id="del-revendas" checked> Todas as revendas e históricos</label>
         <label class="cb"><input type="checkbox" id="del-tarefas" checked> Todas as tarefas</label>
-        <label class="cb"><input type="checkbox" id="del-atividades"> Timeline e atividades</label>
-        <label class="cb"><input type="checkbox" id="del-handovers"> Handovers</label>
-        <label class="cb"><input type="checkbox" id="del-treinamentos"> Treinamentos</label>
+        <label class="cb"><input type="checkbox" id="del-atividades"> Log de atividades</label>
       </div>
       <div style="font-size:13px;margin-bottom:8px;color:var(--txt2)">
         Digite <strong style="color:var(--err)">CONFIRMAR</strong> para prosseguir:
@@ -1818,9 +1723,6 @@ function exportarBackupLocal(){
     revendas:    DB.revendas,
     tarefas:     DB.tarefas,
     usuarios:    DB.usuarios,
-    atividades:  DB.atividades,
-    handovers:   DB.handovers,
-    treinamentos:DB.treinamentos,
     perfil:      perfilAtual,
     exportado_em:new Date().toISOString()
   };
@@ -1862,10 +1764,7 @@ function _mostrarErroSemDados(){
           <code style="display:block;background:#0d1117;color:#7dd3fc;padding:10px;border-radius:6px;margin-top:8px;font-size:11px;white-space:pre-wrap">SELECT json_build_object(
   'revendas',    (SELECT json_agg(r) FROM revendas r),
   'tarefas',     (SELECT json_agg(t) FROM tarefas t),
-  'usuarios',    (SELECT json_agg(u) FROM perfis u),
-  'atividades',  (SELECT json_agg(a) FROM atividades a),
-  'handovers',   (SELECT json_agg(h) FROM handovers h),
-  'treinamentos',(SELECT json_agg(tr) FROM treinamentos tr)
+  'usuarios',    (SELECT json_agg(u) FROM perfis u)
 ) AS backup;</code>
           Baixe o resultado como JSON e importe abaixo.
         </div>
@@ -1907,9 +1806,6 @@ function importarBackupJSON(input){
       if(data.revendas?.length)    { sessionStorage.setItem('sb_revendas_backup', JSON.stringify(data.revendas)); count++; }
       if(data.tarefas?.length)     { localStorage.setItem('lc_cache_tarefas',     JSON.stringify(data.tarefas));  count++; }
       if(data.usuarios?.length)    { localStorage.setItem('lc_cache_usuarios',    JSON.stringify(data.usuarios)); count++; }
-      if(data.atividades?.length)  { localStorage.setItem('lc_cache_atividades',  JSON.stringify(data.atividades)); count++; }
-      if(data.handovers?.length)   { localStorage.setItem('lc_cache_handovers',   JSON.stringify(data.handovers)); count++; }
-      if(data.treinamentos?.length){ localStorage.setItem('lc_cache_treinamentos',JSON.stringify(data.treinamentos)); count++; }
       if(data.perfil)              { localStorage.setItem('lc_perfil_cache',      JSON.stringify(data.perfil)); }
       localStorage.setItem('lc_cache_ts', new Date().toISOString());
 
@@ -2362,9 +2258,6 @@ async function renderTVDashboard(){
   const ETAPAS         = etapas.map(e=>e.id);
   const ultimaEtapa    = etapas[etapas.length-1]?.id || 'Handover';
   const penultimaEtapa = etapas[etapas.length-2]?.id || 'Primeiro Cliente';
-  console.log('📺 TV etapas:', ETAPAS);
-  console.log('📺 TV revendas:', rv.length, '| penúltima:', penultimaEtapa, '| última:', ultimaEtapa);
-  console.log('📺 TV contagem penúltima:', rv.filter(r=>r.status===penultimaEtapa).length);
 
   const _tvNomesForaJornada = ['inativo','inativa','perdido','cancelado','churn','handover','pausad'];
   const emJornada   = rv.filter(r=>{
@@ -2724,7 +2617,6 @@ function today(){return new Date().toISOString().slice(0,10)}
 // DB em memória — cache local sincronizado com Supabase
 const DB = {
   revendas:[],usuarios:[],tarefas:[],
-  atividades:[],treinamentos:[],handovers:[],
   importHistory:[],
   _carregado: false,
 };
@@ -2759,9 +2651,6 @@ function _restaurarCacheOffline(){
     if(rev){ const p=JSON.parse(rev); if(p.length>0) DB.revendas=p; }
     const t=localStorage.getItem('lc_cache_tarefas');     if(t) DB.tarefas=JSON.parse(t);
     const u=localStorage.getItem('lc_cache_usuarios');    if(u) DB.usuarios=JSON.parse(u);
-    const a=localStorage.getItem('lc_cache_atividades');  if(a) DB.atividades=JSON.parse(a);
-    const h=localStorage.getItem('lc_cache_handovers');   if(h) DB.handovers=JSON.parse(h);
-    const tr=localStorage.getItem('lc_cache_treinamentos');if(tr) DB.treinamentos=JSON.parse(tr);
     DB._carregado = true;
     console.log('📦 Cache offline restaurado:', new Date(ts).toLocaleString('pt-BR'));
   } catch(e){ console.warn('Cache offline inválido:', e.message); }
@@ -2816,18 +2705,12 @@ async function loadFromSupabase(){
     }
 
     // ── Carrega demais tabelas (colunas específicas + limites) ──
-    const [users, tasks, ativs, trains, handov] = await Promise.all([
+    const [users, tasks] = await Promise.all([
       sb.from('perfis').select('id,nome,email,perfil,ativo,avatar_iniciais').order('nome'),
       sb.from('tarefas').select('id,titulo,descricao,revenda_id,revenda_nome,responsavel,prioridade,vencimento,tipo,status,criado_por,criado_em,atualizado_em').order('criado_em',{ascending:false}).limit(1000),
-      sb.from('atividades').select('id,tipo,revenda_nome,descricao,criado_em,usuario_nome').order('criado_em',{ascending:false}).limit(200),
-      sb.from('treinamentos').select('*').order('criado_em',{ascending:false}).limit(200),
-      sb.from('handovers').select('id,revenda_id,revenda_nome,cs_nome,cs_id,inicio,prazo,progresso,status,obs,checklist,criado_em').order('criado_em',{ascending:false}).limit(200),
     ]);
     if(users.data  && users.data.length  > 0) DB.usuarios     = users.data.map(normalizeUsuario);
     if(tasks.data)                             DB.tarefas      = tasks.data.map(normalizeTask);
-    if(ativs.data)                             DB.atividades   = ativs.data.map(normalizeAtiv);
-    if(trains.data)                            DB.treinamentos = trains.data;
-    if(handov.data)                            DB.handovers    = handov.data.map(normalizeHandover);
 
     DB._carregado = true;
     console.log('✅ Cache:', DB.revendas.length, 'revendas |', DB.tarefas.length, 'tarefas');
@@ -2836,9 +2719,6 @@ async function loadFromSupabase(){
       localStorage.setItem('lc_cache_ts', new Date().toISOString());
       localStorage.setItem('lc_cache_tarefas',     JSON.stringify(DB.tarefas));
       localStorage.setItem('lc_cache_usuarios',    JSON.stringify(DB.usuarios));
-      localStorage.setItem('lc_cache_atividades',  JSON.stringify(DB.atividades));
-      localStorage.setItem('lc_cache_handovers',   JSON.stringify(DB.handovers));
-      localStorage.setItem('lc_cache_treinamentos',JSON.stringify(DB.treinamentos));
     } catch(e){}
 
   } catch(e){
@@ -2872,18 +2752,9 @@ async function _refreshTabela(tabela){
   } else if(tabela === 'tarefas'){
     const {data}=await sb.from('tarefas').select('id,titulo,descricao,revenda_id,revenda_nome,responsavel,prioridade,vencimento,tipo,status,criado_por,criado_em,atualizado_em').order('criado_em',{ascending:false}).limit(1000);
     if(data) DB.tarefas=data.map(normalizeTask);
-  } else if(tabela === 'atividades'){
-    const {data}=await sb.from('atividades').select('id,tipo,revenda_nome,descricao,criado_em,usuario_nome').order('criado_em',{ascending:false}).limit(200);
-    if(data) DB.atividades=data.map(normalizeAtiv);
-  } else if(tabela === 'handovers'){
-    const {data}=await sb.from('handovers').select('id,revenda_id,revenda_nome,cs_nome,cs_id,inicio,prazo,progresso,status,obs,checklist,criado_em').order('criado_em',{ascending:false}).limit(200);
-    if(data) DB.handovers=data.map(normalizeHandover);
   } else if(tabela === 'perfis'){
     const {data}=await sb.from('perfis').select('id,nome,email,perfil,ativo,avatar_iniciais').order('nome');
     if(data&&data.length>0) DB.usuarios=data.map(normalizeUsuario);
-  } else if(tabela === 'treinamentos'){
-    const {data}=await sb.from('treinamentos').select('*').order('criado_em',{ascending:false}).limit(200);
-    if(data) DB.treinamentos=data;
   }
 }
 
@@ -2935,29 +2806,6 @@ function normalizeTask(t){
     criadoEm:    t.criado_em,
   };
 }
-function normalizeAtiv(a){
-  return {...a,
-    id:     a.id,
-    tipo:   a.tipo||'',
-    revenda:a.revenda_nome||'',
-    desc:   a.descricao||'',
-    data:   a.criado_em,
-  };
-}
-function normalizeHandover(h){
-  return {...h,
-    id:         h.id,
-    revenda:    h.revenda_nome||'',
-    cs:         h.cs_nome||'',
-    inicio:     h.inicio||'',
-    prazo:      h.prazo||'',
-    progresso:  h.progresso||0,
-    status:     h.status||'Em andamento',
-    obs:        h.obs||'',
-    checklist:  h.checklist||{},
-  };
-}
-
 // persist() agora salva no Supabase
 async function persist(tabela, id, dados){
   // Compatibilidade: persist('revendas') sem args → recarrega e re-renderiza
@@ -2986,7 +2834,7 @@ function toggleTheme(){isDark=!isDark;localStorage.setItem('lc_theme',isDark?'da
 applyTheme();
 
 // ─── Nav ───────────────────────────────────────────────────────────
-const TITLES={dashboard:'Dashboard Executivo',revendas:'Cadastro de Revendas',pipeline:'Pipeline de Onboarding',tarefas:'Gestão de Tarefas',timeline:'Timeline de Atividades',treinamentos:'Central de Treinamentos',handover:'Gestão de Handover',relatorios:'Relatórios & Analytics',importacao:'Importação de Dados',usuarios:'Controle de Usuários',integracao:'Integrações',configuracoes:'⚙️ Configurações',analisemes:'Análise do Mês',estrategiames:'Estratégia do Mês',ia:'Modelo de mensagens',trilha:'Trilha de Alterações'};
+const TITLES={dashboard:'Dashboard Executivo',revendas:'Cadastro de Revendas',pipeline:'Pipeline de Onboarding',tarefas:'Gestão de Tarefas',metas:'Metas Comerciais',relatorios:'Relatórios & Analytics',importacao:'Importação de Dados',usuarios:'Controle de Usuários',integracao:'Integrações',configuracoes:'⚙️ Configurações',analisemes:'Análise do Mês',estrategiames:'Estratégia do Mês',ia:'Modelo de mensagens',trilha:'Trilha de Alterações'};
 function toggleNavGrp(){
   const grp=document.getElementById('nav-cfg-group');
   const sub=document.getElementById('nav-cfg-sub');
@@ -3009,7 +2857,7 @@ function go(name){
   renderPanel(name);
 }
 function renderPanel(name){
-  const fn={dashboard:renderDashboard,revendas:renderRevendas,pipeline:renderKanban,tarefas:renderTasks,timeline:renderTimeline,treinamentos:renderTreinamentos,handover:renderHandover,relatorios:renderRelatorios,usuarios:renderUsers,importacao:renderImport,configuracoes:renderConfiguracoes,integracao:renderIntegracao,analisemes:renderAnaliseMes,estrategiames:renderEstrategiaMesPage,ia:renderIaTemplates,trilha:renderTrilhaAlteracoes};
+  const fn={dashboard:renderDashboard,revendas:renderRevendas,pipeline:renderKanban,tarefas:renderTasks,metas:renderMetas,relatorios:renderRelatorios,usuarios:renderUsers,importacao:renderImport,configuracoes:renderConfiguracoes,integracao:renderIntegracao,analisemes:renderAnaliseMes,estrategiames:renderEstrategiaMesPage,ia:renderIaTemplates,trilha:renderTrilhaAlteracoes};
   if(fn[name]){
     fn[name]();
     if(name==='pipeline') setTimeout(initKanbanScroll, 150);
@@ -3089,7 +2937,7 @@ function clearAllData(){
   Object.keys(DB).forEach(k=>{if(Array.isArray(DB[k]))DB[k]=[]});
   DB._carregado=false;
   toast('Cache limpo. Recarregando dados do servidor...','warn');
-  loadFromSupabase().then(()=>{renderDashboard();renderRevendas();renderTasks();renderTimeline();});
+  loadFromSupabase().then(()=>{renderDashboard();renderRevendas();renderTasks();});
 }
 
 // ─── REVENDAS ──────────────────────────────────────────────────────
@@ -3163,7 +3011,7 @@ async function saveRevenda(){
   });
   logAuditoria(editId?'UPDATE':'CREATE','revendas',savedId,{nome,status:payload.status});
   if(editId && antes) await registrarEdicaoCard(savedId, antes, payload);
-  await Promise.all([_refreshTabela('revendas'), _refreshTabela('atividades')]);
+  await _refreshTabela('revendas');
   renderRevendas(); renderDashboard();
 }
 
@@ -3964,7 +3812,6 @@ function kCardClick(e, id){
 let currentCardId = null;
 // PRODUTOS_LIST é dinâmico — sempre reflete o que está em Configurações → Produtos Decola
 function getProdutosList(){ return getProdutos(); }
-const ETAPAS_LIST   = ['Nova Revenda','Implantação','Liberação Web','Academy','Decola Instalação','Decola Produtos','Primeiro Cliente','Handover'];
 const ETAPA_COLORS  = {
   'Nova Revenda':'var(--txt2)','Implantação':'var(--acc)','Liberação Web':'var(--pur)',
   'Academy':'#ec4899','Decola Instalação':'var(--warn)','Decola Produtos':'#f97316',
@@ -4174,8 +4021,6 @@ async function getCardHistorico(id){
     .limit(50);
 
   if(e2) console.warn('atividades:', e2.message);
-
-  console.log(`Histórico ${nome}: ${hist?.length||0} registros, ${ativs?.length||0} atividades`);
 
   const fromCard = (hist||[]).map(h=>({
     id:            h.id,
@@ -4853,195 +4698,6 @@ function renderTasks(){
   if(cl)cl.textContent=`${DB.tarefas.length} tarefa(s) · ${urgent.length} atrasada(s)`;
 }
 
-// ─── TIMELINE ──────────────────────────────────────────────────────
-async function saveAtividade(){
-  const desc=document.getElementById('a-desc').value.trim();
-  if(!desc){toast('Descrição obrigatória','err');return}
-  const revNome=document.getElementById('a-revenda').value;
-  const revObj=DB.revendas.find(r=>r.nome===revNome);
-  const {error}=await sb.from('atividades').insert({
-    tipo:document.getElementById('a-tipo').value,
-    revenda_id:revObj?.id||null, revenda_nome:revNome||null,
-    descricao:desc,
-    usuario_id:sessaoAtual?.user?.id, usuario_nome:perfilAtual?.nome,
-  });
-  if(error){toast('Erro: '+error.message,'err');return}
-  closeMo('mo-ativ');toast('Atividade registrada!');
-  await _refreshTabela('atividades');renderTimeline();
-}
-
-function renderTimeline(){
-  const tl=document.getElementById('timeline-list');
-  const rs=document.getElementById('timeline-resumo');
-  if(!tl)return;
-  const sorted=[...DB.atividades].sort((a,b)=>new Date(b.data)-new Date(a.data)).slice(0,30);
-  const iconMap={'Cadastro':'🏢','Ativação':'🟢','Treinamento concluído':'🎓','Handover iniciado':'🤝','Contato realizado':'💬','Alerta criado':'⚠️','Documento enviado':'📄','Reunião':'📅'};
-  const bgMap={'Ativação':'var(--okl)','Handover iniciado':'var(--accl)','Alerta criado':'var(--errl)','Treinamento concluído':'var(--purl)'};
-  tl.innerHTML=sorted.length?sorted.map((item,i)=>`<div class="tli">
-    <div class="tll">
-      <div class="tld" style="background:${bgMap[item.tipo]||'var(--card2)'}"><span>${iconMap[item.tipo]||'📋'}</span></div>
-      ${i<sorted.length-1?'<div class="tlc"></div>':''}
-    </div>
-    <div class="tlco">
-      <div class="tlh"><div class="tlt">${item.revenda?safe(item.revenda)+' — ':' '}${safe(item.tipo)}</div><div class="tltime">${new Date(item.data).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div></div>
-      <div class="tldesc">${safe(item.desc)}</div>
-    </div>
-  </div>`).join(''):`<div class="empty"><div class="empty-ic">🕐</div><div>Nenhuma atividade registrada</div></div>`;
-  if(rs){
-    const tipos=['Ativação','Handover iniciado','Treinamento concluído','Contato realizado'];
-    const cols=['var(--ok)','var(--acc)','var(--pur)','var(--warn)'];
-    const bgs=['var(--okl)','var(--accl)','var(--purl)','var(--warnl)'];
-    rs.innerHTML=tipos.map((tp,i)=>{
-      const cnt=DB.atividades.filter(a=>a.tipo===tp).length;
-      return`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:${bgs[i]};border-radius:var(--r)"><span style="font-size:12px">${iconMap[tp]||'📋'} ${tp}</span><span style="font-weight:700;color:${cols[i]}">${cnt}</span></div>`;
-    }).join('');
-  }
-}
-
-// ─── TREINAMENTOS ──────────────────────────────────────────────────
-async function saveTreinamento(){
-  const nome=document.getElementById('tr-nome').value.trim();
-  if(!nome){toast('Nome obrigatório','err');return}
-  const {error}=await sb.from('treinamentos').insert({
-    nome, modulos:parseInt(document.getElementById('tr-mod').value)||4,
-    duracao:document.getElementById('tr-dur').value||null,
-    descricao:document.getElementById('tr-desc').value.trim()||null,
-    criado_por:sessaoAtual?.user?.id,
-  });
-  if(error){toast('Erro: '+error.message,'err');return}
-  closeMo('mo-train');toast('Trilha criada!');
-  await _refreshTabela('treinamentos');renderTreinamentos();
-}
-
-function deleteTreinamento(id){
-  confirmAction('Excluir esta trilha?',async()=>{
-    const {error}=await sb.from('treinamentos').delete().eq('id',id);
-    if(error){toast('Erro: '+error.message,'err');return}
-    toast('Trilha excluída','warn');
-    await _refreshTabela('treinamentos');renderTreinamentos();
-  });
-}
-
-function renderTreinamentos(){
-  const colors=['var(--acc)','var(--pur)','var(--ok)','var(--tel)','var(--warn)'];
-  const tl=document.getElementById('train-list');
-  if(tl)tl.innerHTML=DB.treinamentos.length?DB.treinamentos.map((t,i)=>`<div class="card" style="cursor:pointer">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <div><div style="font-weight:600;font-size:13px">${safe(t.nome)}</div><div style="font-size:11px;color:var(--txt3)">${t.modulos} módulo(s) · ${safe(t.duracao||'—')}</div></div>
-      <button class="btn btn-d btn-sm" onclick="deleteTreinamento('${t.id}')">🗑</button>
-    </div>
-    ${t.desc?`<div style="font-size:12px;color:var(--txt2)">${safe(t.desc)}</div>`:''}
-  </div>`).join(''):`<div class="empty"><div class="empty-ic">🎓</div><div>Nenhuma trilha criada</div><div style="margin-top:10px"><button class="btn btn-p btn-sm" onclick="openMo('mo-train')">+ Criar Trilha</button></div></div>`;
-  const nums=document.getElementById('tr-total');
-  if(nums)nums.textContent=DB.treinamentos.length;
-  const concEl=document.getElementById('tr-conc');
-  if(concEl)concEl.textContent='—';
-  const revEl=document.getElementById('tr-rev');
-  if(revEl)revEl.textContent=(DB.revendas||[]).length;
-  const certEl=document.getElementById('tr-cert');
-  if(certEl)certEl.textContent='—';
-  const prog=document.getElementById('train-prog-tbody');
-  if(prog)prog.innerHTML=(DB.revendas||[]).length&&(DB.treinamentos||[]).length?DB.revendas.slice(0,8).map(r=>`<tr><td class="tdp">${r.nome}</td><td>${DB.treinamentos[0]?.nome||'—'}</td><td><div style="display:flex;align-items:center;gap:6px"><div class="pbar" style="flex:1"><div class="pfill" style="width:${r.trainProgress||0}%;background:var(--acc)"></div></div><span style="font-size:11px">${r.trainProgress||0}%</span></div></td><td><span class="st ${r.trainProgress===100?'st-ok':r.trainProgress>0?'st-on':'st-tr'}">${r.trainProgress===100?'Concluído':r.trainProgress>0?'Em andamento':'Não iniciado'}</span></td></tr>`).join(''):`<tr><td colspan="4"><div class="empty" style="padding:16px">Cadastre revendas e trilhas para ver o progresso</div></td></tr>`;
-}
-
-// ─── HANDOVER ──────────────────────────────────────────────────────
-async function saveHandover(){
-  const revNome=document.getElementById('h-revenda').value;
-  if(!revNome){toast('Selecione uma revenda','err');return}
-  const revObj=DB.revendas.find(r=>r.nome===revNome);
-  const csNome=document.getElementById('h-cs').value;
-  const csObj=DB.usuarios.find(u=>u.nome===csNome);
-  const prazo=document.getElementById('h-prazo').value||null;
-  const {error}=await sb.from('handovers').insert({
-    revenda_id:revObj?.id||null, revenda_nome:revNome,
-    cs_id:csObj?.id||null, cs_nome:csNome||null,
-    prazo, obs:document.getElementById('h-obs').value.trim()||null,
-    inicio:today(), progresso:0, status:'Em andamento',
-    checklist:{contrato:false,docs:false,credenciais:false,treinamento:false,nps:false},
-  });
-  if(error){toast('Erro: '+error.message,'err');return}
-  await sb.from('atividades').insert({
-    tipo:'Handover iniciado', revenda_id:revObj?.id||null, revenda_nome:revNome,
-    descricao:`Handover iniciado. Prazo: ${fmtDate(prazo)}`,
-    usuario_id:sessaoAtual?.user?.id, usuario_nome:perfilAtual?.nome,
-  });
-  closeMo('mo-handover');toast('Handover iniciado!');
-  await Promise.all([_refreshTabela('handovers'), _refreshTabela('atividades')]);renderHandover();
-}
-
-function renderHandover(){
-  const tb=document.getElementById('handover-tbody');
-  if(!tb)return;
-  const stC={onAndamento:'st-on',Atrasado:'st-off',Concluído:'st-dn'};
-  tb.innerHTML=DB.handovers.length?DB.handovers.map(h=>{
-    const atras=h.prazo&&h.prazo<today()&&h.status!=='Concluído';
-    const stLbl=h.status==='Concluído'?'Concluído':atras?'Atrasado':'Em andamento';
-    const stCls=h.status==='Concluído'?'st-dn':atras?'st-off':'st-on';
-    return`<tr>
-      <td class="tdp">${safe(h.revenda)}</td>
-      <td>${safe(h.cs||'—')}</td>
-      <td style="font-size:11px">${fmtDate(h.inicio)}</td>
-      <td style="font-size:11px">${fmtDate(h.prazo)}</td>
-      <td><div style="display:flex;align-items:center;gap:6px"><div class="pbar" style="width:120px"><div class="pfill" style="width:${h.progresso}%;background:var(--acc)"></div></div><span style="font-size:11px">${h.progresso}%</span></div></td>
-      <td><span class="st ${stCls}">${stLbl}</span></td>
-      <td><div style="display:flex;gap:4px">
-        <button class="btn btn-s btn-sm" onclick="showHandoverDetail('${h.id}')">Ver</button>
-        <button class="btn btn-d btn-sm" onclick="deleteHandover('${h.id}')">🗑</button>
-      </div></td>
-    </tr>`;
-  }).join(''):`<tr><td colspan="7"><div class="empty" style="padding:20px">Nenhum handover iniciado</div></td></tr>`;
-}
-
-function showHandoverDetail(id){
-  const h=DB.handovers.find(x=>x.id===id);if(!h)return;
-  const area=document.getElementById('handover-checklist-area');
-  if(!area)return;
-  const items=[{k:'contrato',l:'Contrato de parceria assinado'},{k:'docs',l:'Documentação técnica entregue'},{k:'credenciais',l:'Credenciais de acesso configuradas'},{k:'treinamento',l:'Treinamento final certificado'},{k:'nps',l:'NPS de implantação coletado'}];
-  const done=items.filter(i=>h.checklist[i.k]).length;
-  const pct=Math.round(done/items.length*100);
-  area.innerHTML=`<div class="ch"><div><div class="ct">Checklist — ${safe(h.revenda)}</div><div class="cs">CS: ${safe(h.cs||'—')} · Prazo: ${fmtDate(h.prazo)}</div></div><span class="badge bg-acc">${pct}% concluído</span></div>
-    <div class="pbar" style="margin-bottom:14px"><div class="pfill" style="width:${pct}%;background:var(--acc)"></div></div>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      ${items.map(item=>`<label class="cb"><input type="checkbox" ${h.checklist[item.k]?'checked':''} onchange="toggleHandoverCheck('${id}','${item.k}',this.checked)"> ${item.l}</label>`).join('')}
-    </div>
-    <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
-      ${pct===100?`<button class="btn btn-ok" onclick="completeHandover('${id}')">🎉 Marcar como Concluído</button>`:''}
-    </div>`;
-}
-
-async function toggleHandoverCheck(hid,key,val){
-  const h=DB.handovers.find(x=>x.id===hid);if(!h)return;
-  const newCheck={...h.checklist,[key]:val};
-  const done=Object.values(newCheck).filter(Boolean).length;
-  const prog=Math.round(done/5*100);
-  const {error}=await sb.from('handovers').update({
-    checklist:newCheck,progresso:prog,atualizado_em:new Date().toISOString()
-  }).eq('id',hid);
-  if(error){toast('Erro: '+error.message,'err');return}
-  await _refreshTabela('handovers');renderHandover();showHandoverDetail(hid);
-}
-
-async function completeHandover(id){
-  const h=DB.handovers.find(x=>x.id===id);if(!h)return;
-  await sb.from('handovers').update({status:'Concluído',progresso:100,atualizado_em:new Date().toISOString()}).eq('id',id);
-  await sb.from('atividades').insert({
-    tipo:'Ativação',revenda_nome:h.revenda,
-    descricao:`Handover concluído para ${h.revenda}. Parceria ativada!`,
-    usuario_id:sessaoAtual?.user?.id,usuario_nome:perfilAtual?.nome,
-  });
-  toast('Handover concluído! 🎉');
-  await Promise.all([_refreshTabela('handovers'), _refreshTabela('atividades')]);renderHandover();
-}
-
-function deleteHandover(id){
-  confirmAction('Excluir este handover?',async()=>{
-    const {error}=await sb.from('handovers').delete().eq('id',id);
-    if(error){toast('Erro: '+error.message,'err');return}
-    toast('Handover excluído','warn');
-    await _refreshTabela('handovers');renderHandover();
-  });
-}
-
 // ─── RELATÓRIOS ────────────────────────────────────────────────────
 const _ehInativo = r => !r.inativado_portal && ['inativo','inativa','perdido','cancelado','churn'].some(n=>(r.status||'').toLowerCase().includes(n));
 
@@ -5087,7 +4743,6 @@ async function renderRelatorios(){
     {icon:'📊', titulo:'Revendas', desc:'Cadastro completo de todas as revendas', fn:'exportRelatorio()', cor:'#6366f1'},
     {icon:'📋', titulo:'Inativações', desc:'Histórico e motivos de inativação', fn:'exportRelatorioInativacao()', cor:'#ef4444'},
     {icon:'✅', titulo:'Tarefas', desc:'Todas as tarefas e seus status', fn:'exportRelatorioTarefas()', cor:'#10b981'},
-    {icon:'🤝', titulo:'Handover', desc:'Processos de handover em andamento', fn:'exportRelatorioHandover()', cor:'#f59e0b'},
     {icon:'🎯', titulo:'Metas', desc:'Metas do mês atual e histórico', fn:'exportRelatorioMetas()', cor:'#8b5cf6'},
     {icon:'🏗️', titulo:'Pipeline por CS', desc:'Distribuição de revendas por CS responsável', fn:'exportRelatorioPipelineCS()', cor:'#06b6d4'},
   ].map(c=>`
@@ -5193,20 +4848,6 @@ function exportRelatorioTarefas(){
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Tarefas');
   XLSX.writeFile(wb, 'relatorio-tarefas.xlsx');
   toast('Relatório de tarefas exportado!');
-}
-
-function exportRelatorioHandover(){
-  if(typeof XLSX==='undefined'){toast('Biblioteca XLSX não carregada','err');return}
-  const rows = (DB.handovers||[]).map(h=>({
-    Revenda: h.revenda, CS: h.cs, Status: h.status,
-    Início: fmtDate(h.inicio), Prazo: fmtDate(h.prazo),
-    Progresso: h.progresso+'%', Observações: h.obs
-  }));
-  if(!rows.length){toast('Nenhum handover encontrado','warn');return}
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Handover');
-  XLSX.writeFile(wb, 'relatorio-handover.xlsx');
-  toast('Relatório de handover exportado!');
 }
 
 async function exportRelatorioMetas(){
@@ -5839,7 +5480,6 @@ document.getElementById('confirm-btn').addEventListener('click',()=>{
 
 
 // ─── METAS ORION ───────────────────────────────────────────────────
-const FUNC_URL = 'https://xuymxedyuywahcfcdcah.supabase.co/functions/v1/webhook-orion';
 const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
@@ -7903,8 +7543,6 @@ async function executarLimpeza(){
   const delRev  = document.getElementById('del-revendas').checked;
   const delTask = document.getElementById('del-tarefas').checked;
   const delAtiv = document.getElementById('del-atividades').checked;
-  const delHand = document.getElementById('del-handovers').checked;
-  const delTrai = document.getElementById('del-treinamentos').checked;
 
   closeMo('mo-limpar');
   toast('⏳ Apagando dados...','warn');
@@ -7917,14 +7555,12 @@ async function executarLimpeza(){
   }
   if(delTask)  ops.push(sb.from('tarefas').delete().neq('id','00000000-0000-0000-0000-000000000000'));
   if(delAtiv)  ops.push(sb.from('atividades').delete().neq('id','00000000-0000-0000-0000-000000000000'));
-  if(delHand)  ops.push(sb.from('handovers').delete().neq('id','00000000-0000-0000-0000-000000000000'));
-  if(delTrai)  ops.push(sb.from('treinamentos').delete().neq('id','00000000-0000-0000-0000-000000000000'));
 
   const results = await Promise.all(ops);
   const erros = results.filter(r=>r.error).map(r=>r.error.message);
 
   logAuditoria('DELETE_ALL','sistema',null,{
-    tabelas:{revendas:delRev,tarefas:delTask,atividades:delAtiv,handovers:delHand,treinamentos:delTrai}
+    tabelas:{revendas:delRev,tarefas:delTask,atividades:delAtiv}
   });
 
   if(erros.length){
@@ -8319,9 +7955,7 @@ function inicializarGoogleCalendar(){
           }
           _gcalToken = resp.access_token;
           _gcalUserEmail = resp.email || '';
-          atualizarUIMeetAuth();
           atualizarUIMeetTask();
-          if(window._gcalPendente) _criarEventoMeet();
           if(window._gcalPendenteDelete){
             const {id, eventId} = window._gcalPendenteDelete;
             window._gcalPendenteDelete = null;
@@ -8334,39 +7968,6 @@ function inicializarGoogleCalendar(){
     }
   };
   tentativa(0);
-}
-
-function abrirModalMeet(){
-  if(!currentCardId) return;
-  const rev = DB.revendas.find(r=>r.id===currentCardId);
-  document.getElementById('mo-meet-sub').textContent = rev?.nome || '—';
-
-  // Data padrão = amanhã
-  const amanha = new Date(); amanha.setDate(amanha.getDate()+1);
-  document.getElementById('meet-data').value = amanha.toISOString().slice(0,10);
-  document.getElementById('meet-titulo').value = rev ? `Reunião — ${rev.nome}` : '';
-  document.getElementById('meet-email').value = rev?.email || '';
-  document.getElementById('meet-desc').value = '';
-
-  atualizarUIMeetAuth();
-  openMo('mo-meet');
-}
-
-function atualizarUIMeetAuth(){
-  const aviso = document.getElementById('mo-meet-auth-aviso');
-  const ok    = document.getElementById('mo-meet-auth-ok');
-  const btn   = document.getElementById('btn-criar-meet');
-  if(!aviso||!ok) return;
-  if(_gcalToken){
-    aviso.style.display = 'none';
-    ok.style.display    = 'flex';
-    document.getElementById('mo-meet-email-conectado').textContent = _gcalUserEmail || 'Conta Google conectada';
-    if(btn) btn.disabled = false;
-  } else {
-    aviso.style.display = 'block';
-    ok.style.display    = 'none';
-    if(btn) btn.disabled = true;
-  }
 }
 
 function abrirNovaTarefa(){
@@ -8596,177 +8197,9 @@ async function _deletarEventoGcal(eventId){
   } catch(e){ console.warn('Não foi possível excluir evento do Google Calendar:', e.message); }
 }
 
-function conectarGoogle(){
-  if(!_gcalTokenClient){ toast('Google ainda carregando, aguarde...','warn'); return; }
-  // Armazena intenção de criar evento após autenticar
-  window._gcalPendente = true;
-  _gcalTokenClient.requestAccessToken({prompt:'consent'});
-}
-
-function desconectarGoogle(){
-  if(_gcalToken) google.accounts.oauth2.revoke(_gcalToken, ()=>{});
-  _gcalToken = null; _gcalUserEmail = null;
-  atualizarUIMeetAuth();
-  toast('Conta Google desconectada');
-}
-
-async function criarMeet(){
-  if(!_gcalToken){ conectarGoogle(); return; }
-  _criarEventoMeet();
-}
-
-async function _criarEventoMeet(){
-  if(!_gcalToken || !currentCardId) return;
-  if(!window._gcalPendente && document.getElementById('mo-meet')?.style.display==='none') return;
-  window._gcalPendente = false;
-
-  const titulo   = document.getElementById('meet-titulo')?.value.trim() || 'Reunião';
-  const dataStr  = document.getElementById('meet-data')?.value;
-  const horaStr  = document.getElementById('meet-hora')?.value || '10:00';
-  const durMin   = parseInt(document.getElementById('meet-duracao')?.value) || 60;
-  const email    = document.getElementById('meet-email')?.value.trim();
-  const desc     = document.getElementById('meet-desc')?.value.trim();
-
-  if(!dataStr){ toast('Informe a data da reunião','warn'); return; }
-
-  const [h, m] = horaStr.split(':').map(Number);
-  const inicio = new Date(`${dataStr}T${horaStr}:00`);
-  const fim    = new Date(inicio.getTime() + durMin * 60000);
-
-  const evento = {
-    summary: titulo,
-    description: desc || undefined,
-    start: { dateTime: inicio.toISOString(), timeZone: 'America/Sao_Paulo' },
-    end:   { dateTime: fim.toISOString(),    timeZone: 'America/Sao_Paulo' },
-    conferenceData: {
-      createRequest: {
-        requestId: `lc-${currentCardId}-${Date.now()}`,
-        conferenceSolutionKey: { type: 'hangoutsMeet' }
-      }
-    },
-    attendees: email ? [{ email }] : undefined,
-  };
-
-  const btn = document.getElementById('btn-criar-meet');
-  if(btn){ btn.disabled = true; btn.textContent = '⏳ Criando...'; }
-
-  try {
-    const resp = await fetch(
-      'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1&sendUpdates=all',
-      {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer '+_gcalToken, 'Content-Type': 'application/json' },
-        body: JSON.stringify(evento)
-      }
-    );
-
-    if(resp.status === 401){
-      _gcalToken = null; atualizarUIMeetAuth();
-      toast('Sessão Google expirada — faça login novamente','warn');
-      return;
-    }
-
-    const data = await resp.json();
-    if(!resp.ok) throw new Error(data.error?.message || resp.statusText);
-
-    const meetLink = data.hangoutLink || data.conferenceData?.entryPoints?.find(e=>e.entryPointType==='video')?.uri;
-    if(!meetLink) throw new Error('Link do Meet não retornado pelo Google');
-
-    // Formata data para exibição
-    const dtFmt = inicio.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
-
-    // Salva no histórico do card
-    await sb.from('historico_cards').insert({
-      revenda_id:  currentCardId,
-      tipo:        '🎯 Google Meet',
-      descricao:   `**${titulo}**\n📅 ${dtFmt} · ⏱ ${durMin}min\n🔗 ${meetLink}${email?'\n👤 Convidado: '+email:''}`,
-      manual:      true,
-      usuario_id:  sessaoAtual?.user?.id,
-      usuario_nome: perfilAtual?.nome || 'Você',
-    });
-
-    closeMo('mo-meet');
-    toast('✅ Meet criado! Link salvo no histórico.');
-    setTimeout(()=>renderCardHistorico(currentCardId), 300);
-
-  } catch(e){
-    console.error('Erro Google Calendar:', e);
-    toast('Erro ao criar Meet: '+e.message, 'err');
-  } finally {
-    if(btn){ btn.disabled = false; btn.textContent = '📅 Criar evento e gerar link Meet'; }
-  }
-}
-
 initApp();
 inicializarGoogleCalendar();
 </script>
-
-<!-- ── MODAL GOOGLE MEET ───────────────────────────────────── -->
-<div class="mo-ov" id="mo-meet" onclick="if(event.target===this)closeMo('mo-meet')">
-  <div class="mo" style="width:min(480px,95vw);padding:0;overflow:hidden">
-    <div class="moh" style="padding:14px 18px">
-      <div>
-        <div class="mot">📅 Agendar Google Meet</div>
-        <div id="mo-meet-sub" style="font-size:12px;color:var(--txt3);margin-top:2px">—</div>
-      </div>
-      <button class="btn btn-s btn-sm" onclick="closeMo('mo-meet')">✕</button>
-    </div>
-    <div style="padding:20px 22px;display:flex;flex-direction:column;gap:14px">
-
-      <!-- Aviso Google não conectado -->
-      <div id="mo-meet-auth-aviso" style="display:none;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.2);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--txt2);line-height:1.5">
-        🔐 <strong>Conecte sua conta Google</strong> para criar o evento com link do Meet.<br>
-        <button onclick="conectarGoogle()" style="margin-top:8px;background:var(--acc);color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;width:100%">
-          Entrar com Google
-        </button>
-      </div>
-
-      <!-- Badge conta conectada -->
-      <div id="mo-meet-auth-ok" style="display:none;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--ok);display:none;align-items:center;gap:8px">
-        ✅ <span id="mo-meet-email-conectado"></span>
-        <button onclick="desconectarGoogle()" style="margin-left:auto;background:none;border:none;color:var(--txt3);cursor:pointer;font-size:11px;text-decoration:underline">sair</button>
-      </div>
-
-      <div class="fg">
-        <label>Título da reunião</label>
-        <input type="text" id="meet-titulo" placeholder="Ex: Reunião de acompanhamento" style="font-size:13px">
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="fg" style="margin:0">
-          <label>Data</label>
-          <input type="date" id="meet-data" style="font-size:13px">
-        </div>
-        <div class="fg" style="margin:0">
-          <label>Horário</label>
-          <input type="time" id="meet-hora" value="10:00" style="font-size:13px">
-        </div>
-      </div>
-      <div class="fg">
-        <label>Duração</label>
-        <select id="meet-duracao" style="font-size:13px;padding:10px 12px;border-radius:var(--r);border:1px solid var(--bdr);background:var(--bg2);color:var(--txt);width:100%">
-          <option value="30">30 minutos</option>
-          <option value="60" selected>1 hora</option>
-          <option value="90">1h30</option>
-          <option value="120">2 horas</option>
-        </select>
-      </div>
-      <div class="fg">
-        <label>E-mail do convidado (opcional)</label>
-        <input type="email" id="meet-email" placeholder="email@dominio.com" style="font-size:13px">
-      </div>
-      <div class="fg">
-        <label>Descrição (opcional)</label>
-        <textarea id="meet-desc" rows="2" placeholder="Pauta da reunião..." style="font-size:13px;width:100%;box-sizing:border-box"></textarea>
-      </div>
-      <div style="display:flex;gap:10px;margin-top:4px">
-        <button id="btn-criar-meet" onclick="criarMeet()" class="btn btn-p" style="flex:1;font-size:13px">
-          📅 Criar evento e gerar link Meet
-        </button>
-        <button onclick="closeMo('mo-meet')" class="btn btn-s" style="font-size:13px">Cancelar</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- Indicador offline -->
 <div id="offline-bar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9998;

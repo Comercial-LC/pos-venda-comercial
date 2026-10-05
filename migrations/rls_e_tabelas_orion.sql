@@ -1,6 +1,11 @@
 -- ═══════════════════════════════════════════════════════════════
 -- PORTAL REVENDA LC — Tabelas Orion + RLS Completo
 -- Execute no SQL Editor do Supabase
+--
+-- ⚠️ NÃO reexecute este arquivo isoladamente em produção: as políticas
+-- orion_metas_insert/orion_metas_update aqui definidas (Administrador
+-- apenas) foram substituídas por metas_permissao_cs_manager_migration.sql
+-- (libera também CS Manager). Reaplicar este arquivo reverte esse fix.
 -- ═══════════════════════════════════════════════════════════════
 
 -- ── 1. TABELAS DA INTEGRAÇÃO ORION ───────────────────────────

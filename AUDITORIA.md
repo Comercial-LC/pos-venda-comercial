@@ -1,5 +1,10 @@
 # Auditoria de Segurança e Qualidade — Portal Revenda LC
 
+> ⚠️ **Documento histórico.** Todos os achados abaixo foram corrigidos em jun/2026
+> (score 38→100, ver `migrations/security_patch.sql`). O projeto evoluiu bastante
+> desde então (novas tabelas, Edge Functions, features) — isto NÃO é um retrato
+> do estado atual do sistema, só o registro da auditoria original.
+
 > Auditoria realizada em: junho/2026  
 > Arquivos analisados: `index.html`, `app.html`, `supabase_setup.sql`, `rls_e_tabelas_orion.sql`, `supabase/functions/webhook-orion/index.ts`
 
