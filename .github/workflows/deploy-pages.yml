@@ -27,10 +27,16 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Preparar diretório de publicação
+        run: |
+          mkdir -p _site
+          cp app.html confirmacao.html index.html manifest.json r.html sw.js .nojekyll _site/
+          cp "Fogos.mp3" "Palmas.mp3" "Palmas 2.mp3" "Sino.mp3" "video de fogos.mp4" _site/
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
+          path: '_site'
 
       - name: Deploy to GitHub Pages
         id: deployment

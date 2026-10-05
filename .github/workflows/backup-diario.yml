@@ -25,12 +25,16 @@ jobs:
             'historico_cards',
             'tarefas',
             'atividades',
-            'handovers',
-            'treinamentos',
             'importacoes',
             'auditoria',
             'orion_metas',
             'orion_leads_vendidos',
+            'orion_eventos_raw',
+            'convites',
+            'participantes',
+            'analises_ia',
+            'analises_estrategia_mes',
+            'configuracoes',
           ];
 
           async function exportarTabela(tabela) {

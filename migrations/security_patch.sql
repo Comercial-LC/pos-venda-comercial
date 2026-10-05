@@ -2,6 +2,11 @@
 -- PATCH DE SEGURANÇA — Portal Revenda LC
 -- Execute INTEIRO no SQL Editor do Supabase (supabase.com → SQL Editor)
 -- Corrige: C4 C5 G4 M3 + anon role bloqueado
+--
+-- ⚠️ NÃO reexecute este arquivo isoladamente em produção: a política
+-- orion_metas_insert aqui definida (Administrador apenas) foi substituída
+-- por metas_permissao_cs_manager_migration.sql (libera também CS Manager).
+-- Reaplicar este arquivo reverte esse fix.
 -- ═══════════════════════════════════════════════════════════════════
 
 -- ── 1. BLOQUEAR role anon em todas as tabelas ─────────────────────

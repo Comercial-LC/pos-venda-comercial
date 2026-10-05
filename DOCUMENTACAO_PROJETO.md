@@ -1,5 +1,11 @@
 # Portal Revenda LC — Documentação Técnica Completa
 
+> ⚠️ **Documento desatualizado (última revisão jun/2026).** Faltam aqui as Edge
+> Functions e tabelas adicionadas depois (lc-success-ai, lc-success-ai-estrategia,
+> convites, participantes, configuracoes, analises_ia, analises_estrategia_mes).
+> O project-ref do Supabase já foi corrigido para o atual (`xuymxedyuywahcfcdcah`),
+> mas o resto do conteúdo reflete o estado do sistema em junho/2026, não o atual.
+
 > Sistema de gestão de onboarding e pós-venda de revendas, integrado ao Orion CRM.  
 > Última atualização: junho/2026
 
@@ -123,7 +129,7 @@ Decola Instalação → Decola Produtos → Primeiro Cliente → Handover
 
 | Parâmetro | Valor |
 |-----------|-------|
-| URL do projeto | `https://vykhskaayukmodnglujc.supabase.co` |
+| URL do projeto | `https://xuymxedyuywahcfcdcah.supabase.co` |
 | Anon Key | Definida inline em `index.html` e `app.html` |
 | Service Role Key | Variável de ambiente `SUPABASE_SERVICE_ROLE_KEY` (apenas na Edge Function) |
 | Webhook Secret | Variável de ambiente `ORION_WEBHOOK_SECRET` (apenas na Edge Function) |
@@ -535,7 +541,7 @@ orion_leads_vendidos.id_origem ──── revendas.id_origem (correlação por
 
 **Localização:** `supabase/functions/webhook-orion/index.ts`  
 **Runtime:** Deno + TypeScript  
-**URL de produção:** `https://vykhskaayukmodnglujc.supabase.co/functions/v1/webhook-orion`
+**URL de produção:** `https://xuymxedyuywahcfcdcah.supabase.co/functions/v1/webhook-orion`
 
 #### Endpoints
 
@@ -604,7 +610,7 @@ npm install -g supabase
 supabase login
 
 # Linkar ao projeto
-supabase link --project-ref vykhskaayukmodnglujc
+supabase link --project-ref xuymxedyuywahcfcdcah
 
 # Deploy da função
 supabase functions deploy webhook-orion
@@ -682,7 +688,7 @@ npx serve .
 3. Deploy da função (ver seção 5.1)
 4. Configure na Orion CRM o webhook apontando para:
    ```
-   https://vykhskaayukmodnglujc.supabase.co/functions/v1/webhook-orion
+   https://xuymxedyuywahcfcdcah.supabase.co/functions/v1/webhook-orion
    ```
 
 ### 6.6 Executar Edge Functions Localmente (Desenvolvimento)
@@ -703,7 +709,7 @@ supabase functions serve webhook-orion --env-file .env.local
 
 Crie `.env.local` com:
 ```env
-SUPABASE_URL=https://vykhskaayukmodnglujc.supabase.co
+SUPABASE_URL=https://xuymxedyuywahcfcdcah.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<sua_service_role_key>
 ORION_WEBHOOK_SECRET=<seu_token_secreto>
 ```
@@ -719,7 +725,7 @@ As chaves do Supabase (`SUPABASE_URL` e `SUPABASE_ANON_KEY`) estão hardcoded em
 
 ```javascript
 // Antes (hardcoded em dois arquivos)
-const SUPABASE_URL = 'https://vykhskaayukmodnglujc.supabase.co'
+const SUPABASE_URL = 'https://xuymxedyuywahcfcdcah.supabase.co'
 
 // Depois (um único ponto de configuração)
 // config.js carregado por ambos os HTMLs
@@ -811,5 +817,5 @@ Existe uma visão de TV no sistema. Considerar transformá-la em uma URL públic
 | Edge Function webhook | `supabase/functions/webhook-orion/index.ts` |
 | Tela de login | `index.html` |
 | Aplicação principal | `app.html` |
-| Painel Supabase | https://supabase.com/dashboard/project/vykhskaayukmodnglujc |
-| SQL Editor Supabase | https://supabase.com/dashboard/project/vykhskaayukmodnglujc/editor |
+| Painel Supabase | https://supabase.com/dashboard/project/xuymxedyuywahcfcdcah |
+| SQL Editor Supabase | https://supabase.com/dashboard/project/xuymxedyuywahcfcdcah/editor |
