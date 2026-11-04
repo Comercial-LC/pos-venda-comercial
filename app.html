@@ -430,7 +430,8 @@ select option{background:var(--bg2)}
         <button class="btn btn-sm" style="background:rgba(249,115,22,.15);color:#f97316;border:1px solid rgba(249,115,22,.45);font-size:11px" onclick="batchMove('Decola Produtos')">📦 Decola Prod.</button>
         <button class="btn btn-sm" style="background:var(--okl);color:var(--ok);border:1px solid var(--ok);font-size:11px" onclick="batchMove('Primeiro Cliente')">👤 1º Cliente</button>
         <button class="btn btn-sm" style="background:var(--tell);color:var(--tel);border:1px solid var(--tel);font-size:11px" onclick="batchMove('Handover')">🤝 Handover</button>
-        <button class="btn btn-sm" style="margin-left:auto;background:var(--okl);color:var(--ok);border:1px solid var(--ok);font-size:11px" onclick="exportKbSelecao()">📥 Exportar Excel</button>
+        <button class="btn btn-sm" style="margin-left:auto;background:var(--accl);color:var(--acc);border:1px solid var(--acc);font-size:11px" onclick="abrirHistoricoLote()">📝 Lançar no histórico</button>
+        <button class="btn btn-sm" style="background:var(--okl);color:var(--ok);border:1px solid var(--ok);font-size:11px" onclick="exportKbSelecao()">📥 Exportar Excel</button>
         <button class="btn btn-s btn-sm" style="font-size:11px" onclick="clearKbSelection()">✕ Cancelar seleção</button>
       </div>
 
@@ -1625,6 +1626,43 @@ select option{background:var(--bg2)}
     <div class="mof">
       <button class="btn btn-s" onclick="cancelarMotivoInativo()">Cancelar</button>
       <button class="btn btn-d" onclick="confirmarMotivoInativo()">✅ Confirmar inativação</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lançamento de histórico em lote (Pipeline) -->
+<div class="mo-ov" id="mo-hist-lote">
+  <div class="mo" style="width:520px">
+    <div class="moh">
+      <div>
+        <div class="mot">📝 Lançar no histórico em lote</div>
+        <div style="font-size:12px;color:var(--txt3);margin-top:2px" id="hist-lote-sub">0 revenda(s) selecionada(s)</div>
+      </div>
+    </div>
+    <div class="mob">
+      <div class="fg">
+        <label>Tag *</label>
+        <select id="hist-lote-tag" onchange="atualizarCamposHistLote()"></select>
+      </div>
+      <div class="fg" id="hist-lote-extra" style="display:none;gap:8px">
+        <div style="flex:1">
+          <label>Data prevista *</label>
+          <input type="date" id="hist-lote-data" style="width:100%;box-sizing:border-box">
+        </div>
+        <div id="hist-lote-qtd-wrap" style="width:130px;display:none">
+          <label>Qtd. clientes</label>
+          <input type="number" id="hist-lote-qtd" min="1" value="1" style="width:100%;box-sizing:border-box">
+        </div>
+      </div>
+      <div class="fg">
+        <label>Anotação *</label>
+        <textarea id="hist-lote-txt" rows="4" placeholder="Escreva a observação, contato realizado, decisão... (será lançada igual em todas as revendas selecionadas)" style="width:100%;resize:vertical"></textarea>
+      </div>
+      <div style="font-size:11px;color:var(--txt3);max-height:90px;overflow:auto" id="hist-lote-nomes"></div>
+    </div>
+    <div class="mof">
+      <button class="btn btn-s" onclick="closeMo('mo-hist-lote')">Cancelar</button>
+      <button class="btn btn-p" id="hist-lote-btn" onclick="salvarHistoricoLote()">✅ Lançar</button>
     </div>
   </div>
 </div>
@@ -3433,6 +3471,70 @@ async function batchMove(newStatus){
     abrirMotivoInativo(newStatus, executar);
   } else {
     await executar('');
+  }
+}
+
+// ── Lançamento de histórico em lote ────────────────────────────────
+function abrirHistoricoLote(){
+  if(!kbSelected.size){ toast('Selecione ao menos uma revenda','warn'); return; }
+  const sel = document.getElementById('hist-lote-tag');
+  if(sel){
+    sel.innerHTML = Object.entries(TAGS_ANALISE_MES)
+      .map(([k,c])=>`<option value="${k}"${k==='OUTROS'?' selected':''}>${c.label}</option>`).join('');
+  }
+  document.getElementById('hist-lote-txt').value  = '';
+  document.getElementById('hist-lote-data').value = '';
+  document.getElementById('hist-lote-qtd').value  = '1';
+  const nomes = (DB.revendas||[]).filter(r=>kbSelected.has(r.id)).map(r=>r.nome);
+  document.getElementById('hist-lote-sub').textContent = `${kbSelected.size} revenda(s) selecionada(s)`;
+  document.getElementById('hist-lote-nomes').textContent = nomes.join(' • ');
+  atualizarCamposHistLote();
+  openMo('mo-hist-lote');
+  setTimeout(()=>document.getElementById('hist-lote-txt')?.focus(), 50);
+}
+
+function atualizarCamposHistLote(){
+  const cfg = TAGS_ANALISE_MES[document.getElementById('hist-lote-tag')?.value];
+  const extra = document.getElementById('hist-lote-extra');
+  const qtd   = document.getElementById('hist-lote-qtd-wrap');
+  if(extra) extra.style.display = cfg?.requerData ? 'flex' : 'none';
+  if(qtd)   qtd.style.display   = cfg?.requerQtd  ? 'block' : 'none';
+}
+
+async function salvarHistoricoLote(){
+  const ids = [...kbSelected];
+  if(!ids.length){ toast('Selecione ao menos uma revenda','warn'); return; }
+  const txt = document.getElementById('hist-lote-txt')?.value.trim();
+  if(!txt){ toast('Escreva uma anotação antes de salvar','err'); return; }
+  const tag = document.getElementById('hist-lote-tag')?.value || 'OUTROS';
+  const cfg = TAGS_ANALISE_MES[tag] || TAGS_ANALISE_MES.OUTROS;
+  const data = document.getElementById('hist-lote-data')?.value;
+  if(cfg.requerData && !data){ toast('Informe a data prevista para esta tag','err'); return; }
+  const qtd = parseInt(document.getElementById('hist-lote-qtd')?.value) || 1;
+
+  const registros = ids.map(id=>{
+    const p = {
+      revenda_id:id, tipo:cfg.label, descricao:txt, tag,
+      manual:true,
+      usuario_id:sessaoAtual?.user?.id,
+      usuario_nome:perfilAtual?.nome||'Você',
+    };
+    if(cfg.requerData) p.data_prevista = data;
+    if(cfg.requerQtd)  p.quantidade    = qtd;
+    return p;
+  });
+
+  const btn = document.getElementById('hist-lote-btn');
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+  // Um único insert com todas as linhas (1 requisição, independente da quantidade)
+  const {error} = await sb.from('historico_cards').insert(registros);
+  if(btn){ btn.disabled = false; btn.textContent = '✅ Lançar'; }
+  if(error){ toast('Erro: '+error.message,'err'); return; }
+
+  closeMo('mo-hist-lote');
+  toast(`✅ Anotação lançada em ${registros.length} revenda(s)!`);
+  if(typeof currentCardId!=='undefined' && currentCardId && ids.includes(currentCardId)){
+    renderCardHistorico(currentCardId);
   }
 }
 
