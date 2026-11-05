@@ -319,6 +319,7 @@ select option{background:var(--bg2)}
 
     <!-- DASHBOARD -->
     <div class="panel on" id="p-dashboard">
+      <div id="dash-reativacao-alerta" style="display:none;margin-bottom:16px"></div>
       <div class="mg" id="dash-kpis"></div>
 
       <!-- Metas Orion -->
@@ -2705,7 +2706,7 @@ async function loadFromSupabase(){
     while(true){
       const {data, error} = await sb
         .from('revendas')
-        .select('id,nome,cnpj,cidade,uf,email,tel,cs,status,segmento,porte,contratos,curva,ingresso,obs,produtos,tpc,inativado_portal,criado_em,id_origem')
+        .select('id,nome,cnpj,cidade,uf,email,tel,cs,status,segmento,porte,contratos,curva,ingresso,obs,produtos,tpc,inativado_portal,reativacao_inicio,criado_em,id_origem')
         .order('nome', {ascending:true})
         .range(pag*PG, (pag+1)*PG - 1);
       if(error){ console.warn('revendas pag'+pag+':', error.message); break; }
@@ -2774,7 +2775,7 @@ async function loadFromSupabase(){
 async function _refreshTabela(tabela){
   const PG = 500;
   if(tabela === 'revendas'){
-    const C = 'id,nome,cnpj,cidade,uf,email,tel,cs,status,segmento,porte,contratos,curva,ingresso,obs,produtos,tpc,inativado_portal,criado_em,id_origem';
+    const C = 'id,nome,cnpj,cidade,uf,email,tel,cs,status,segmento,porte,contratos,curva,ingresso,obs,produtos,tpc,inativado_portal,reativacao_inicio,criado_em,id_origem';
     let todas=[], pag=0;
     while(true){
       const {data,error}=await sb.from('revendas').select(C).order('nome',{ascending:true}).range(pag*PG,(pag+1)*PG-1);
@@ -2817,6 +2818,7 @@ function normalizeRevenda(r){
     produtos:  r.produtos||[],
     tpc:             r.tpc||'',
     inativado_portal: r.inativado_portal || false,
+    reativacao_inicio: r.reativacao_inicio || null,
     criadoEm:        r.criado_em,
   };
 }
@@ -3218,6 +3220,8 @@ function renderDashboard(){
     {label: penultimaEtapa||'Pausados',   val:primeiroCliente, cls:'yw', icon: _etPenult.icon||'⏸️'},
     {label:'Inativos',                    val:inativos,        cls:'rd', icon:'🚫'},
   ];
+  renderAlertaReativacao(rv);
+
   const kEl=document.getElementById('dash-kpis');
   if(kEl)kEl.innerHTML=kpis.map(k=>`<div class="mc ${k.cls}"><div style="font-size:24px;margin-bottom:8px">${safe(k.icon)}</div><div class="mv">${k.val}</div><div class="ml">${safe(k.label)}</div></div>`).join('');
 
@@ -3273,6 +3277,31 @@ function renderDashboard(){
   })();
 
   if(!window._modoEmergencia) carregarMetas();
+}
+
+// Notificação: revendas que estouraram o prazo de 30 dias de reativação sem ativar cliente
+function renderAlertaReativacao(rv){
+  const el = document.getElementById('dash-reativacao-alerta');
+  if(!el) return;
+  const vencidas = (rv||[])
+    .map(r=>({r, st:reativacaoStatus(r)}))
+    .filter(x=>x.st?.vencido && !x.r.inativado_portal)
+    .sort((a,b)=>b.st.dias-a.st.dias);
+  if(!vencidas.length){ el.style.display='none'; el.innerHTML=''; return; }
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div style="border:1px solid rgba(239,68,68,.45);border-left:4px solid #ef4444;background:rgba(239,68,68,.08);border-radius:var(--r);padding:12px 14px">
+      <div style="font-size:13px;font-weight:700;color:#ef4444;margin-bottom:8px">
+        ⛔ ${vencidas.length} revenda(s) atingiram o limite de ativação de cliente
+        <span style="font-weight:400;color:var(--txt3);font-size:11px"> — ${REATIVACAO_DIAS} dias em reativação sem ativar cliente</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${vencidas.map(({r,st})=>`<button onclick="openCardModal('${safe(r.id)}')" title="Abrir card"
+            style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:var(--bg2);border:1px solid rgba(239,68,68,.35);color:var(--txt)">
+            <b>${safe(r.nome)}</b><span style="color:#ef4444">${st.dias}d</span>${r.cs?`<span style="color:var(--txt3)">· ${safe(r.cs)}</span>`:''}
+          </button>`).join('')}
+      </div>
+    </div>`;
 }
 
 function drawPipelineChart(){
@@ -3533,6 +3562,7 @@ async function salvarHistoricoLote(){
 
   closeMo('mo-hist-lote');
   toast(`✅ Anotação lançada em ${registros.length} revenda(s)!`);
+  if(tag === 'CLIENTE_SUBIDO') encerrarReativacaoLocal(ids);
   if(typeof currentCardId!=='undefined' && currentCardId && ids.includes(currentCardId)){
     renderCardHistorico(currentCardId);
   }
@@ -3667,6 +3697,11 @@ function renderKanban(){
             <div style="font-size:13px;font-weight:600;margin-bottom:3px;padding-right:24px">${safe(r.nome)}</div>
             <div style="font-size:11px;color:var(--txt3)">· ${safe(r.cs||'Sem CS')}${r.contratos?` · ${r.contratos} contratos`:''}</div>
             ${r.inativado_portal ? `<div style="margin-top:5px"><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(234,88,12,.15);color:#ea580c;border:1px solid rgba(234,88,12,.35);font-weight:600">🔴 Inativado no portal</span></div>` : ''}
+            ${(()=>{ const st = reativacaoStatus(r); if(!st) return '';
+              return st.vencido
+                ? `<div style="margin-top:5px"><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.35);font-weight:600">⛔ Reativação vencida (${st.dias}d)</span></div>`
+                : `<div style="margin-top:5px"><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(59,130,246,.15);color:#3b82f6;border:1px solid rgba(59,130,246,.35);font-weight:600">🔄 Reativação · ${st.restantes}d restantes</span></div>`;
+            })()}
             ${prodCheck}
             <!-- Barra de progresso da jornada -->
             <div style="margin-top:8px">
@@ -4275,6 +4310,7 @@ async function salvarNotaCard(){
   document.getElementById('card-nota-tag').value='OUTROS';
   atualizarCamposNotaTag();
   toast('Anotação salva!');
+  if(tag === 'CLIENTE_SUBIDO') encerrarReativacaoLocal([currentCardId]);
   setTimeout(()=>renderCardHistorico(currentCardId), 200);
 }
 
@@ -4325,6 +4361,19 @@ function renderCardInfo(id){
               : 'background:var(--bg2);border:1px solid var(--bdr);color:var(--txt3)'}">
           ${ip ? '🔴' : '⚪'} ${ip ? 'Inativado no portal' : 'Inativar no portal'}
         </button>
+        ${(()=>{
+          const st = reativacaoStatus(rev);
+          const css = !st ? 'background:var(--bg2);border:1px solid var(--bdr);color:var(--txt3)'
+            : st.vencido ? 'background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.5);color:#ef4444'
+            : 'background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.45);color:#3b82f6';
+          const txt = !st ? '🔄 Iniciar reativação'
+            : st.vencido ? `⛔ Reativação vencida (${st.dias}d)`
+            : `🔄 Reativação: ${st.restantes}d restantes`;
+          const tip = !st ? 'Inicia o contador de 30 dias para a revenda ativar um cliente'
+            : 'Clique para cancelar o contador de reativação';
+          return `<button onclick="toggleReativacao('${esc(id)}')" title="${tip}"
+            style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.3px;cursor:pointer;transition:all .15s;${css}">${txt}</button>`;
+        })()}
       </div>
       ${diasIng!==null?`<div style="font-size:11px;color:var(--txt3)">${diasIng} dias desde o ingresso</div>`:''}
     </div>
@@ -4506,6 +4555,66 @@ async function toggleInativadoPortal(revId){
   toast(novoValor ? '✅ Marcado como Inativado no portal' : 'Marcação removida', 'ok');
   renderDashboard();
   if(document.getElementById('tv-dash')?.classList.contains('on')) renderTVDashboard();
+}
+
+// ─── REATIVAÇÃO (contador de 30 dias para ativar cliente) ───────────
+// O encerramento automático ao ativar cliente (tag CLIENTE_SUBIDO) é feito
+// pelo trigger trg_encerrar_reativacao no banco — ver migrations/reativacao_contador_migration.sql
+const REATIVACAO_DIAS = 30;
+
+function reativacaoStatus(rev){
+  if(!rev?.reativacao_inicio) return null;
+  const dias = Math.floor((Date.now() - new Date(rev.reativacao_inicio)) / 86400000);
+  return { dias, restantes: Math.max(0, REATIVACAO_DIAS - dias), vencido: dias >= REATIVACAO_DIAS };
+}
+
+async function toggleReativacao(revId){
+  const revIdx = DB.revendas.findIndex(r=>r.id===revId);
+  if(revIdx < 0) return;
+  const valorOriginal = DB.revendas[revIdx].reativacao_inicio || null;
+  if(valorOriginal && !confirm('Cancelar o contador de reativação desta revenda?')) return;
+  const novoValor = valorOriginal ? null : new Date().toISOString();
+
+  DB.revendas[revIdx].reativacao_inicio = novoValor;
+  renderCardInfo(revId);
+
+  const {error} = await sb.from('revendas')
+    .update({ reativacao_inicio: novoValor, atualizado_em: new Date().toISOString() })
+    .eq('id', revId);
+
+  if(error){
+    DB.revendas[revIdx].reativacao_inicio = valorOriginal;
+    renderCardInfo(revId);
+    toast('Erro ao salvar: '+error.message+' — Execute o SQL de migração no Supabase.', 'err');
+    return;
+  }
+
+  const fim = novoValor ? new Date(Date.now() + REATIVACAO_DIAS*86400000).toLocaleDateString('pt-BR') : '';
+  await inserirHistorico(
+    revId,
+    novoValor ? '🔄 Reativação iniciada' : '⏹️ Reativação cancelada',
+    novoValor ? `Contador de ${REATIVACAO_DIAS} dias iniciado — prazo para ativar cliente até ${fim}`
+              : 'Contador de reativação cancelado manualmente',
+    perfilAtual?.nome || 'Sistema'
+  );
+  if(currentCardId === revId) setTimeout(()=>renderCardHistorico(revId), 200);
+
+  toast(novoValor ? `🔄 Reativação iniciada — prazo até ${fim}` : 'Contador de reativação cancelado', 'ok');
+  renderDashboard();
+  if(typeof renderKanban === 'function' && document.getElementById('p-pipeline')?.classList.contains('on')) renderKanban();
+}
+
+// Reflete localmente o encerramento feito pelo trigger quando um cliente é ativado
+function encerrarReativacaoLocal(revIds){
+  let mudou = false;
+  (revIds||[]).forEach(id=>{
+    const r = DB.revendas.find(x=>x.id===id);
+    if(r?.reativacao_inicio){ r.reativacao_inicio = null; mudou = true; }
+  });
+  if(!mudou) return;
+  toast('✅ Cliente ativado — contador de reativação encerrado', 'ok');
+  if(currentCardId && revIds.includes(currentCardId)) renderCardInfo(currentCardId);
+  renderDashboard();
 }
 
 async function toggleProdutoCard(revId, produto){
@@ -5442,6 +5551,7 @@ async function confirmarImportacaoAM(){
 
   const {error} = await sb.from('historico_cards').insert(registros);
   if(error){ toast('Erro ao importar: '+error.message, 'err'); return; }
+  encerrarReativacaoLocal(validos.filter(i=>i.tag==='CLIENTE_SUBIDO').map(i=>i.revendaId));
 
   // Mudanças de etapa vindas junto com o item (ex: cliente subiu e muda de raia)
   const mudancasEtapa = validos.filter(i=>i.mudarEtapaPara);
