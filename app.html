@@ -416,6 +416,11 @@ select option{background:var(--bg2)}
           <option value="51-200">51 a 200 contratos</option>
           <option value="200+">Mais de 200</option>
         </select>
+        <select id="kb-reativacao" onchange="renderKanban()" style="width:180px;padding:7px 10px;font-size:12px">
+          <option value="">Todas (reativação)</option>
+          <option value="ativa">🔄 Em reativação</option>
+          <option value="vencida">⛔ Reativação vencida</option>
+        </select>
         <button class="btn btn-s btn-sm" onclick="clearKbFilters()">✕ Limpar</button>
       </div>
 
@@ -3220,10 +3225,16 @@ function renderDashboard(){
     {label: penultimaEtapa||'Pausados',   val:primeiroCliente, cls:'yw', icon: _etPenult.icon||'⏸️'},
     {label:'Inativos',                    val:inativos,        cls:'rd', icon:'🚫'},
   ];
+  // Em Reativação — clicável, abre o Pipeline já filtrado
+  const _reat = rv.map(reativacaoStatus).filter(Boolean);
+  const _reatVenc = _reat.filter(s=>s.vencido).length;
+  kpis.push({label:'Em Reativação', val:_reat.length, cls:_reatVenc?'rd':'bl', icon:'🔄',
+    sub: _reatVenc ? `⛔ ${_reatVenc} vencida(s)` : 'Ver no Pipeline →',
+    onclick:"irParaPipelineReativacao('ativa')", title:'Ver revendas em reativação no Pipeline'});
   renderAlertaReativacao(rv);
 
   const kEl=document.getElementById('dash-kpis');
-  if(kEl)kEl.innerHTML=kpis.map(k=>`<div class="mc ${k.cls}"><div style="font-size:24px;margin-bottom:8px">${safe(k.icon)}</div><div class="mv">${k.val}</div><div class="ml">${safe(k.label)}</div></div>`).join('');
+  if(kEl)kEl.innerHTML=kpis.map(k=>`<div class="mc ${k.cls}"${k.onclick?` style="cursor:pointer" onclick="${k.onclick}" title="${safe(k.title||'')}"`:''}><div style="font-size:24px;margin-bottom:8px">${safe(k.icon)}</div><div class="mv">${k.val}</div><div class="ml">${safe(k.label)}</div>${k.sub?`<div style="font-size:10px;color:var(--txt3);margin-top:4px">${safe(k.sub)}</div>`:''}</div>`).join('');
 
   // Distribuição por etapa — KPI clicável por etapa (leva pra Revendas já filtrado)
   const etapasEl = document.getElementById('dash-etapas');
@@ -3294,6 +3305,7 @@ function renderAlertaReativacao(rv){
       <div style="font-size:13px;font-weight:700;color:#ef4444;margin-bottom:8px">
         ⛔ ${vencidas.length} revenda(s) atingiram o limite de ativação de cliente
         <span style="font-weight:400;color:var(--txt3);font-size:11px"> — ${REATIVACAO_DIAS} dias em reativação sem ativar cliente</span>
+        <button class="btn btn-sm" onclick="irParaPipelineReativacao('vencida')" style="float:right;background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.45);font-size:11px">Ver no Pipeline →</button>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:6px">
         ${vencidas.map(({r,st})=>`<button onclick="openCardModal('${safe(r.id)}')" title="Abrir card"
@@ -3352,6 +3364,7 @@ function getKbFilters(){
     dateFrom:document.getElementById('kb-date-from')?.value||'',
     dateTo:document.getElementById('kb-date-to')?.value||'',
     contratos:document.getElementById('kb-contratos')?.value||'',
+    reativacao:document.getElementById('kb-reativacao')?.value||'',
   };
 }
 
@@ -3369,11 +3382,24 @@ function matchesKbFilter(r, f){
     if(f.contratos==='51-200' && (c<51||c>200))  return false;
     if(f.contratos==='200+'   && c <= 200)        return false;
   }
+  if(f.reativacao){
+    const st = reativacaoStatus(r);
+    if(!st) return false;
+    if(f.reativacao==='vencida' && !st.vencido) return false;
+  }
   return true;
 }
 
+// Abre o Pipeline já filtrado pelas revendas em reativação (todas as etapas)
+function irParaPipelineReativacao(tipo){
+  clearKbFilters();
+  const sel = document.getElementById('kb-reativacao');
+  if(sel) sel.value = tipo || 'ativa';
+  go('pipeline');
+}
+
 function clearKbFilters(){
-  ['kb-search','kb-cs','kb-date-from','kb-date-to','kb-contratos'].forEach(id=>{
+  ['kb-search','kb-cs','kb-date-from','kb-date-to','kb-contratos','kb-reativacao'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
   renderKanban();
