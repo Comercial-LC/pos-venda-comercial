@@ -416,6 +416,9 @@ select option{background:var(--bg2)}
           <option value="51-200">51 a 200 contratos</option>
           <option value="200+">Mais de 200</option>
         </select>
+        <select id="kb-grupo" onchange="renderKanban()" style="width:190px;padding:7px 10px;font-size:12px">
+          <option value="">Todos os grupos</option>
+        </select>
         <select id="kb-reativacao" onchange="renderKanban()" style="width:180px;padding:7px 10px;font-size:12px">
           <option value="">Todas (reativação)</option>
           <option value="ativa">🔄 Em reativação</option>
@@ -3201,30 +3204,19 @@ function renderDashboard(){
   const etapaDecola    = _etDecola.id    || 'Decola Produtos';
 
   // Em Jornada = apenas etapas de onboarding (Nova Revenda → Decola 1 Cliente, sem Handover/Pausados/Inativo)
-  const _nomesForaJornada = ['inativo','inativa','perdido','cancelado','churn','handover','pausad'];
-  const emJornada = rv.filter(r=>{
-    if(r.inativado_portal) return false;
-    const s = (r.status||'').toLowerCase();
-    return !_nomesForaJornada.some(n=>s.includes(n));
-  }).length;
-  const primeiroCliente = rv.filter(r=>r.status===penultimaEtapa).length;
-  const handoverEtapa   = rv.filter(r=>r.status===ultimaEtapa && !r.inativado_portal).length;
-  const decolaProd      = rv.filter(r=>r.status===etapaDecola).length;
-
-  const nomesInativos = ['inativo','inativa','perdido','cancelado','churn'];
-  const inativos = rv.filter(r=>
-    !r.inativado_portal && nomesInativos.some(n=>(r.status||'').toLowerCase().includes(n))
-  ).length;
-  const inativadosPortal = rv.filter(r=>r.inativado_portal).length;
+  // Contagens usam as mesmas regras do filtro do Pipeline (kpiGrupoFn)
+  const _cnt = g => rv.filter(kpiGrupoFn(g)).length;
+  const _js  = s => String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const _irPipe = g => `irParaPipelineFiltro('${safe(_js(g))}')`;
 
   // Ordem: Total → Handover → Em Jornada → Pausados → Inativos
   const kpis=[
-    {label:'Total de Revendas',           val:rv.length-inativos-inativadosPortal, cls:'bl', icon:'🏢'},
-    {label: etapaDecola||'Handover',      val:decolaProd,      cls:'pu', icon: _etDecola.icon||'🤝'},
-    {label:'Em Jornada',                  val:emJornada,       cls:'gn', icon:'🚀'},
-    {label: penultimaEtapa||'Pausados',   val:primeiroCliente, cls:'yw', icon: _etPenult.icon||'⏸️'},
-    {label:'Inativos',                    val:inativos,        cls:'rd', icon:'🚫'},
-  ];
+    {label:'Total de Revendas',           val:_cnt('total'),                  cls:'bl', icon:'🏢', onclick:_irPipe('total')},
+    {label: etapaDecola||'Handover',      val:_cnt('etapa:'+etapaDecola),     cls:'pu', icon: _etDecola.icon||'🤝', onclick:_irPipe('etapa:'+etapaDecola)},
+    {label:'Em Jornada',                  val:_cnt('jornada'),                cls:'gn', icon:'🚀', onclick:_irPipe('jornada')},
+    {label: penultimaEtapa||'Pausados',   val:_cnt('etapa:'+penultimaEtapa),  cls:'yw', icon: _etPenult.icon||'⏸️', onclick:_irPipe('etapa:'+penultimaEtapa)},
+    {label:'Inativos',                    val:_cnt('inativos'),               cls:'rd', icon:'🚫', onclick:_irPipe('inativos')},
+  ].map(k=>({...k, title:'Ver no Pipeline', sub:'Ver no Pipeline →'}));
   // Em Reativação — clicável, abre o Pipeline já filtrado
   const _reat = rv.map(reativacaoStatus).filter(Boolean);
   const _reatVenc = _reat.filter(s=>s.vencido).length;
@@ -3246,7 +3238,7 @@ function renderDashboard(){
     }));
     etapasEl.innerHTML = ETAPAS_D.map(e=>{
       const cnt = rv.filter(r=>r.status===e.id).length;
-      return `<div class="mc ${e.cls}" style="cursor:pointer;padding:12px 8px" onclick="irParaRevendasPorEtapa('${e.id}')" title="${safe(e.id)}">
+      return `<div class="mc ${e.cls}" style="cursor:pointer;padding:12px 8px" onclick="irParaPipelineFiltro('etapa:'+decodeURIComponent('${encodeURIComponent(e.id)}'))" title="Ver ${safe(e.id)} no Pipeline">
         <div style="font-size:16px;margin-bottom:4px">${safe(e.icon)}</div>
         <div class="mv" style="font-size:18px">${cnt}</div>
         <div class="ml" style="font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${safe(e.id)}</div>
@@ -3357,8 +3349,43 @@ let dragId=null;
 let kbSelected=new Set(); // IDs selecionados para ação em lote
 let _kbInatFiltro='pendentes'; // 'pendentes' = só não marcados | 'todos' = todos
 
+// ─── Grupos dos KPIs do Dashboard ───────────────────────────────────
+// Fonte única das regras: o Dashboard conta e o Pipeline filtra com a mesma função.
+const _NOMES_INATIVOS     = ['inativo','inativa','perdido','cancelado','churn'];
+const _NOMES_FORA_JORNADA = [..._NOMES_INATIVOS,'handover','pausad'];
+function _ehStatusInativo(r){ const s=(r.status||'').toLowerCase(); return _NOMES_INATIVOS.some(n=>s.includes(n)); }
+
+function kpiGrupoFn(grupo){
+  if(!grupo) return ()=>true;
+  if(grupo.startsWith('etapa:')){ const id = grupo.slice(6); return r=>r.status===id; }
+  switch(grupo){
+    case 'total':    return r=>!r.inativado_portal && !_ehStatusInativo(r);
+    case 'jornada':  return r=>{ if(r.inativado_portal) return false; const s=(r.status||'').toLowerCase(); return !_NOMES_FORA_JORNADA.some(n=>s.includes(n)); };
+    case 'inativos': return r=>!r.inativado_portal && _ehStatusInativo(r);
+    default:         return ()=>true;
+  }
+}
+
+// Abre o Pipeline com o filtro do KPI clicado (somente os cards filtrados)
+function irParaPipelineFiltro(grupo, reativacao){
+  clearKbFilters();
+  _popularKbGrupo();
+  const g = document.getElementById('kb-grupo');      if(g) g.value = grupo || '';
+  const r = document.getElementById('kb-reativacao'); if(r) r.value = reativacao || '';
+  go('pipeline');
+}
+
+function _popularKbGrupo(){
+  const sel = document.getElementById('kb-grupo');
+  if(!sel || sel.options.length > 1) return;
+  const base = [['total','🏢 Total de revendas'],['jornada','🚀 Em jornada'],['inativos','🚫 Inativos']];
+  const etapas = getEtapas().map(e=>['etapa:'+e.id, `${e.icon||''} Etapa: ${e.id}`]);
+  [...base, ...etapas].forEach(([v,t])=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; sel.appendChild(o); });
+}
+
 function getKbFilters(){
   return {
+    grupo:document.getElementById('kb-grupo')?.value||'',
     search:(document.getElementById('kb-search')?.value||'').toLowerCase().trim(),
     cs:document.getElementById('kb-cs')?.value||'',
     dateFrom:document.getElementById('kb-date-from')?.value||'',
@@ -3382,6 +3409,7 @@ function matchesKbFilter(r, f){
     if(f.contratos==='51-200' && (c<51||c>200))  return false;
     if(f.contratos==='200+'   && c <= 200)        return false;
   }
+  if(f.grupo && !kpiGrupoFn(f.grupo)(r)) return false;
   if(f.reativacao){
     const st = reativacaoStatus(r);
     if(!st) return false;
@@ -3392,14 +3420,11 @@ function matchesKbFilter(r, f){
 
 // Abre o Pipeline já filtrado pelas revendas em reativação (todas as etapas)
 function irParaPipelineReativacao(tipo){
-  clearKbFilters();
-  const sel = document.getElementById('kb-reativacao');
-  if(sel) sel.value = tipo || 'ativa';
-  go('pipeline');
+  irParaPipelineFiltro('', tipo || 'ativa');
 }
 
 function clearKbFilters(){
-  ['kb-search','kb-cs','kb-date-from','kb-date-to','kb-contratos','kb-reativacao'].forEach(id=>{
+  ['kb-search','kb-cs','kb-date-from','kb-date-to','kb-contratos','kb-reativacao','kb-grupo'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
   renderKanban();
@@ -3648,7 +3673,10 @@ function renderKanban(){
     csSet.forEach(cs=>{ const o=document.createElement('option'); o.value=cs; o.textContent=cs; kbCs.appendChild(o); });
   }
 
+  _popularKbGrupo();
   const f = getKbFilters();
+  // Filtro vindo de KPI (grupo/reativação): mostra só colunas com cards filtrados
+  const filtroFoco = !!(f.grupo || f.reativacao);
 
   board.innerHTML = COLS.map(col => {
     const _nomesInat = ['inativo','inativa','perdido','cancelado','churn'];
@@ -3661,6 +3689,8 @@ function renderKanban(){
       if(ehColInativa && _kbInatFiltro === 'pendentes' && r.inativado_portal) return false;
       return true;
     });
+    if(filtroFoco && !cards.length) return '';
+    const colapsada = ehColInativa && !filtroFoco;
 
     const cardsHTML = cards.length
       ? cards.map(r => {
@@ -3741,10 +3771,10 @@ function renderKanban(){
         }).join('')
       : `<div style="font-size:12px;color:var(--txt3);text-align:center;padding:20px 10px;
             border:2px dashed var(--bdr);border-radius:var(--r)">
-          ${f.search||f.cs||f.dateFrom||f.dateTo||f.contratos ? 'Nenhum resultado' : 'Nenhuma revenda'}
+          ${f.search||f.cs||f.dateFrom||f.dateTo||f.contratos||filtroFoco ? 'Nenhum resultado' : 'Nenhuma revenda'}
          </div>`;
 
-    return `<div class="kc" data-col="${safe(col.id)}" data-collapsed="${ehColInativa}"
+    return `<div class="kc" data-col="${safe(col.id)}" data-collapsed="${colapsada}"
         ondragover="kDragOver(event)"
         ondragenter="kDragEnter(event,'${encodeURIComponent(col.id)}')"
         ondragleave="kDragLeave(event)"
@@ -3776,7 +3806,7 @@ function renderKanban(){
         </div>` : ''}
       </div>
       <div class="k-cards" data-col="${safe(col.id)}"
-        style="display:${ehColInativa?'none':'flex'};flex-direction:column;gap:8px;flex:1;min-height:60px;overflow-y:auto;overflow-x:hidden;padding:0 2px 4px;scrollbar-width:thin;scrollbar-color:var(--bdr2) transparent">
+        style="display:${colapsada?'none':'flex'};flex-direction:column;gap:8px;flex:1;min-height:60px;overflow-y:auto;overflow-x:hidden;padding:0 2px 4px;scrollbar-width:thin;scrollbar-color:var(--bdr2) transparent">
         ${cardsHTML}
       </div>
       ${!ehColInativa ? `<button class="btn btn-s btn-sm"
@@ -3784,6 +3814,10 @@ function renderKanban(){
         onclick="openMo('mo-rev')">+ Adicionar</button>` : ''}
     </div>`;
   }).join('');
+  if(filtroFoco && !board.innerHTML.trim()){
+    board.innerHTML = `<div style="font-size:13px;color:var(--txt3);text-align:center;padding:40px 20px;width:100%">
+      Nenhuma revenda encontrada para este filtro. <a href="#" onclick="clearKbFilters();return false" style="color:var(--acc)">Limpar filtros</a></div>`;
+  }
 }
 
 function toggleFiltroInativo(){
