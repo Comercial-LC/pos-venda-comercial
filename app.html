@@ -1195,7 +1195,7 @@ select option{background:var(--bg2)}
               <div style="padding:12px;background:var(--errl);border-radius:var(--r);border:1px solid var(--err)">
                 <div style="font-size:13px;font-weight:600;margin-bottom:4px">Limpar todos os dados</div>
                 <div style="font-size:12px;color:var(--txt2);margin-bottom:8px">Remove revendas, tarefas, histórico e atividades. Não pode ser desfeito.</div>
-                <button class="btn btn-d btn-sm" onclick="abrirLimparDados()">🗑️ Limpar dados</button>
+                <button class="btn btn-d btn-sm" id="btn-limpar-dados" onclick="abrirLimparDados()">🗑️ Limpar dados</button>
               </div>
               <div style="padding:12px;background:var(--warnl);border-radius:var(--r);border:1px solid var(--warn)">
                 <div style="font-size:13px;font-weight:600;margin-bottom:4px">Exportar todos os dados</div>
@@ -1978,6 +1978,9 @@ function aplicarPermissoes(p){
   // Botão convidar: só Admin (já tratado acima)
   const btn = document.getElementById('btn-convidar');
   if(btn) btn.style.display='none';
+  // Zona de perigo (limpar tudo): só Admin
+  const btnLimpar = document.getElementById('btn-limpar-dados');
+  if(btnLimpar) btnLimpar.parentElement.style.display='none';
 }
 
 // ─── ESTRUTURAS HTML DOS LAYOUTS DA TV ──────────────────────────────────
@@ -2177,7 +2180,7 @@ async function renderTVLayout2Data(tvCfg, rv, etapas, todosKpis){
       const pct = Math.round(cnt / maxVal * 100);
       const cor = e.cor || 'var(--acc)';
       return `<div style="display:flex;align-items:center;gap:10px">`
-        +`<span style="font-size:18px;width:24px;text-align:center">${e.icon}</span>`
+        +`<span style="font-size:18px;width:24px;text-align:center">${safe(e.icon)}</span>`
         +`<span style="font-size:12px;color:var(--txt2);width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${safe(e.id)}</span>`
         +`<div style="flex:1;background:var(--bdr);border-radius:4px;height:12px;overflow:hidden">`
         +`<div style="height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));width:${pct}%;border-radius:4px;transition:width .6s"></div>`
@@ -2492,8 +2495,8 @@ async function renderTVDashboard(){
       const pct = Math.round(cnt/maxVal*100);
       const cor = e.cor || 'var(--acc)';
       return `<div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:15px;width:18px;text-align:center;flex-shrink:0">${e.icon}</span>
-        <span style="font-size:13px;color:var(--txt2);width:92px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0">${e.id}</span>
+        <span style="font-size:15px;width:18px;text-align:center;flex-shrink:0">${safe(e.icon)}</span>
+        <span style="font-size:13px;color:var(--txt2);width:92px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0">${safe(e.id)}</span>
         <div style="flex:1;background:var(--bdr);border-radius:4px;height:9px;overflow:hidden">
           <div style="height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));width:${pct}%;border-radius:4px;transition:width .6s ease"></div>
         </div>
@@ -2658,6 +2661,13 @@ async function logAuditoria(acao, tabela='', registroId='', detalhe={}){
 // ─── Storage helpers (Supabase como fonte única) ──────────────────
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function safe(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+// Argumento JS dentro de atributo on*="f(...)": safe() sozinho NÃO basta ali
+// (o navegador decodifica &#39; antes de rodar o JS). Uso: onclick="f(${jsArg(x)})"
+function jsArg(s){return safe(JSON.stringify(String(s??'')))}
+// encodeURIComponent que também codifica ' ( ) ! * — seguro em on*="f('${encArg(x)}')"
+function encArg(s){return encodeURIComponent(String(s??'')).replace(/[!'()*]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase())}
+// Cor CSS vinda da config compartilhada: só hex, rgb()/hsl() ou var(--x)
+function isSafeColor(c){return /^(#[0-9a-f]{3,8}|(rgb|hsl)a?\([\d\s.,%]+\)|var\(--[\w-]+\))$/i.test(String(c||''))}
 function fmtDate(d){if(!d)return'—';try{const s=String(d);const dt=new Date(s.includes('T')?s:s+'T00:00:00');return dt.toLocaleDateString('pt-BR')}catch{return String(d)}}
 function today(){return new Date().toISOString().slice(0,10)}
 
@@ -3238,7 +3248,7 @@ function renderDashboard(){
     }));
     etapasEl.innerHTML = ETAPAS_D.map(e=>{
       const cnt = rv.filter(r=>r.status===e.id).length;
-      return `<div class="mc ${e.cls}" style="cursor:pointer;padding:12px 8px" onclick="irParaPipelineFiltro('etapa:'+decodeURIComponent('${encodeURIComponent(e.id)}'))" title="Ver ${safe(e.id)} no Pipeline">
+      return `<div class="mc ${e.cls}" style="cursor:pointer;padding:12px 8px" onclick="irParaPipelineFiltro('etapa:'+decodeURIComponent('${encArg(e.id)}'))" title="Ver ${safe(e.id)} no Pipeline">
         <div style="font-size:16px;margin-bottom:4px">${safe(e.icon)}</div>
         <div class="mv" style="font-size:18px">${cnt}</div>
         <div class="ml" style="font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${safe(e.id)}</div>
@@ -3340,7 +3350,7 @@ function drawPipelineChart(){
   const lg=document.getElementById('pipelineLegend');
   if(lg)lg.innerHTML=labels.filter((_,i)=>vals[i]>0).map((l,i)=>{
     const ci=labels.indexOf(l);
-    return`<div style="display:flex;align-items:center;gap:8px;font-size:11px"><div style="width:8px;height:8px;border-radius:2px;background:${colors[ci]};flex-shrink:0"></div><span style="color:var(--txt2);flex:1">${l}</span><span style="font-weight:600">${counts[l]}</span></div>`;
+    return`<div style="display:flex;align-items:center;gap:8px;font-size:11px"><div style="width:8px;height:8px;border-radius:2px;background:${colors[ci]};flex-shrink:0"></div><span style="color:var(--txt2);flex:1">${safe(l)}</span><span style="font-weight:600">${counts[l]}</span></div>`;
   }).join('');
 }
 
@@ -3700,12 +3710,12 @@ function renderKanban(){
             ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">
                 ${PRODUTOS.map(p => {
                   const done = (r.produtos||[]).includes(p);
-                  return `<span onclick="toggleProduto('${r.id}','${p}',event)"
+                  return `<span onclick="toggleProduto(${jsArg(r.id)},${jsArg(p)},event)"
                     style="padding:2px 7px;border-radius:20px;font-size:10px;cursor:pointer;
                     background:${done?'var(--ok)':'var(--bdr)'};
                     color:${done?'#fff':'var(--txt3)'};
                     border:1px solid ${done?'var(--ok)':'var(--bdr)'};
-                    transition:all .15s">${done?'✓ ':''}${p}</span>`;
+                    transition:all .15s">${done?'✓ ':''}${safe(p)}</span>`;
                 }).join('')}
               </div>
               <div style="font-size:10px;color:var(--txt3);margin-top:5px">${(r.produtos||[]).length}/${PRODUTOS.length} produtos</div>`
@@ -3776,9 +3786,9 @@ function renderKanban(){
 
     return `<div class="kc" data-col="${safe(col.id)}" data-collapsed="${colapsada}"
         ondragover="kDragOver(event)"
-        ondragenter="kDragEnter(event,'${encodeURIComponent(col.id)}')"
+        ondragenter="kDragEnter(event,'${encArg(col.id)}')"
         ondragleave="kDragLeave(event)"
-        ondrop="kDrop(event,'${encodeURIComponent(col.id)}')"
+        ondrop="kDrop(event,'${encArg(col.id)}')"
         style="transition:background .15s;min-width:230px;width:230px;${ehColInativa?'':'max-height:calc(100vh - 200px);'}display:flex;flex-direction:column">
       <div style="margin-bottom:${ehColInativa?'2px':'10px'};${ehColInativa?'cursor:pointer;':''}user-select:none"
         ${ehColInativa?`onclick="toggleKanbanCol(this.parentElement)"`  :''}>
@@ -3792,7 +3802,7 @@ function renderKanban(){
           </div>
           ${!ehColInativa ? `<label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--txt3);cursor:pointer">
             <input type="checkbox" style="width:13px;height:13px;accent-color:var(--acc)"
-              onchange="selectAllInCol(decodeURIComponent('${encodeURIComponent(col.id)}'),this.checked)"> todos
+              onchange="selectAllInCol(decodeURIComponent('${encArg(col.id)}'),this.checked)"> todos
           </label>` : ''}
         </div>
         <div class="pbar" style="margin-top:6px;height:3px">
@@ -4023,9 +4033,9 @@ function openCardModal(id){
   const etapaColor = ETAPA_COLORS[r.status]||'var(--acc)';
   document.getElementById('mo-card-nome').textContent = r.nome;
   document.getElementById('mo-card-sub').innerHTML =
-    `<span style="color:${etapaColor};font-weight:600">${r.status||'—'}</span>
-     &nbsp;·&nbsp; 👤 ${r.cs||'—'}
-     &nbsp;·&nbsp; ${r.contratos||'0'} contratos`;
+    `<span style="color:${etapaColor};font-weight:600">${safe(r.status||'—')}</span>
+     &nbsp;·&nbsp; 👤 ${safe(r.cs||'—')}
+     &nbsp;·&nbsp; ${safe(r.contratos||'0')} contratos`;
   document.getElementById('mo-card-edit-btn').dataset.id = id;
 
   // Fecha overlays (produtos / LC Success AI) se estavam abertos
@@ -4517,9 +4527,9 @@ async function moverCardInfoEtapa(revId){
     const sub = document.getElementById('mo-card-sub');
     if(sub){
       const etapaCorCard = (getEtapas().find(e=>e.id===newStatus)||{}).cor||'var(--acc)';
-      sub.innerHTML = '<span style="color:'+etapaCorCard+';font-weight:600">'+newStatus+'</span>'
-        +' &nbsp;·&nbsp; CS: '+(rev.cs||'—')
-        +' &nbsp;·&nbsp; '+(rev.contratos||'0')+' contratos';
+      sub.innerHTML = '<span style="color:'+etapaCorCard+';font-weight:600">'+safe(newStatus)+'</span>'
+        +' &nbsp;·&nbsp; CS: '+safe(rev.cs||'—')
+        +' &nbsp;·&nbsp; '+safe(rev.contratos||'0')+' contratos';
     }
 
     const desc = motivo ? `${old} → ${newStatus} | Motivo: ${motivo}` : `${old} → ${newStatus}`;
@@ -4871,10 +4881,12 @@ function exportarParticipantesCSV(){
   if(!_partData.length){toast('Nenhum dado para exportar','warn');return;}
   const task=DB.tarefas.find(t=>t.id===_partTaskId);
   const header=['Nome Completo','Empresa','Cargo/Função','Data de Confirmação'];
+  // Dados vêm de formulário público: neutraliza fórmulas (=,+,-,@) no Excel
+  const cel=v=>{let s=String(v||'');if(/^[=+\-@\t\r]/.test(s))s="'"+s;return `"${s.replace(/"/g,'""')}"`;};
   const rows=_partData.map(p=>[
-    `"${(p.nome_completo||'').replace(/"/g,'""')}"`,
-    `"${(p.empresa||'').replace(/"/g,'""')}"`,
-    `"${(p.cargo_funcao||'').replace(/"/g,'""')}"`,
+    cel(p.nome_completo),
+    cel(p.empresa),
+    cel(p.cargo_funcao),
     `"${new Date(p.criado_em).toLocaleString('pt-BR')}"`
   ].join(','));
   const csv='﻿'+[header.join(','),...rows].join('\r\n');
@@ -5180,10 +5192,10 @@ function showImportPreview(rows,filename){
   if(!prev)return;
   const sample=rows.slice(0,5);
   const headers=Object.keys(rows[0]||{});
-  prev.innerHTML=`<div style="font-size:13px;font-weight:500;margin-bottom:10px">📄 ${filename} — ${rows.length} linha(s) encontrada(s)</div>
+  prev.innerHTML=`<div style="font-size:13px;font-weight:500;margin-bottom:10px">📄 ${safe(filename)} — ${rows.length} linha(s) encontrada(s)</div>
     <div style="overflow-x:auto;margin-bottom:12px;max-height:200px;overflow-y:auto">
-      <table style="font-size:11px"><thead><tr>${headers.slice(0,6).map(h=>`<th>${h}</th>`).join('')}</tr></thead>
-      <tbody>${sample.map(r=>`<tr>${headers.slice(0,6).map(h=>`<td>${r[h]||'—'}</td>`).join('')}</tr>`).join('')}</tbody></table>
+      <table style="font-size:11px"><thead><tr>${headers.slice(0,6).map(h=>`<th>${safe(h)}</th>`).join('')}</tr></thead>
+      <tbody>${sample.map(r=>`<tr>${headers.slice(0,6).map(h=>`<td>${safe(r[h]||'—')}</td>`).join('')}</tr>`).join('')}</tbody></table>
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-p" onclick="confirmImport(window._importRows)">✅ Importar ${rows.length} registro(s)</button>
@@ -5197,6 +5209,15 @@ async function confirmImport(rows){
   // Verifica sessão ativa
   const {data:{session}} = await sb.auth.getSession();
   if(!session){toast('Sessão expirada. Faça login novamente.','err');return}
+
+  // "Substituir tudo" apaga a base inteira — só Admin e com confirmação digitada
+  if(document.querySelector('input[name="import-mode"]:checked')?.value === 'replace'){
+    if(perfilAtual?.perfil !== 'Administrador'){
+      toast('Só Administrador pode usar "Substituir tudo"','err'); return;
+    }
+    const conf = prompt('ATENÇÃO: "Substituir tudo" APAGA TODAS as revendas atuais (e o histórico delas) antes de importar.\n\nAs revendas apagadas ficam na lixeira do banco (revendas_excluidas), mas a restauração é manual.\n\nDigite SUBSTITUIR para confirmar:');
+    if((conf||'').trim().toUpperCase() !== 'SUBSTITUIR'){ toast('Importação cancelada','warn'); return; }
+  }
 
   // Pausa o realtime durante a importação para não interferir
   DB._importando = true;
@@ -5223,11 +5244,20 @@ async function confirmImport(rows){
   // Busca nomes e IDs já existentes para detectar duplicatas
   let nomesExistentes = new Set();
   let origensExistentes = new Set();
+  const idPorNome = new Map();   // nome normalizado → [ids] (para atualizar só o registro exato)
+  const idPorOrigem = new Map(); // id_origem → id
   if(mode !== 'replace'){
-    const {data:exist} = await sb.from('revendas').select('nome,id_origem');
+    const {data:exist} = await sb.from('revendas').select('id,nome,id_origem');
     (exist||[]).forEach(r=>{
-      if(r.nome)      nomesExistentes.add(r.nome.toLowerCase().trim());
-      if(r.id_origem) origensExistentes.add(r.id_origem.toString().trim());
+      if(r.nome){
+        const k = r.nome.toLowerCase().trim();
+        nomesExistentes.add(k);
+        idPorNome.set(k, [...(idPorNome.get(k)||[]), r.id]);
+      }
+      if(r.id_origem){
+        origensExistentes.add(r.id_origem.toString().trim());
+        idPorOrigem.set(r.id_origem.toString().trim(), r.id);
+      }
     });
   }
 
@@ -5362,21 +5392,25 @@ async function confirmImport(rows){
   // ── ATUALIZAÇÃO de existentes (modo "update") ──────────────
   if(toUpdate.length){
     for(const r of toUpdate){
-      const updatePayload = {
-          email:     r.email     || null,
-          tel:       r.tel       || null,
-          cidade:    r.cidade    || null,
-          uf:        r.uf        || null,
-          cs:        r.cs        || null,
-          contratos: r.contratos ? (parseInt(r.contratos)||0) : null,
-          curva:     r.curva     || null,
-          atualizado_em: new Date().toISOString(),
-        };
-        if(r.cnpj) updatePayload.cnpj = r.cnpj;
-        const {error} = await sb.from('revendas')
-        .update(updatePayload)
-        .or(`nome.ilike.${r.nome},id_origem.eq.${r.idOrigem||'null'}`);
+      // Localiza o registro EXATO: id_origem primeiro; senão nome idêntico e único.
+      // (antes: .or(nome.ilike...) — '%', '_' ou '*' no nome casavam várias revendas)
+      const origem = (r.idOrigem||'').toString().trim();
+      const porNome = idPorNome.get(r.nome.toLowerCase().trim()) || [];
+      const alvoId = (origem && idPorOrigem.get(origem)) || (porNome.length === 1 ? porNome[0] : null);
+      if(!alvoId){ err++; errs.push(`"${r.nome}": nome repetido na base — atualize manualmente ou informe o id`); continue; }
+      // Só envia campos preenchidos na planilha — célula vazia não apaga dado existente
+      const updatePayload = { atualizado_em: new Date().toISOString() };
+      if(r.email)  updatePayload.email  = r.email;
+      if(r.tel)    updatePayload.tel    = r.tel;
+      if(r.cidade) updatePayload.cidade = r.cidade;
+      if(r.uf)     updatePayload.uf     = r.uf;
+      if(r.cs)     updatePayload.cs     = r.cs;
+      if(r.contratos) updatePayload.contratos = parseInt(r.contratos)||0;
+      if(r.curva)  updatePayload.curva  = r.curva;
+      if(r.cnpj)   updatePayload.cnpj   = r.cnpj;
+      const {error} = await sb.from('revendas').update(updatePayload).eq('id', alvoId);
       if(!error) updated++;
+      else { err++; errs.push(`"${r.nome}": ${error.message}`); }
     }
   }
   // Salva histórico de importação
@@ -5394,7 +5428,7 @@ async function confirmImport(rows){
       <span>${err>0?'⚠️':'✅'}</span>
       <span>${msg}</span>
     </div>
-    ${errs.length?`<div style="font-size:12px;color:var(--err)">${errs.slice(0,5).map(e=>'• '+e).join('<br>')}</div>`:''}
+    ${errs.length?`<div style="font-size:12px;color:var(--err)">${errs.slice(0,5).map(e=>'• '+safe(e)).join('<br>')}</div>`:''}
   </div>`;
   renderImport();renderRevendas();renderDashboard();
 }
@@ -6225,7 +6259,10 @@ async function carregarCfgDoSupabase(){
 
 function getEtapas(){
   const cfg = getCfg();
-  return cfg.etapas || ETAPAS_PADRAO;
+  const etapas = Array.isArray(cfg.etapas) ? cfg.etapas : ETAPAS_PADRAO;
+  // Config é compartilhada entre todos: cor inválida não chega em style="..."
+  etapas.forEach(e=>{ if(e && e.cor && !isSafeColor(e.cor)) e.cor = '#3b82f6'; });
+  return etapas;
 }
 function getProdutos(){
   const cfg = getCfg();
@@ -6294,14 +6331,14 @@ function renderEtapasCfg(){
       style="display:flex;align-items:center;gap:10px;padding:10px 12px;
         background:var(--bg2);border:1px solid var(--bdr);border-radius:var(--r)">
       <span style="cursor:grab;color:var(--txt3);font-size:16px;touch-action:none">≡</span>
-      <span style="font-size:20px" contenteditable="false" id="icon-${i}">${e.icon}</span>
-      <input value="${e.id}" id="etapa-nome-${i}"
+      <span style="font-size:20px" contenteditable="false" id="icon-${i}">${safe(e.icon)}</span>
+      <input value="${safe(e.id)}" id="etapa-nome-${i}"
         style="flex:1;padding:6px 10px;font-size:13px;font-weight:500"
         onchange="updateEtapaLocal(${i})">
-      <input type="color" value="${e.cor||'#3b82f6'}" id="etapa-cor-${i}"
+      <input type="color" value="${safe(e.cor||'#3b82f6')}" id="etapa-cor-${i}"
         style="width:32px;height:32px;padding:2px;cursor:pointer;border-radius:4px"
         onchange="updateEtapaLocal(${i})">
-      <input value="${e.icon}" id="etapa-icon-${i}"
+      <input value="${safe(e.icon)}" id="etapa-icon-${i}"
         style="width:44px;font-size:18px;text-align:center"
         onchange="updateEtapaLocal(${i})">
       ${etapas.length > 1 ? `<button onclick="removeEtapa(${i})"
@@ -6311,7 +6348,7 @@ function renderEtapasCfg(){
 
   // Atualiza select de etapa padrão
   const sel = document.getElementById('cfg-etapa-padrao');
-  if(sel) sel.innerHTML = etapas.map(e=>`<option value="${e.id}">${e.icon} ${e.id}</option>`).join('');
+  if(sel) sel.innerHTML = etapas.map(e=>`<option value="${safe(e.id)}">${safe(e.icon)} ${safe(e.id)}</option>`).join('');
 }
 
 let _etapaDragIdx = null;
@@ -6510,8 +6547,8 @@ function renderCamposCfg(){
   list.innerHTML = campos.map((c,i)=>`
     <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;
       background:var(--bg2);border:1px solid var(--bdr);border-radius:var(--r)">
-      <span style="font-size:12px;color:var(--txt3);width:90px">${c.key}</span>
-      <input value="${c.label}" id="campo-label-${i}"
+      <span style="font-size:12px;color:var(--txt3);width:90px">${safe(c.key)}</span>
+      <input value="${safe(c.label)}" id="campo-label-${i}"
         style="flex:1;padding:6px 10px;font-size:13px"
         placeholder="Nome do campo">
     </div>`).join('');
@@ -6535,7 +6572,7 @@ function renderProdutosCfg(){
   list.innerHTML = prods.map((p,i)=>`
     <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;
       background:var(--bg2);border:1px solid var(--bdr);border-radius:var(--r)">
-      <input value="${p}" id="prod-${i}" style="flex:1;padding:5px 8px;font-size:12px">
+      <input value="${safe(p)}" id="prod-${i}" style="flex:1;padding:5px 8px;font-size:12px">
       <button onclick="removeProdutoCfg(${i})"
         style="background:none;border:none;color:var(--err);cursor:pointer;font-size:14px">🗑️</button>
     </div>`).join('');
@@ -7812,6 +7849,7 @@ function abrirLimparDados(){
 }
 
 async function executarLimpeza(){
+  if(perfilAtual?.perfil !== 'Administrador'){ toast('Só Administrador pode limpar dados','err'); return; }
   const delRev  = document.getElementById('del-revendas').checked;
   const delTask = document.getElementById('del-tarefas').checked;
   const delAtiv = document.getElementById('del-atividades').checked;
@@ -7819,16 +7857,18 @@ async function executarLimpeza(){
   closeMo('mo-limpar');
   toast('⏳ Apagando dados...','warn');
 
-  const ops = [];
+  // Sequencial e revendas ANTES do histórico: o trigger da lixeira
+  // (revendas_excluidas) guarda revenda + histórico + tarefas; o histórico
+  // e as tarefas vinculadas saem por ON DELETE CASCADE.
+  const results = [];
+  const ZERO = '00000000-0000-0000-0000-000000000000';
   if(delRev){
-    ops.push(sb.from('historico_cards').delete().neq('id','00000000-0000-0000-0000-000000000000'));
-    ops.push(sb.from('revendas').delete().neq('id','00000000-0000-0000-0000-000000000000'));
-    ops.push(sb.from('orion_leads_vendidos').delete().neq('id','00000000-0000-0000-0000-000000000000'));
+    results.push(await sb.from('revendas').delete().neq('id',ZERO));
+    results.push(await sb.from('historico_cards').delete().neq('id',ZERO));
+    results.push(await sb.from('orion_leads_vendidos').delete().neq('id',ZERO));
   }
-  if(delTask)  ops.push(sb.from('tarefas').delete().neq('id','00000000-0000-0000-0000-000000000000'));
-  if(delAtiv)  ops.push(sb.from('atividades').delete().neq('id','00000000-0000-0000-0000-000000000000'));
-
-  const results = await Promise.all(ops);
+  if(delTask)  results.push(await sb.from('tarefas').delete().neq('id',ZERO));
+  if(delAtiv)  results.push(await sb.from('atividades').delete().neq('id',ZERO));
   const erros = results.filter(r=>r.error).map(r=>r.error.message);
 
   logAuditoria('DELETE_ALL','sistema',null,{
@@ -8184,7 +8224,7 @@ async function adicionarPontoMeta(metaId, nomeMeta) {
 // ── Renderiza descrição do histórico (Meet recebe link clicável) ──
 function _renderDescHistorico(h){
   if(h.tipo === '🎯 Google Meet'){
-    const meetLink = (h.desc||'').match(/🔗\s*(https:\/\/meet\.google\.com\/\S+)/)?.[1];
+    const meetLink = (h.desc||'').match(/🔗\s*(https:\/\/meet\.google\.com\/[A-Za-z0-9_\-\/?=&.]+)/)?.[1];
     const linhas = (h.desc||'').split('\n').map(l=>{
       if(l.startsWith('🔗') && meetLink)
         return `🔗 <a href="${meetLink}" target="_blank" rel="noopener" style="color:var(--acc);font-weight:600">${meetLink.replace('https://','')}</a>`;

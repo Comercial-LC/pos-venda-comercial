@@ -85,19 +85,19 @@ async function redirecionar(){
 
   document.getElementById('status-txt').textContent = 'Buscando informações…';
 
-  let url, resp;
+  const headers = { 'Authorization':'Bearer '+SUPABASE_ANON, 'apikey':SUPABASE_ANON, 'Content-Type':'application/json' };
 
-  if(code){
-    // Busca pelo código curto (?c=CODE)
-    url = `${SUPABASE_URL}/rest/v1/convites?code=eq.${encodeURIComponent(code)}&select=meet_url,titulo,task_id`;
-  } else {
-    // Fallback: busca pelo UUID da tarefa (?t=UUID)
-    url = `${SUPABASE_URL}/rest/v1/convites?task_id=eq.${encodeURIComponent(taskId)}&select=meet_url,titulo,task_id`;
-  }
-
-  resp = await fetch(url, {
-    headers:{ 'Authorization':'Bearer '+SUPABASE_ANON, 'apikey':SUPABASE_ANON }
+  // Busca 1 convite pelo código via RPC (a tabela convites não é mais listável por anônimo)
+  let resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/obter_convite`, {
+    method: 'POST', headers,
+    body: JSON.stringify(code ? { p_code: code } : { p_task: taskId }),
   });
+
+  // Compatibilidade: banco ainda sem a RPC (security_patch_2026_11.sql não aplicado)
+  if(resp.status === 404){
+    const filtro = code ? `code=eq.${encodeURIComponent(code)}` : `task_id=eq.${encodeURIComponent(taskId)}`;
+    resp = await fetch(`${SUPABASE_URL}/rest/v1/convites?${filtro}&select=meet_url,titulo,task_id`, { headers });
+  }
 
   if(!resp.ok){ erro('Erro ao carregar link.'); return; }
 
@@ -105,7 +105,7 @@ async function redirecionar(){
   if(!data.length){ erro('Link inválido ou expirado.'); return; }
 
   const { meet_url, titulo, task_id } = data[0];
-  if(!meet_url){ erro('Link de reunião não encontrado.'); return; }
+  if(!meet_url || !String(meet_url).startsWith('https://meet.google.com/')){ erro('Link de reunião não encontrado.'); return; }
 
   document.getElementById('status-txt').textContent = 'Redirecionando…';
 

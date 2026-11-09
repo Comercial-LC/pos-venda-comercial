@@ -42,3 +42,15 @@ services/whatsapp/.wwebjs_cache/
 # Arquivos temporários de patch (manter apenas o SQL de segurança)
 *.patch
 *.zip
+
+# Dados reais de clientes / dumps — o repositório é PÚBLICO (LGPD)
+migrations/sql_import/import_02_*.sql
+migrations/sql_import/import_03_*.sql
+migrations/sql_import/import_04_*.sql
+migrations/sql_import/import_05*_*.sql
+migrations/sql_import/import_06_*.sql
+migrations/sql_import/import_07_*.sql
+backup/
+backup_*.json
+*.gpg
+*.dump

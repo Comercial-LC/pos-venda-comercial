@@ -278,7 +278,11 @@ Deno.serve(async (req: Request) => {
     return Response.json({ error: 'revenda_id é obrigatório' }, { status: 400, headers: corsHeaders })
   }
 
-  const { data: perfil } = await sb.from('perfis').select('nome').eq('id', user.id).maybeSingle()
+  // Conta recém-cadastrada nasce inativa — só usuário ATIVO usa a IA (dados + custo Gemini)
+  const { data: perfil } = await sb.from('perfis').select('nome, ativo').eq('id', user.id).maybeSingle()
+  if (!perfil?.ativo) {
+    return Response.json({ error: 'Usuário sem acesso ativo ao portal' }, { status: 403, headers: corsHeaders })
+  }
 
   const { data: revenda, error: errRevenda } = await sb.from('revendas').select('*').eq('id', revendaId).single()
   if (errRevenda || !revenda) {

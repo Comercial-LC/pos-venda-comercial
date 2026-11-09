@@ -9,14 +9,29 @@ const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')
 const SUPABASE_SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 const WEBHOOK_SECRET   = Deno.env.get('WHATSAPP_WEBHOOK_SECRET')
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE) {
-  throw new Error('SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY são obrigatórios')
+// Fail-closed: sem segredo configurado a função NÃO aceita nada
+// (antes, sem o secret, qualquer pessoa gravava histórico em qualquer revenda
+// e descobria o nome da revenda dona de um telefone).
+if (!SUPABASE_URL || !SUPABASE_SERVICE || !WEBHOOK_SECRET || WEBHOOK_SECRET.length < 32) {
+  throw new Error('SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY e WHATSAPP_WEBHOOK_SECRET (>= 32 chars) são obrigatórios')
 }
 
+// Chamada servidor→servidor: sem CORS liberado pra navegador
 const CORS_HEADERS = {
-  'Access-Control-Allow-Origin':  '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Origin':  'null',
+  'Access-Control-Allow-Methods': 'POST',
   'Access-Control-Allow-Headers': 'Content-Type, x-whatsapp-secret',
+}
+
+// Comparação em tempo constante (evita descobrir o segredo por timing)
+function segredoConfere(recebido: string | null): boolean {
+  if (!recebido) return false
+  const a = new TextEncoder().encode(recebido)
+  const b = new TextEncoder().encode(WEBHOOK_SECRET!)
+  if (a.length !== b.length) return false
+  let diff = 0
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i]
+  return diff === 0
 }
 
 // Remove tudo que não for dígito para comparação
@@ -44,12 +59,9 @@ Deno.serve(async (req: Request) => {
     return Response.json({ error: 'Método não permitido' }, { status: 405 })
   }
 
-  // ── Valida secret compartilhado ──────────────────────────────────
-  if (WEBHOOK_SECRET) {
-    const secret = req.headers.get('x-whatsapp-secret')
-    if (!secret || secret !== WEBHOOK_SECRET) {
-      return Response.json({ error: 'Não autorizado' }, { status: 401, headers: CORS_HEADERS })
-    }
+  // ── Valida secret compartilhado (obrigatório) ────────────────────
+  if (!segredoConfere(req.headers.get('x-whatsapp-secret'))) {
+    return Response.json({ error: 'Não autorizado' }, { status: 401, headers: CORS_HEADERS })
   }
 
   // ── Parse do payload ─────────────────────────────────────────────
@@ -60,9 +72,9 @@ Deno.serve(async (req: Request) => {
     return Response.json({ error: 'JSON inválido' }, { status: 400, headers: CORS_HEADERS })
   }
 
-  const phone   = String(payload.phone   || '').trim()
+  const phone   = String(payload.phone   || '').trim().slice(0, 40)
   const type    = String(payload.type    || 'whatsapp_received').trim()
-  const message = String(payload.message || '').trim()
+  const message = String(payload.message || '').trim().slice(0, 10000)
 
   if (!phone || !message) {
     return Response.json(
@@ -79,10 +91,8 @@ Deno.serve(async (req: Request) => {
     .select('id, nome, tel, tel2, tel3')
 
   if (errFetch) {
-    return Response.json(
-      { error: `Erro ao consultar banco: ${errFetch.message}` },
-      { status: 500, headers: CORS_HEADERS }
-    )
+    console.error('dynamic-processor: erro ao consultar revendas —', errFetch.message)
+    return Response.json({ error: 'Erro interno' }, { status: 500, headers: CORS_HEADERS })
   }
 
   const phoneClean = normalizarFone(phone)
@@ -94,10 +104,7 @@ Deno.serve(async (req: Request) => {
   )
 
   if (!revenda) {
-    return Response.json(
-      { error: 'Nenhuma revenda cadastrada com este número', phone },
-      { status: 404, headers: CORS_HEADERS }
-    )
+    return Response.json({ error: 'Nenhuma revenda cadastrada com este número' }, { status: 404, headers: CORS_HEADERS })
   }
 
   // ── Insere no histórico da revenda ───────────────────────────────
@@ -112,14 +119,10 @@ Deno.serve(async (req: Request) => {
   })
 
   if (errInsert) {
-    return Response.json(
-      { error: `Erro ao salvar histórico: ${errInsert.message}` },
-      { status: 500, headers: CORS_HEADERS }
-    )
+    console.error('dynamic-processor: erro ao salvar histórico —', errInsert.message)
+    return Response.json({ error: 'Erro interno' }, { status: 500, headers: CORS_HEADERS })
   }
 
-  return Response.json(
-    { success: true, revenda: { id: revenda.id, nome: revenda.nome }, tipo },
-    { headers: CORS_HEADERS }
-  )
+  // Não devolve nome/id da revenda (evita usar o endpoint como "consulta de telefone")
+  return Response.json({ success: true, tipo }, { headers: CORS_HEADERS })
 })

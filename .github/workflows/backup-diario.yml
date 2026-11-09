@@ -35,25 +35,38 @@ jobs:
             'analises_ia',
             'analises_estrategia_mes',
             'configuracoes',
+            'configuracoes_historico',
+            'revendas_excluidas',
           ];
+          const falhas = [];
 
           async function exportarTabela(tabela) {
             const rows = [];
             let offset = 0;
+            // Ordenação estável na paginação (sem ela, linhas podem repetir/sumir entre páginas)
+            let ordem = '&order=id';
+            const headers = {
+              'apikey':        SUPABASE_KEY,
+              'Authorization': `Bearer ${SUPABASE_KEY}`,
+              'Accept':        'application/json',
+            };
             while (true) {
-              const res = await fetch(
-                `${SUPABASE_URL}/rest/v1/${tabela}?select=*&limit=1000&offset=${offset}`,
-                {
-                  headers: {
-                    'apikey':        SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`,
-                    'Accept':        'application/json',
-                  },
-                }
+              let res = await fetch(
+                `${SUPABASE_URL}/rest/v1/${tabela}?select=*${ordem}&limit=1000&offset=${offset}`,
+                { headers }
               );
+              if (res.status === 400 && ordem && offset === 0) {   // tabela sem coluna id
+                ordem = '';
+                continue;
+              }
               if (!res.ok) {
                 const txt = await res.text();
-                console.warn(`  ⚠️  ${tabela} HTTP ${res.status}: ${txt.slice(0, 80)}`);
+                if (res.status === 404 && txt.includes('PGRST205')) {   // tabela ainda não criada
+                  console.warn(`  ⚠️  ${tabela} não existe no banco — ignorada`);
+                  break;
+                }
+                console.error(`  ❌ ${tabela} HTTP ${res.status}: ${txt.slice(0, 120)}`);
+                falhas.push(tabela);
                 break;
               }
               const pagina = await res.json();
@@ -89,6 +102,10 @@ jobs:
             resumo.total_registros = totalRegistros;
             fs.writeFileSync('backup/manifest.json', JSON.stringify(resumo, null, 2), 'utf8');
 
+            if (falhas.length) {
+              console.error(`\n❌ Backup INCOMPLETO — falharam: ${falhas.join(', ')}`);
+              process.exit(1);
+            }
             console.log(`\n✅ Backup concluído: ${totalRegistros} registros em ${TABELAS.length} tabelas`);
             console.log(`   Arquivo: backup/${DATE}_*.json`);
           })();
@@ -100,11 +117,29 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: node backup.js
 
-      - name: Upload do backup como artefato
+      # O repositório é PÚBLICO: artefatos podem ser baixados por qualquer
+      # usuário logado no GitHub. Por isso o backup SÓ sobe criptografado
+      # (AES-256 via GPG). Sem o secret BACKUP_PASSPHRASE o job falha
+      # em vez de publicar dados em texto puro.
+      # Restaurar: gpg --decrypt backup.tar.gz.gpg | tar xz
+      - name: Criptografar backup
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$BACKUP_PASSPHRASE" ] || [ ${#BACKUP_PASSPHRASE} -lt 20 ]; then
+            echo "❌ Secret BACKUP_PASSPHRASE ausente ou curto (mín. 20 chars) — backup NÃO será publicado."
+            exit 1
+          fi
+          tar czf backup.tar.gz backup/
+          echo "$BACKUP_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+            --symmetric --cipher-algo AES256 -o backup.tar.gz.gpg backup.tar.gz
+          shred -u backup.tar.gz 2>/dev/null || rm -f backup.tar.gz
+
+      - name: Upload do backup (criptografado) como artefato
         uses: actions/upload-artifact@v4
         with:
           name: backup-${{ github.run_number }}-${{ github.run_attempt }}
-          path: backup/
+          path: backup.tar.gz.gpg
           retention-days: 90
           if-no-files-found: error
 
