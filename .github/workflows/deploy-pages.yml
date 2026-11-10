@@ -34,7 +34,7 @@ jobs:
           cp "Fogos.mp3" "Palmas.mp3" "Palmas 2.mp3" "Sino.mp3" "video de fogos.mp4" _site/
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: '_site'
 
