@@ -55,9 +55,14 @@ c:/pos-venda-comercial/
 │
 └── supabase/
     └── functions/
-        └── webhook-orion/
-            └── index.ts               # Edge Function: receptor de webhooks do Orion CRM
+        ├── lc-success-ai/             # Edge Function: análise de IA por revenda
+        └── lc-success-ai-estrategia/  # Edge Function: estratégia do mês (IA)
 ```
+
+> **Removidos em 10/11/2026:** `webhook-orion` (integração Orion CRM inativa — não estava
+> publicada no projeto atual) e o serviço WhatsApp (`services/whatsapp` +
+> `dynamic-processor`). As tabelas `orion_metas` e `orion_leads_vendidos` continuam em uso
+> direto pelo portal. Para reativar algum deles, recuperar do histórico do git (commit adae6fc).
 
 ---
 
@@ -537,7 +542,7 @@ orion_leads_vendidos.id_origem ──── revendas.id_origem (correlação por
 
 ## 5. Edge Functions
 
-### 5.1 `webhook-orion`
+### 5.1 `webhook-orion` — ⚠️ REMOVIDA em 10/11/2026 (seção mantida como referência histórica)
 
 **Localização:** `supabase/functions/webhook-orion/index.ts`  
 **Runtime:** Deno + TypeScript  
