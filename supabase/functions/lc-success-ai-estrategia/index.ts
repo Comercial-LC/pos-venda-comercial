@@ -34,6 +34,16 @@ function buildCorsHeaders(req: Request): Record<string, string> {
   }
 }
 
+// Limite de análises de estratégia por usuário em 24h (custo Gemini / abuso)
+const LIMITE_DIARIO = Number(Deno.env.get('AI_ESTRATEGIA_LIMITE_DIARIO') || 10)
+
+// Nível de autenticação do token (aal2 = passou pelo 2FA). O token já foi
+// validado por auth.getUser antes desta leitura.
+function nivelAuth(jwt: string): string {
+  try { return JSON.parse(atob(jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).aal || 'aal1' }
+  catch { return 'aal1' }
+}
+
 const SYSTEM_PROMPT = `Você é o LC Success AI, especialista em sucesso de parceiros, gestão comercial, crescimento de revendas e desenvolvimento de canais de distribuição da LC Sistemas.
 
 Agora sua função é olhar o PORTFÓLIO INTEIRO de revendas (não uma revenda isolada) e propor a melhor estratégia para o time de pós-venda bater a meta comercial do mês.
@@ -222,9 +232,21 @@ Deno.serve(async (req: Request) => {
   }
 
   // Conta recém-cadastrada nasce inativa — só usuário ATIVO usa a IA (dados + custo Gemini)
-  const { data: perfil } = await sb.from('perfis').select('nome, ativo').eq('id', user.id).maybeSingle()
+  const { data: perfil } = await sb.from('perfis').select('nome, ativo, perfil').eq('id', user.id).maybeSingle()
   if (!perfil?.ativo) {
     return Response.json({ error: 'Usuário sem acesso ativo ao portal' }, { status: 403, headers: corsHeaders })
+  }
+  // Administrador só com 2FA (mesma regra do banco)
+  if (perfil.perfil === 'Administrador' && nivelAuth(authHeader.slice(7)) !== 'aal2') {
+    return Response.json({ error: 'Administrador precisa confirmar a verificação em duas etapas' }, { status: 403, headers: corsHeaders })
+  }
+  // Limite diário por usuário
+  const { count: usadas } = await sb.from('analises_estrategia_mes')
+    .select('id', { count: 'exact', head: true })
+    .eq('usuario_id', user.id)
+    .gte('criado_em', new Date(Date.now() - 86400000).toISOString())
+  if ((usadas ?? 0) >= LIMITE_DIARIO) {
+    return Response.json({ error: `Limite de ${LIMITE_DIARIO} análises de estratégia por dia atingido. Tente novamente amanhã.` }, { status: 429, headers: corsHeaders })
   }
 
   let analise: any = null

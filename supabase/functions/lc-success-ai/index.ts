@@ -32,6 +32,16 @@ function buildCorsHeaders(req: Request): Record<string, string> {
   }
 }
 
+// Limite de análises por usuário em 24h (custo Gemini / abuso)
+const LIMITE_DIARIO = Number(Deno.env.get('AI_LIMITE_DIARIO') || 40)
+
+// Nível de autenticação do token (aal2 = passou pelo 2FA). O token já foi
+// validado por auth.getUser antes desta leitura.
+function nivelAuth(jwt: string): string {
+  try { return JSON.parse(atob(jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).aal || 'aal1' }
+  catch { return 'aal1' }
+}
+
 // ── Rótulos das tags comerciais (Análise do Mês) para o contexto ────
 const TAGS_LABEL: Record<string, string> = {
   TREINAMENTO: 'Treinamento', PROSPECCAO: 'Prospecção', DEMONSTRACAO: 'Demonstração',
@@ -279,9 +289,21 @@ Deno.serve(async (req: Request) => {
   }
 
   // Conta recém-cadastrada nasce inativa — só usuário ATIVO usa a IA (dados + custo Gemini)
-  const { data: perfil } = await sb.from('perfis').select('nome, ativo').eq('id', user.id).maybeSingle()
+  const { data: perfil } = await sb.from('perfis').select('nome, ativo, perfil').eq('id', user.id).maybeSingle()
   if (!perfil?.ativo) {
     return Response.json({ error: 'Usuário sem acesso ativo ao portal' }, { status: 403, headers: corsHeaders })
+  }
+  // Administrador só com 2FA (mesma regra do banco)
+  if (perfil.perfil === 'Administrador' && nivelAuth(authHeader.slice(7)) !== 'aal2') {
+    return Response.json({ error: 'Administrador precisa confirmar a verificação em duas etapas' }, { status: 403, headers: corsHeaders })
+  }
+  // Limite diário por usuário
+  const { count: usadas } = await sb.from('analises_ia')
+    .select('id', { count: 'exact', head: true })
+    .eq('usuario_id', user.id)
+    .gte('criado_em', new Date(Date.now() - 86400000).toISOString())
+  if ((usadas ?? 0) >= LIMITE_DIARIO) {
+    return Response.json({ error: `Limite de ${LIMITE_DIARIO} análises por dia atingido. Tente novamente amanhã.` }, { status: 429, headers: corsHeaders })
   }
 
   const { data: revenda, error: errRevenda } = await sb.from('revendas').select('*').eq('id', revendaId).single()

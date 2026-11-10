@@ -3,11 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://accounts.google.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://www.googleapis.com https://oauth2.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; object-src 'none'; frame-src https://accounts.google.com; frame-ancestors 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://accounts.google.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' https://*.supabase.co https://www.googleapis.com https://oauth2.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; object-src 'none'; frame-src https://accounts.google.com; frame-ancestors 'none';">
 <title>Portal Sucesso da Revenda — LC Sistemas</title>
 <link rel="manifest" href="manifest.json">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Versões fixas + SRI: se o arquivo da CDN mudar, o navegador recusa carregar.
+     Para atualizar: trocar a versão e recalcular o hash
+     (curl -sL URL | openssl dgst -sha384 -binary | openssl base64 -A) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -1735,6 +1738,7 @@ function iniciarControleSession(perfil, userId, session){
       window.location.reload();
     } else {
       localStorage.removeItem(chave);
+      limparDadosLocais();
       sb.auth.signOut().then(()=> window.location.replace('./index.html'));
     }
     return;
@@ -1752,6 +1756,7 @@ function iniciarControleSession(perfil, userId, session){
       window.location.reload();
     } else {
       localStorage.removeItem(chave);
+      limparDadosLocais();
       await sb.auth.signOut();
       window.location.replace('./index.html');
     }
@@ -1872,6 +1877,104 @@ function importarBackupJSON(input){
 }
 
 // Guard: redireciona para login se não autenticado
+// ─── 2FA (TOTP) do Administrador ───────────────────────────────────
+// Resolve true quando a sessão chega em aal2. Na 1ª vez cadastra o
+// autenticador (Google Authenticator, Microsoft Authenticator, Authy…).
+async function exigirMFAAdmin(){
+  const mfa = sb.auth.mfa;
+  try {
+    const {data:aal, error} = await mfa.getAuthenticatorAssuranceLevel();
+    if(error) throw error;
+    if(aal?.currentLevel === 'aal2') return true;
+  } catch(e){
+    return _telaMFA({erroFatal:'Não foi possível verificar a autenticação em duas etapas ('+(e.message||e)+').'});
+  }
+
+  let fatores;
+  try {
+    const {data, error} = await mfa.listFactors();
+    if(error) throw error;
+    fatores = data;
+  } catch(e){
+    return _telaMFA({erroFatal:'Não foi possível consultar o autenticador ('+(e.message||e)+').'});
+  }
+
+  const verificado = (fatores?.totp||[]).find(f=>f.status==='verified');
+  if(verificado) return _telaMFA({factorId:verificado.id});
+
+  // Sem autenticador: limpa cadastros pela metade e cria um novo
+  for(const f of (fatores?.all||[]).filter(f=>f.status!=='verified')){
+    try { await mfa.unenroll({factorId:f.id}); } catch(e){}
+  }
+  const {data:novo, error:errEnroll} = await mfa.enroll({factorType:'totp', friendlyName:'Portal LC '+new Date().toISOString().slice(0,16)});
+  if(errEnroll || !novo) return _telaMFA({erroFatal:'Não foi possível iniciar o cadastro do autenticador ('+(errEnroll?.message||'erro')+').'});
+  return _telaMFA({factorId:novo.id, qr:novo.totp?.qr_code, segredo:novo.totp?.secret});
+}
+
+function _telaMFA({factorId, qr, segredo, erroFatal}){
+  return new Promise(resolve=>{
+    const ov = document.createElement('div');
+    ov.id = 'mfa-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:20000;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto';
+    const cadastro = !!qr;
+    ov.innerHTML = `
+      <div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--rxl);box-shadow:var(--sh2);padding:28px;max-width:420px;width:100%;color:var(--txt);font-family:var(--font)">
+        <div style="font-size:28px;margin-bottom:6px">🔐</div>
+        <h2 style="font-size:18px;font-weight:700;margin:0 0 6px">Verificação em duas etapas</h2>
+        ${erroFatal ? `<p style="font-size:13px;color:var(--err);line-height:1.5">${safe(erroFatal)}</p>` : `
+        <p style="font-size:13px;color:var(--txt2);line-height:1.5;margin:0 0 14px">${cadastro
+          ? 'Contas de <b>Administrador</b> exigem um app autenticador. Escaneie o QR code com o Google Authenticator, Microsoft Authenticator ou Authy e digite o código de 6 dígitos.'
+          : 'Digite o código de 6 dígitos do seu app autenticador.'}</p>
+        ${cadastro ? `<div style="background:#fff;border-radius:var(--r);padding:10px;width:200px;margin:0 auto 10px"><img id="mfa-qr" alt="QR code do autenticador" style="width:180px;height:180px;display:block"></div>
+          <div style="font-size:11px;color:var(--txt3);text-align:center;margin-bottom:14px;word-break:break-all">Sem câmera? Chave manual: <code id="mfa-secret" style="color:var(--txt2)"></code></div>` : ''}
+        <input id="mfa-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000"
+          style="width:100%;box-sizing:border-box;font-size:22px;letter-spacing:8px;text-align:center;padding:10px;border-radius:var(--r);border:1px solid var(--bdr2);background:var(--inp);color:var(--txt)">
+        <div id="mfa-msg" style="font-size:12px;color:var(--err);min-height:18px;margin-top:8px"></div>
+        <button id="mfa-ok" style="width:100%;padding:11px;border:none;border-radius:var(--r);background:var(--acc);color:#fff;font-weight:700;font-size:14px;cursor:pointer;margin-top:4px">Confirmar</button>`}
+        <button id="mfa-sair" style="width:100%;padding:9px;border:1px solid var(--bdr);border-radius:var(--r);background:transparent;color:var(--txt2);font-size:13px;cursor:pointer;margin-top:8px">${erroFatal?'Voltar ao login':'Sair'}</button>
+        ${erroFatal ? '<button id="mfa-retry" style="width:100%;padding:9px;border:none;border-radius:var(--r);background:var(--acc);color:#fff;font-size:13px;cursor:pointer;margin-top:8px">Tentar de novo</button>' : ''}
+      </div>`;
+    document.body.appendChild(ov);
+    // QR (data:image/svg) e segredo via propriedade — nunca interpolados em HTML
+    if(cadastro){
+      ov.querySelector('#mfa-qr').src = qr;
+      ov.querySelector('#mfa-secret').textContent = segredo || '';
+    }
+
+    ov.querySelector('#mfa-sair').onclick = async ()=>{
+      limparDadosLocais();
+      try { await sb.auth.signOut(); } catch(e){}
+      window.location.replace('./index.html');
+      resolve(false);
+    };
+    if(erroFatal){
+      ov.querySelector('#mfa-retry').onclick = ()=> window.location.reload();
+      return;
+    }
+
+    const inp = ov.querySelector('#mfa-code'), msg = ov.querySelector('#mfa-msg'), btn = ov.querySelector('#mfa-ok');
+    setTimeout(()=>inp.focus(), 50);
+    const confirmar = async ()=>{
+      if(btn.disabled) return;   // evita envio duplo (Enter + auto-envio)
+      const code = inp.value.replace(/\D/g,'');
+      if(code.length !== 6){ msg.textContent = 'Digite os 6 dígitos.'; return; }
+      btn.disabled = true; btn.textContent = 'Verificando…'; msg.textContent = '';
+      const {error} = await sb.auth.mfa.challengeAndVerify({factorId, code});
+      if(error){
+        btn.disabled = false; btn.textContent = 'Confirmar';
+        msg.textContent = /invalid|expired/i.test(error.message) ? 'Código inválido ou expirado. Tente o próximo.' : 'Erro: '+error.message;
+        inp.value = ''; inp.focus();
+        return;
+      }
+      ov.remove();
+      resolve(true);
+    };
+    btn.onclick = confirmar;
+    inp.addEventListener('keydown', e=>{ if(e.key==='Enter') confirmar(); });
+    inp.addEventListener('input', ()=>{ if(inp.value.replace(/\D/g,'').length===6) confirmar(); });
+  });
+}
+
 async function initAuth(){
   const _modoEmergParam = new URLSearchParams(location.search).has('emergency');
 
@@ -1948,9 +2051,19 @@ async function initAuth(){
 
   // Só verifica conta ativa quando banco respondeu normalmente
   if(!isEmergencia && !perfil.ativo){
+    limparDadosLocais();
     await sb.auth.signOut();
     window.location.replace('./index.html');
     return false;
+  }
+
+  // Administrador: 2FA obrigatório antes de carregar qualquer dado.
+  // O banco também exige (sou_admin/estou_ativo checam aal2) — esta tela
+  // só conduz o usuário; burlar ela no navegador não libera nada.
+  if(!isEmergencia && perfil.perfil === 'Administrador'){
+    const ok = await exigirMFAAdmin();
+    if(!ok) return false;
+    try { const {data} = await sb.auth.getSession(); if(data?.session){ session = data.session; sessaoAtual = session; } } catch(e){}
   }
 
   perfilAtual = perfil;
@@ -2632,6 +2745,19 @@ async function renderTVAnaliseMes(tvCfg){
   }
 }
 
+// Apaga do navegador os dados do portal (revendas, usuários, perfil, config)
+// para que não fiquem no computador depois de sair. Mantém só o tema.
+// Obs.: depois disso o "modo emergência" da tela de login não tem mais cache —
+// é o esperado após um logout explícito ou sessão expirada.
+function limparDadosLocais(){
+  try {
+    Object.keys(localStorage)
+      .filter(k => (k.startsWith('lc_') && k !== 'lc_theme') || k.startsWith('portal_sessao_'))
+      .forEach(k => localStorage.removeItem(k));
+  } catch(e) {}
+  try { sessionStorage.clear(); } catch(e) {}
+}
+
 // Logout com log de auditoria
 async function fazerLogout(){
   if(sessaoAtual) localStorage.removeItem(`portal_sessao_${sessaoAtual.user.id}`);
@@ -2643,6 +2769,7 @@ async function fazerLogout(){
       acao:'LOGOUT'
     });
   }
+  limparDadosLocais();
   await sb.auth.signOut();
   window.location.replace('./index.html');
 }
@@ -3127,7 +3254,7 @@ function deleteRevenda(id){
     const {error}=await sb.from('revendas').delete().eq('id',id);
     if(error){toast('Erro ao excluir: '+error.message,'err');return}
     toast('Revenda excluída','warn');
-    logAuditoria('DELETE','revendas',id,{nome:revDel?.nome});
+    // auditoria: gravada pelo banco (trigger trg_auditar_revenda_delete)
     await _refreshTabela('revendas');
     renderRevendas();renderDashboard();renderKanban();
   });
@@ -5715,7 +5842,7 @@ async function toggleUserStatus(id){
   const {error}=await sb.from('perfis').update({ativo:novoStatus}).eq('id',id);
   if(error){toast('Erro: '+error.message,'err');return}
   toast(`Usuário ${novoStatus?'ativado':'desativado'}`);
-  logAuditoria(novoStatus?'USER_ACTIVATED':'USER_DEACTIVATED','perfis',id,{nome:u.nome});
+  // auditoria: gravada pelo banco (trigger trg_auditar_perfis)
   await _refreshTabela('perfis');renderUsers();
 }
 
@@ -5725,7 +5852,7 @@ function deleteUser(id){
     const {error}=await sb.from('perfis').delete().eq('id',id);
     if(error){toast('Erro: '+error.message,'err');return}
     toast('Usuário excluído','warn');
-    logAuditoria('DELETE','perfis',id,{nome:u?.nome});
+    // auditoria: gravada pelo banco (trigger trg_auditar_perfis)
     await _refreshTabela('perfis');renderUsers();
   });
 }
@@ -7696,7 +7823,7 @@ async function renderAuditoria(){
     tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--txt3)">Nenhum registro</td></tr>';
     return;
   }
-  const acaoColor={LOGIN:'var(--ok)',LOGOUT:'var(--txt2)',CREATE:'var(--acc)',UPDATE:'var(--warn)',DELETE:'var(--err)',EXPORT:'var(--pur)',VIEW_CNPJ:'#f97316'};
+  const acaoColor={LOGIN:'var(--ok)',LOGOUT:'var(--txt2)',CREATE:'var(--acc)',UPDATE:'var(--warn)',DELETE:'var(--err)',EXPORT:'var(--pur)',VIEW_CNPJ:'#f97316',USER_ACTIVATED:'#22c55e',USER_DEACTIVATED:'#ef4444',PERMISSOES_ALTERADAS:'#f59e0b'};
   tb.innerHTML=data.map(a=>`<tr>
     <td><div style="font-size:12px;font-weight:500">${safe(a.usuario_nome||'—')}</div><div style="font-size:10px;color:var(--txt3)">${safe(a.usuario_email||'')}</div></td>
     <td><span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:${acaoColor[a.acao]||'var(--txt3)'}22;color:${acaoColor[a.acao]||'var(--txt3)'}">${safe(a.acao)}</span></td>

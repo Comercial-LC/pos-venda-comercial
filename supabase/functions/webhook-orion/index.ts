@@ -138,6 +138,17 @@ Deno.serve(async (req: Request) => {
     if (authErr || !user) {
       return Response.json({ error: 'Token inválido' }, { status: 401, headers: corsHeaders })
     }
+    // Só usuário ATIVO lê metas/leads (antes qualquer conta logada, mesmo
+    // desativada, lia via service_role). Administrador só com 2FA.
+    const { data: perfil } = await sb.from('perfis').select('ativo, perfil').eq('id', user.id).maybeSingle()
+    if (!perfil?.ativo) {
+      return Response.json({ error: 'Usuário sem acesso ativo ao portal' }, { status: 403, headers: corsHeaders })
+    }
+    let aal = 'aal1'
+    try { aal = JSON.parse(atob(authHeader.slice(7).split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).aal || 'aal1' } catch { /* aal1 */ }
+    if (perfil.perfil === 'Administrador' && aal !== 'aal2') {
+      return Response.json({ error: 'Administrador precisa confirmar a verificação em duas etapas' }, { status: 403, headers: corsHeaders })
+    }
 
     const url  = new URL(req.url)
     const tipo = url.searchParams.get('tipo')
