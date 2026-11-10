@@ -110,7 +110,7 @@ input::placeholder{color:var(--txt3)}
       <div class="fg">
         <label>Senha *</label>
         <div style="position:relative">
-          <input id="reg-senha" type="password" placeholder="Mínimo 8 caracteres" oninput="checkStrength(this.value)" style="padding-right:40px">
+          <input id="reg-senha" type="password" placeholder="Mín. 10, com maiúscula, minúscula e número" oninput="checkStrength(this.value)" style="padding-right:40px">
           <span onclick="togglePass('reg-senha')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--txt3);font-size:14px">👁</span>
         </div>
         <div class="strength" id="strength-bar"></div>
@@ -145,7 +145,7 @@ input::placeholder{color:var(--txt3)}
       <div class="fg">
         <label>Nova senha</label>
         <div style="position:relative">
-          <input id="nova-senha" type="password" placeholder="Mínimo 8 caracteres" style="padding-right:40px"
+          <input id="nova-senha" type="password" placeholder="Mín. 10, com maiúscula, minúscula e número" style="padding-right:40px"
             oninput="checkStrengthNs(this.value)" onkeydown="if(event.key==='Enter')doNovaSenha()">
           <span onclick="togglePass('nova-senha')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--txt3);font-size:14px">👁</span>
         </div>
@@ -241,10 +241,19 @@ function checkStrengthNs(v){
   txt.textContent=l.t; txt.style.color=l.c;
 }
 
+// Mesma regra configurada no Supabase Auth (mín. 10, maiúscula, minúscula e número).
+// O servidor também valida — aqui é só para mostrar a mensagem em português.
+function erroRegraSenha(s){
+  if(!s||s.length<10) return 'A senha deve ter pelo menos 10 caracteres.';
+  if(!/[a-z]/.test(s)||!/[A-Z]/.test(s)||!/[0-9]/.test(s))
+    return 'A senha precisa ter letra minúscula, letra maiúscula e número.';
+  return null;
+}
+
 async function doNovaSenha(){
   const senha=document.getElementById('nova-senha').value;
   const senha2=document.getElementById('nova-senha2').value;
-  if(!senha||senha.length<8){showMsg('A senha deve ter pelo menos 8 caracteres.','err');return}
+  const errSenha=erroRegraSenha(senha); if(errSenha){showMsg(errSenha,'err');return}
   if(senha!==senha2){showMsg('As senhas não coincidem.','err');return}
   setLoading('btn-nova-senha',true,'Salvando');
   clearMsg();
@@ -381,7 +390,7 @@ async function doRegister(){
   const senha2=document.getElementById('reg-senha2').value;
   if(!nome||!email||!senha){showMsg('Preencha todos os campos.','err');return}
   if(senha!==senha2){showMsg('As senhas não coincidem.','err');return}
-  if(senha.length<8){showMsg('A senha deve ter pelo menos 8 caracteres.','err');return}
+  const errSenha=erroRegraSenha(senha); if(errSenha){showMsg(errSenha,'err');return}
   setLoading('btn-register',true,'Criando conta');
   clearMsg();
   const {data,error}=await sb.auth.signUp({
