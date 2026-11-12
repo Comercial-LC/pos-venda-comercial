@@ -367,7 +367,7 @@ select option{background:var(--bg2)}
           <input type="text" id="rev-search" placeholder="Buscar por nome, CNPJ, cidade..." oninput="clearTimeout(this._t);this._t=setTimeout(renderRevendas,250)" style="padding-left:32px">
           <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--txt3)">🔍</span>
         </div>
-        <select id="rev-status" onchange="renderRevendas()" style="width:180px"><option value="">Todos status</option><option>Nova Revenda</option><option>Implantação</option><option>Liberação Web</option><option>Academy</option><option>Decola Instalação</option><option>Decola Produtos</option><option>Primeiro Cliente</option><option>Handover</option></select>
+        <select id="rev-status" onchange="renderRevendas()" style="width:180px"><option value="">Todos status</option><option>Nova Revenda</option><option>Implantação</option><option>Liberação Web</option><option>Qualificação</option><option>Decola 1 Cliente</option><option>Handover</option></select>
         <select id="rev-uf" onchange="renderRevendas()" style="width:100px"><option value="">Todos UF</option><option>AC</option><option>AL</option><option>AM</option><option>AP</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MG</option><option>MS</option><option>MT</option><option>PA</option><option>PB</option><option>PE</option><option>PI</option><option>PR</option><option>RJ</option><option>RN</option><option>RO</option><option>RR</option><option>RS</option><option>SC</option><option>SE</option><option>SP</option><option>TO</option></select>
         <select id="rev-cs" onchange="renderRevendas()" style="width:160px"><option value="">Todos CS</option></select>
       </div>
@@ -437,10 +437,8 @@ select option{background:var(--bg2)}
         <button class="btn btn-sm" style="background:var(--card2);color:var(--txt2);border:1px solid var(--bdr2);font-size:11px" onclick="batchMove('Nova Revenda')">🆕 Nova Revenda</button>
         <button class="btn btn-sm" style="background:var(--accl);color:var(--acc);border:1px solid var(--acc);font-size:11px" onclick="batchMove('Implantação')">🔧 Implantação</button>
         <button class="btn btn-sm" style="background:var(--purl);color:var(--pur);border:1px solid var(--pur);font-size:11px" onclick="batchMove('Liberação Web')">🌐 Liberação Web</button>
-        <button class="btn btn-sm" style="background:rgba(236,72,153,.15);color:#ec4899;border:1px solid rgba(236,72,153,.45);font-size:11px" onclick="batchMove('Academy')">🎓 Academy</button>
-        <button class="btn btn-sm" style="background:var(--warnl);color:var(--warn);border:1px solid var(--warn);font-size:11px" onclick="batchMove('Decola Instalação')">🚀 Decola Inst.</button>
-        <button class="btn btn-sm" style="background:rgba(249,115,22,.15);color:#f97316;border:1px solid rgba(249,115,22,.45);font-size:11px" onclick="batchMove('Decola Produtos')">📦 Decola Prod.</button>
-        <button class="btn btn-sm" style="background:var(--okl);color:var(--ok);border:1px solid var(--ok);font-size:11px" onclick="batchMove('Primeiro Cliente')">👤 1º Cliente</button>
+        <button class="btn btn-sm" style="background:rgba(236,72,153,.15);color:#ec4899;border:1px solid rgba(236,72,153,.45);font-size:11px" onclick="batchMove('Qualificação')">🎯 Qualificação</button>
+        <button class="btn btn-sm" style="background:var(--okl);color:var(--ok);border:1px solid var(--ok);font-size:11px" onclick="batchMove('Decola 1 Cliente')">👤 1º Cliente</button>
         <button class="btn btn-sm" style="background:var(--tell);color:var(--tel);border:1px solid var(--tel);font-size:11px" onclick="batchMove('Handover')">🤝 Handover</button>
         <button class="btn btn-sm" style="margin-left:auto;background:var(--accl);color:var(--acc);border:1px solid var(--acc);font-size:11px" onclick="abrirHistoricoLote()">📝 Lançar no histórico</button>
         <button class="btn btn-sm" style="background:var(--okl);color:var(--ok);border:1px solid var(--ok);font-size:11px" onclick="exportKbSelecao()">📥 Exportar Excel</button>
@@ -530,7 +528,7 @@ select option{background:var(--bg2)}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
         <div>
           <div style="font-size:19px;font-weight:700">🧭 Análise do Mês</div>
-          <div style="font-size:12px;color:var(--txt3);margin-top:2px">Leitura do histórico comercial das revendas entre Nova Revenda e Decola Produtos</div>
+          <div style="font-size:12px;color:var(--txt3);margin-top:2px">Leitura do histórico comercial das revendas entre Nova Revenda e Qualificação</div>
         </div>
         <button class="btn btn-s" onclick="renderAnaliseMes()">🔄 Atualizar</button>
       </div>
@@ -1003,7 +1001,7 @@ select option{background:var(--bg2)}
           </div>
           <div class="card">
             <div class="ct" style="margin-bottom:14px">📦 Produtos do Decola</div>
-            <div class="cs" style="margin-bottom:12px">Adicione ou remova produtos do checklist "Decola Produtos"</div>
+            <div class="cs" style="margin-bottom:12px">Adicione ou remova produtos do checklist da etapa "Qualificação"</div>
             <div id="produtos-cfg-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
             <div style="display:flex;gap:8px">
               <input id="novo-produto-nome" placeholder="Nome do produto" style="flex:1">
@@ -1638,6 +1636,48 @@ select option{background:var(--bg2)}
     <div class="mof">
       <button class="btn btn-s" onclick="cancelarMotivoInativo()">Cancelar</button>
       <button class="btn btn-d" onclick="confirmarMotivoInativo()">✅ Confirmar inativação</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Avaliação do Handover -->
+<div class="mo-ov" id="mo-aval-handover" style="z-index:210">
+  <div class="mo" style="width:520px">
+    <div class="moh">
+      <div>
+        <div class="mot">🤝 Avaliação do Handover</div>
+        <div style="font-size:12px;color:var(--txt3);margin-top:2px">
+          <strong id="aval-rev-nome">—</strong><span id="aval-fila"></span>
+        </div>
+      </div>
+    </div>
+    <div class="mob">
+      <div class="fg">
+        <label>De 0 a 10, como foi o atendimento do time Comercial / Pós-Vendas? *</label>
+        <div id="aval-notas" style="display:grid;grid-template-columns:repeat(11,1fr);gap:4px;margin-top:4px"></div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--txt3);margin-top:4px">
+          <span>Muito ruim</span><span>Excelente</span>
+        </div>
+      </div>
+      <div class="fg">
+        <label>Comentário (opcional)</label>
+        <textarea id="aval-comentario" rows="3" maxlength="2000"
+          placeholder="O que funcionou bem? O que pode melhorar?"
+          style="width:100%;resize:vertical"></textarea>
+      </div>
+      <div class="fg">
+        <label>Imagem (opcional)</label>
+        <input type="file" id="aval-imagem" accept="image/jpeg,image/png,image/webp" onchange="previewAvalImagem()">
+        <div id="aval-imagem-prev" style="display:none;margin-top:8px;position:relative;width:max-content;max-width:100%">
+          <img id="aval-imagem-img" alt="" style="max-width:100%;max-height:160px;border-radius:8px;border:1px solid var(--bdr);display:block">
+          <button type="button" onclick="limparAvalImagem()" title="Remover imagem"
+            style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:12px">✕</button>
+        </div>
+      </div>
+    </div>
+    <div class="mof">
+      <button class="btn btn-s" onclick="cancelarAvaliacaoHandover()">Cancelar</button>
+      <button class="btn btn-p" id="aval-btn-ok" onclick="confirmarAvaliacaoHandover()">✅ Confirmar Handover</button>
     </div>
   </div>
 </div>
@@ -2713,7 +2753,7 @@ async function renderTVAnaliseMes(tvCfg){
   if(!kpisEl) return;
 
   if(!_amDiagnosticos.length){
-    kpisEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--txt3);font-size:13px;padding:16px">Nenhuma revenda entre Nova Revenda e Decola Produtos</div>';
+    kpisEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--txt3);font-size:13px;padding:16px">Nenhuma revenda entre Nova Revenda e Qualificação</div>';
     if(notaEl) notaEl.innerHTML = '';
     return;
   }
@@ -3054,7 +3094,7 @@ function renderPanel(name){
 // ─── Modals ────────────────────────────────────────────────────────
 function openMo(id){
   // Não chama populateSelects para modais de sistema (motivo, limpar, confirmar)
-  const modaisSistema = ['mo-motivo-inativo','mo-limpar','mo-confirm','mo-participantes'];
+  const modaisSistema = ['mo-motivo-inativo','mo-aval-handover','mo-limpar','mo-confirm','mo-participantes'];
   if(!modaisSistema.includes(id)){
     try { populateSelects(); } catch(e){ console.warn('populateSelects:', e.message); }
   }
@@ -3287,8 +3327,8 @@ function renderRevendas(){
     const matchC=!csF||r.cs===csF;
     return matchQ&&matchS&&matchU&&matchC;
   });
-  const stMap={'Nova Revenda':'st-tr','Implantação':'st-on','Liberação Web':'st-on','Academy':'st-on','Decola Instalação':'st-on','Decola Produtos':'st-on','Primeiro Cliente':'st-ok','Handover':'st-dn','Concluído':'st-dn'};
-  const stColor={'Nova Revenda':'var(--txt2)','Implantação':'var(--acc)','Liberação Web':'var(--pur)','Academy':'#ec4899','Decola Instalação':'var(--warn)','Decola Produtos':'#f97316','Primeiro Cliente':'var(--ok)','Handover':'var(--tel)','Concluído':'var(--tel)'};
+  const stMap={'Nova Revenda':'st-tr','Implantação':'st-on','Liberação Web':'st-on','Qualificação':'st-on','Decola 1 Cliente':'st-ok','Primeiro Cliente':'st-ok','Handover':'st-dn','Concluído':'st-dn'};
+  const stColor={'Nova Revenda':'var(--txt2)','Implantação':'var(--acc)','Liberação Web':'var(--pur)','Qualificação':'#ec4899','Decola 1 Cliente':'var(--ok)','Primeiro Cliente':'var(--ok)','Handover':'var(--tel)','Concluído':'var(--tel)'};
   const tb=document.getElementById('rev-tbody');
   if(!tb)return;
   if(!data.length){
@@ -3338,7 +3378,7 @@ function renderDashboard(){
   const _etDecola    = etapas[etapas.length-3] || {};
   const ultimaEtapa    = _etUltima.id    || 'Handover';
   const penultimaEtapa = _etPenult.id    || 'Primeiro Cliente';
-  const etapaDecola    = _etDecola.id    || 'Decola Produtos';
+  const etapaDecola    = _etDecola.id    || 'Qualificação';
 
   // Em Jornada = apenas etapas de onboarding (Nova Revenda → Decola 1 Cliente, sem Handover/Pausados/Inativo)
   // Contagens usam as mesmas regras do filtro do Pipeline (kpiGrupoFn)
@@ -3393,7 +3433,7 @@ function renderDashboard(){
       if(!gridEl) return;
       gridEl.style.display = 'grid';
       if(!_amDiagnosticos.length){
-        gridEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--txt3);font-size:13px">Nenhuma revenda entre Nova Revenda e Decola Produtos</div>';
+        gridEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--txt3);font-size:13px">Nenhuma revenda entre Nova Revenda e Qualificação</div>';
         return;
       }
       const cnt = p => _amDiagnosticos.filter(d=>d.prioridade===p).length;
@@ -3449,11 +3489,11 @@ function drawPipelineChart(){
   const canvas=document.getElementById('chartPipeline');
   if(!canvas)return;
   const rv=DB.revendas||[];
-  const ETAPAS=['Nova Revenda','Implantação','Liberação Web','Academy','Decola Instalação','Decola Produtos','Decola 1 Cliente','Handover'];
+  const ETAPAS=['Nova Revenda','Implantação','Liberação Web','Qualificação','Decola 1 Cliente','Handover'];
   const counts={};
   ETAPAS.forEach(e=>counts[e]=0);
   rv.forEach(r=>{if(counts[r.status]!==undefined)counts[r.status]++});
-  const colors=['#6b7280','#3b82f6','#8b5cf6','#ec4899','#f59e0b','#f97316','#10b981','#14b8a6'];
+  const colors=['#6b7280','#3b82f6','#8b5cf6','#ec4899','#10b981','#14b8a6'];
   const labels=Object.keys(counts);
   const vals=Object.values(counts);
   const total=vals.reduce((a,b)=>a+b,0)||1;
@@ -3640,7 +3680,7 @@ async function batchMove(newStatus){
   const statusOriginal = {};
   toMove.forEach(r => { statusOriginal[r.id] = r.status; });
 
-  const executar = async (motivo) => {
+  const executar = async (motivo, avals) => {
     // Otimistic UI
     toMove.forEach(r => {
       const i = DB.revendas.findIndex(x=>x.id===r.id);
@@ -3664,9 +3704,13 @@ async function batchMove(newStatus){
         fail++;
       } else {
         ok++;
-        const desc = motivo
+        let desc = motivo
           ? statusOriginal[rev.id] + ' → ' + newStatus + ' | Motivo: ' + motivo
           : statusOriginal[rev.id] + ' → ' + newStatus;
+        if(avals && avals[rev.id]){
+          const resumo = await salvarAvaliacaoHandover(rev.id, avals[rev.id], statusOriginal[rev.id]);
+          if(resumo) desc += ' | ' + resumo;
+        }
         await inserirHistorico(rev.id, 'Mudança de etapa', desc, perfilAtual?.nome);
       }
     }
@@ -3686,6 +3730,17 @@ async function batchMove(newStatus){
 
   if(precisaMotivo(newStatus)){
     abrirMotivoInativo(newStatus, executar);
+  } else if(ehEtapaHandover(newStatus)){
+    // Uma avaliação por revenda; Cancelar pula aquela revenda
+    const avals = {};
+    for(let k=0; k<toMove.length; k++){
+      const a = await abrirAvaliacaoHandover(toMove[k], {idx:k+1, total:toMove.length});
+      if(a) avals[toMove[k].id] = a;
+    }
+    const avaliadas = toMove.filter(r=>avals[r.id]);
+    if(!avaliadas.length){ toast('Nenhuma revenda movida','warn'); return; }
+    toMove.splice(0, toMove.length, ...avaliadas);
+    await executar('', avals);
   } else {
     await executar('');
   }
@@ -3832,8 +3887,8 @@ function renderKanban(){
     const cardsHTML = cards.length
       ? cards.map(r => {
           const isSel = kbSelected.has(r.id);
-          // Checklist de produtos (só na etapa Decola Produtos)
-          const prodCheck = col.id === 'Decola Produtos'
+          // Checklist de produtos (só na etapa Qualificação)
+          const prodCheck = col.id === 'Qualificação'
             ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">
                 ${PRODUTOS.map(p => {
                   const done = (r.produtos||[]).includes(p);
@@ -4087,7 +4142,7 @@ async function kDrop(e, newStatus){
   const revIdx = DB.revendas.findIndex(r=>r.id===id);
 
   // Função que executa o save após motivo (ou direto)
-  const executar = async (motivo) => {
+  const executar = async (motivo, aval) => {
     // Otimistic UI
     if(revIdx > -1) DB.revendas[revIdx].status = newStatus;
     renderKanban();
@@ -4108,9 +4163,13 @@ async function kDrop(e, newStatus){
     }
 
     // Histórico
-    const desc = motivo
+    let desc = motivo
       ? old + ' → ' + newStatus + ' | Motivo: ' + motivo
       : old + ' → ' + newStatus;
+    if(aval){
+      const resumo = await salvarAvaliacaoHandover(id, aval, old);
+      if(resumo) desc += ' | ' + resumo;
+    }
     await inserirHistorico(id, 'Mudança de etapa', desc, perfilAtual?.nome);
 
     // Backup
@@ -4129,6 +4188,9 @@ async function kDrop(e, newStatus){
   // Se precisa de motivo, abre modal ANTES de mover
   if(precisaMotivo(newStatus)){
     abrirMotivoInativo(newStatus, executar);
+  } else if(ehEtapaHandover(newStatus)){
+    const aval = await abrirAvaliacaoHandover(rev);
+    if(aval) await executar('', aval);
   } else {
     await executar('');
   }
@@ -4148,7 +4210,7 @@ let currentCardId = null;
 function getProdutosList(){ return getProdutos(); }
 const ETAPA_COLORS  = {
   'Nova Revenda':'var(--txt2)','Implantação':'var(--acc)','Liberação Web':'var(--pur)',
-  'Academy':'#ec4899','Decola Instalação':'var(--warn)','Decola Produtos':'#f97316',
+  'Qualificação':'#ec4899','Decola 1 Cliente':'var(--ok)',
   'Primeiro Cliente':'var(--ok)','Handover':'var(--tel)'
 };
 
@@ -4615,6 +4677,8 @@ function renderCardInfo(id){
       </div>
     </div>`:''}
 
+    <div id="card-aval-handover"></div>
+
     <div style="padding:12px 16px">
       <div style="font-size:9px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">⚡ ETAPA DO PIPELINE</div>
       <div style="display:flex;gap:8px;align-items:center">
@@ -4628,6 +4692,7 @@ function renderCardInfo(id){
 
   const btnMover = document.getElementById('btn-mover-etapa-card');
   if(btnMover) btnMover.addEventListener('click', function(){ moverCardInfoEtapa(id); });
+  renderAvaliacoesCard(id);
 }
 
 async function moverCardInfoEtapa(revId){
@@ -4641,7 +4706,7 @@ async function moverCardInfoEtapa(revId){
   }
   const old = rev.status;
 
-  const executarMover = async (motivo) => {
+  const executarMover = async (motivo, aval) => {
     const {error} = await sb.from('revendas')
       .update({status:newStatus, atualizado_em:new Date().toISOString()})
       .eq('id', revId);
@@ -4659,7 +4724,11 @@ async function moverCardInfoEtapa(revId){
         +' &nbsp;·&nbsp; '+safe(rev.contratos||'0')+' contratos';
     }
 
-    const desc = motivo ? `${old} → ${newStatus} | Motivo: ${motivo}` : `${old} → ${newStatus}`;
+    let desc = motivo ? `${old} → ${newStatus} | Motivo: ${motivo}` : `${old} → ${newStatus}`;
+    if(aval){
+      const resumo = await salvarAvaliacaoHandover(revId, aval, old);
+      if(resumo) desc += ' | ' + resumo;
+    }
     await inserirHistorico(revId,'Mudança de etapa',desc,perfilAtual?.nome);
 
     try {
@@ -4679,6 +4748,9 @@ async function moverCardInfoEtapa(revId){
 
   if(precisaMotivo(newStatus)){
     abrirMotivoInativo(newStatus, executarMover);
+  } else if(ehEtapaHandover(newStatus)){
+    const aval = await abrirAvaliacaoHandover(rev);
+    if(aval) await executarMover('', aval);
   } else {
     await executarMover('');
   }
@@ -5129,7 +5201,7 @@ async function renderRelatorios(){
   // Distribuição por etapa (dentro do accordion)
   const etapaEl = document.getElementById('etapa-bars');
   if(etapaEl){
-    const etapas = ['Nova Revenda','Implantação','Liberação Web','Academy','Decola Instalação','Decola Produtos','Decola 1 Cliente','Handover'];
+    const etapas = ['Nova Revenda','Implantação','Liberação Web','Qualificação','Decola 1 Cliente','Handover'];
     const cores = ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#3b82f6','#84cc16'];
     const tot = rv.length || 1;
     etapaEl.innerHTML = etapas.map((e, i) => {
@@ -5281,7 +5353,7 @@ function exportRelatorioPipelineCS(){
   if(typeof XLSX==='undefined'){toast('Biblioteca XLSX não carregada','err');return}
   const rv = DB.revendas || [];
   const csSet = [...new Set(rv.map(r=>r.cs).filter(Boolean))].sort();
-  const etapas = ['Nova Revenda','Implantação','Liberação Web','Academy','Decola Instalação','Decola Produtos','Decola 1 Cliente','Handover'];
+  const etapas = ['Nova Revenda','Implantação','Liberação Web','Qualificação','Decola 1 Cliente','Handover'];
   const rows = csSet.map(cs => {
     const mine = rv.filter(r => r.cs === cs);
     const row = {CS: cs, Total: mine.length, 'Em Jornada': mine.filter(r=>!_ehInativo(r)).length, Inativos: mine.filter(_ehInativo).length};
@@ -6210,6 +6282,172 @@ async function confirmarMotivoInativo(){
   if(_movPendente&&_movPendente.onConfirm) await _movPendente.onConfirm(motivoCompleto);
   _movPendente = null;
 }
+
+// ─── AVALIAÇÃO DO HANDOVER ─────────────────────────────────────────
+// Ao mover para Handover: nota 0–10 (obrigatória) sobre o atendimento do
+// time Comercial/Pós-Vendas, comentário e imagem opcionais.
+const AVAL_BUCKET = 'avaliacoes-handover';
+let _avalPendente = null;   // {resolve, nota}
+
+function ehEtapaHandover(status){
+  return String(status||'').toLowerCase().includes('handover');
+}
+
+function _corNota(n){ return n<=6 ? '#ef4444' : n<=8 ? '#f59e0b' : '#10b981'; }
+
+function _renderAvalNotas(){
+  const box = document.getElementById('aval-notas');
+  if(!box) return;
+  const sel = _avalPendente ? _avalPendente.nota : null;
+  box.innerHTML = Array.from({length:11},(_,n)=>{
+    const on = sel===n, c = _corNota(n);
+    return `<button type="button" onclick="selecionarNotaAval(${n})"
+      style="padding:9px 0;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;
+      border:2px solid ${on?c:'var(--bdr)'};background:${on?c:'var(--bg2)'};color:${on?'#fff':'var(--txt2)'}">${n}</button>`;
+  }).join('');
+}
+function selecionarNotaAval(n){
+  if(!_avalPendente) return;
+  _avalPendente.nota = n;
+  _renderAvalNotas();
+}
+
+// Abre o modal e resolve com {nota, comentario, file} ou null (cancelado)
+function abrirAvaliacaoHandover(rev, fila){
+  if(_avalPendente) _avalPendente.resolve(null);
+  return new Promise(resolve=>{
+    _avalPendente = {resolve, nota:null};
+    document.getElementById('aval-rev-nome').textContent = rev?.nome || '—';
+    document.getElementById('aval-fila').textContent = fila && fila.total>1
+      ? ` · ${fila.idx} de ${fila.total} (Cancelar pula esta revenda)` : '';
+    document.getElementById('aval-comentario').value = '';
+    limparAvalImagem();
+    _renderAvalNotas();
+    openMo('mo-aval-handover');
+  });
+}
+function cancelarAvaliacaoHandover(){
+  const p = _avalPendente; _avalPendente = null;
+  document.getElementById('mo-aval-handover').classList.remove('op');
+  if(p) p.resolve(null);
+}
+function confirmarAvaliacaoHandover(){
+  const p = _avalPendente;
+  if(!p) return;
+  if(p.nota===null){ toast('Selecione uma nota de 0 a 10','err'); return; }
+  const file = document.getElementById('aval-imagem').files[0] || null;
+  if(file && !/^image\/(jpeg|png|webp)$/.test(file.type)){ toast('Use imagem JPG, PNG ou WEBP','err'); return; }
+  if(file && file.size > 15*1024*1024){ toast('Imagem muito grande (máx. 15 MB)','err'); return; }
+  _avalPendente = null;
+  document.getElementById('mo-aval-handover').classList.remove('op');
+  p.resolve({
+    nota: p.nota,
+    comentario: document.getElementById('aval-comentario').value.trim().slice(0,2000),
+    file,
+  });
+}
+// Clique fora do modal = cancelar (senão a Promise fica pendurada)
+document.getElementById('mo-aval-handover')?.addEventListener('click', e=>{
+  if(e.target===e.currentTarget) cancelarAvaliacaoHandover();
+});
+
+function previewAvalImagem(){
+  const inp = document.getElementById('aval-imagem');
+  const f = inp.files[0];
+  const img = document.getElementById('aval-imagem-img');
+  if(img.src && img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
+  if(!f){ limparAvalImagem(); return; }
+  img.src = URL.createObjectURL(f);
+  document.getElementById('aval-imagem-prev').style.display = 'block';
+}
+function limparAvalImagem(){
+  const inp = document.getElementById('aval-imagem');
+  const img = document.getElementById('aval-imagem-img');
+  if(inp) inp.value = '';
+  if(img && img.src && img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
+  if(img) img.removeAttribute('src');
+  const prev = document.getElementById('aval-imagem-prev');
+  if(prev) prev.style.display = 'none';
+}
+
+// Redimensiona (lado maior ≤ 1280px) e converte pra JPEG — poupa Storage
+async function _comprimirImagem(file, max=1280, q=0.8){
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=url; });
+    const k = Math.min(1, max/Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.round(img.naturalWidth*k), h = Math.round(img.naturalHeight*k);
+    const c = document.createElement('canvas'); c.width=w; c.height=h;
+    const ctx = c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h); ctx.drawImage(img,0,0,w,h);
+    return await new Promise(res=>c.toBlob(res,'image/jpeg',q));
+  } finally { URL.revokeObjectURL(url); }
+}
+
+// Grava a avaliação (depois que o card já foi movido). Retorna o resumo
+// para o histórico, ou null se falhar.
+async function salvarAvaliacaoHandover(revId, aval, etapaOrigem){
+  let imagem_path = null;
+  if(aval.file){
+    try {
+      const blob = await _comprimirImagem(aval.file);
+      const path = `${revId}/${Date.now()}.jpg`;
+      const {error} = await sb.storage.from(AVAL_BUCKET).upload(path, blob, {contentType:'image/jpeg', upsert:false});
+      if(error) throw error;
+      imagem_path = path;
+    } catch(e){
+      console.error('upload avaliação:', e?.message||e);
+      toast('⚠️ Imagem não foi enviada; a nota será salva sem ela','warn');
+    }
+  }
+  const {error} = await sb.from('avaliacoes_handover').insert({
+    revenda_id: revId,
+    nota: aval.nota,
+    comentario: aval.comentario || null,
+    imagem_path,
+    etapa_origem: etapaOrigem || null,
+    avaliador_id: perfilAtual?.id,
+    avaliador_nome: perfilAtual?.nome || null,
+  });
+  if(error){
+    console.error('salvarAvaliacaoHandover:', error.message);
+    toast('⚠️ Card movido, mas a avaliação não foi salva: '+error.message,'err');
+    return null;
+  }
+  return `Avaliação do atendimento: ${aval.nota}/10`
+    + (aval.comentario ? ` — "${aval.comentario}"` : '')
+    + (imagem_path ? ' (com imagem)' : '');
+}
+
+// Mostra a(s) avaliação(ões) no card — só consulta se o card está no Handover
+async function renderAvaliacoesCard(revId){
+  const box = document.getElementById('card-aval-handover');
+  const rev = (DB.revendas||[]).find(r=>r.id===revId);
+  if(!box || !rev || !ehEtapaHandover(rev.status)) return;
+  const {data, error} = await sb.from('avaliacoes_handover')
+    .select('id,nota,comentario,imagem_path,avaliador_nome,criado_em')
+    .eq('revenda_id', revId).order('criado_em',{ascending:false}).limit(3);
+  if(error || !data?.length || currentCardId!==revId) return;
+  box.innerHTML = `
+    <div style="padding:12px 16px;border-bottom:1px solid var(--bdr)">
+      <div style="font-size:9px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🤝 AVALIAÇÃO DO HANDOVER</div>
+      ${data.map(a=>`
+        <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;padding:10px 12px;margin-bottom:6px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="font-size:20px;font-weight:800;color:${_corNota(a.nota)}">${Number(a.nota)}<span style="font-size:11px;color:var(--txt3);font-weight:600">/10</span></div>
+            <div style="font-size:11px;color:var(--txt3)">${esc(a.avaliador_nome||'—')} · ${esc(fmtDate(a.criado_em))}</div>
+          </div>
+          ${a.comentario?`<div style="font-size:12px;line-height:1.5;color:var(--txt);margin-top:6px;white-space:pre-wrap">${esc(a.comentario)}</div>`:''}
+          ${a.imagem_path?`<img data-aval-img="${esc(a.imagem_path)}" alt="Imagem da avaliação" style="display:none;margin-top:8px;max-width:100%;max-height:220px;border-radius:6px;border:1px solid var(--bdr);cursor:zoom-in" onclick="window.open(this.src,'_blank')">`:''}
+        </div>`).join('')}
+    </div>`;
+  // CSP não libera img do Supabase: baixa via API e exibe como blob:
+  box.querySelectorAll('img[data-aval-img]').forEach(async img=>{
+    const {data:blob, error:e2} = await sb.storage.from(AVAL_BUCKET).download(img.dataset.avalImg);
+    if(e2 || !blob) return;
+    img.src = URL.createObjectURL(blob);
+    img.style.display = 'block';
+  });
+}
 function renderMotivosCfg(){
   var list = document.getElementById('motivos-cfg-list');
   if(!list) return;
@@ -6286,9 +6524,7 @@ const ETAPAS_PADRAO = [
   {id:'Nova Revenda',     icon:'🆕', cor:'#6b7280'},
   {id:'Implantação',      icon:'🔧', cor:'#3b82f6'},
   {id:'Liberação Web',    icon:'🌐', cor:'#8b5cf6'},
-  {id:'Academy',          icon:'🎓', cor:'#ec4899'},
-  {id:'Decola Instalação',icon:'🚀', cor:'#f59e0b'},
-  {id:'Decola Produtos',  icon:'📦', cor:'#f97316'},
+  {id:'Qualificação',     icon:'🎯', cor:'#ec4899'},
   {id:'Decola 1 Cliente', icon:'👤', cor:'#10b981'},
   {id:'Handover',         icon:'🤝', cor:'#14b8a6'},
   {id:'Inativo',          icon:'🚫', cor:'#ef4444'},
@@ -6384,9 +6620,26 @@ async function carregarCfgDoSupabase(){
   return _cfgCache || {};
 }
 
+// Academy + Decola Instalação + Decola Produtos foram unificadas em "Qualificação".
+// Normaliza configs antigas (cache local ou banco ainda não migrado).
+const ETAPAS_UNIFICADAS = ['Academy','Decola Instalação','Decola Produtos'];
+function _unificarQualificacao(etapas){
+  if(!etapas.some(e=>e && ETAPAS_UNIFICADAS.includes(e.id))) return etapas;
+  const out = [];
+  let inserida = etapas.some(e=>e && e.id==='Qualificação');
+  etapas.forEach(e=>{
+    if(e && ETAPAS_UNIFICADAS.includes(e.id)){
+      if(!inserida){ out.push({id:'Qualificação', icon:'🎯', cor:'#ec4899'}); inserida = true; }
+    } else out.push(e);
+  });
+  return out;
+}
+
 function getEtapas(){
   const cfg = getCfg();
-  const etapas = Array.isArray(cfg.etapas) ? cfg.etapas : ETAPAS_PADRAO;
+  const etapas = _unificarQualificacao(Array.isArray(cfg.etapas) ? cfg.etapas : ETAPAS_PADRAO);
+  // Mantém a referência estável (telas de config editam o array retornado)
+  if(Array.isArray(cfg.etapas) && etapas !== cfg.etapas) cfg.etapas = etapas;
   // Config é compartilhada entre todos: cor inválida não chega em style="..."
   etapas.forEach(e=>{ if(e && e.cor && !isSafeColor(e.cor)) e.cor = '#3b82f6'; });
   return etapas;
@@ -7110,7 +7363,7 @@ function calcMetaStatus(m){
 
 // ─── ANÁLISE DO MÊS ──────────────────────────────────────────────
 // Lê o histórico tagueado (TAGS_ANALISE_MES) das revendas entre
-// Nova Revenda e Decola Produtos e classifica em prioridade/engajamento.
+// Nova Revenda e Qualificação e classifica em prioridade/engajamento.
 const _AM_TERMINAIS_NEGATIVOS = new Set(['SEM_RETORNO','NAO_RESPONDE','PAUSADO','DOENCA_AUSENCIA','PROMESSA_SEM_EVOLUCAO']);
 const _AM_ORDEM_EVOLUCAO = ['TREINAMENTO','PROSPECCAO','DEMONSTRACAO','CLIENTE_EM_NEGOCIACAO','CLIENTE_PREVISTO','INSTALACAO','CLIENTE_SUBIDO'];
 
@@ -7198,9 +7451,9 @@ let _amDetalheLista = [];
 // Carrega e classifica as revendas em escopo — usado tanto pela página
 // Análise do Mês quanto pelo mini-widget do Dashboard
 async function carregarDiagnosticosAnaliseMes(){
-  // Escopo: Nova Revenda até Decola Produtos, na ordem configurada em getEtapas()
+  // Escopo: Nova Revenda até Qualificação, na ordem configurada em getEtapas()
   const etapas = getEtapas().map(e=>e.id);
-  let ini = etapas.indexOf('Nova Revenda'), fim = etapas.indexOf('Decola Produtos');
+  let ini = etapas.indexOf('Nova Revenda'), fim = etapas.indexOf('Qualificação');
   if(ini===-1) ini = 0;
   if(fim===-1 || fim<ini) fim = etapas.length-1;
   const statusEscopo = new Set(etapas.slice(ini, fim+1));
@@ -7238,7 +7491,7 @@ async function renderAnaliseMes(){
   await carregarDiagnosticosAnaliseMes();
 
   if(!_amDiagnosticos.length){
-    kEl.innerHTML = '<div class="empty" style="padding:16px">Nenhuma revenda entre Nova Revenda e Decola Produtos</div>';
+    kEl.innerHTML = '<div class="empty" style="padding:16px">Nenhuma revenda entre Nova Revenda e Qualificação</div>';
     document.getElementById('am-narrativa').innerHTML = '';
     return;
   }
@@ -7507,7 +7760,7 @@ async function montarResumoEstrategiaMes(){
   const negociacao   = _amDiagnosticos.filter(d=>d.tagAtual==='CLIENTE_EM_NEGOCIACAO');
   const qtdPrevistos = comPrevisto.reduce((s,d)=>s+(d.clientePrevistoAtivo.quantidade||1),0);
 
-  linhas.push(`\nDistribuição das ${_amDiagnosticos.length} revendas em análise (Nova Revenda a Decola Produtos) por prioridade comercial:`);
+  linhas.push(`\nDistribuição das ${_amDiagnosticos.length} revendas em análise (Nova Revenda a Qualificação) por prioridade comercial:`);
   linhas.push(`- P1 Quente: ${cnt('P1')}`);
   linhas.push(`- P2 Em desenvolvimento: ${cnt('P2')}`);
   linhas.push(`- P3 Acompanhamento: ${cnt('P3')}`);
