@@ -3492,41 +3492,98 @@ function kpiGrupoFn(grupo){
   }
 }
 
-// Filtro do Pipeline por lista fixa de revendas (ex: KPI "Sem atualização
-// no mês" da Análise do Mês). null = desligado. Quem recebe anotação nova
-// sai da lista na hora (ver _kbFiltroIdsMarcarAtualizado).
-let _kbFiltroIds = null;      // Set<revenda_id> | null
-let _kbFiltroIdsLabel = '';
+// Filtro do Pipeline "Sem atualização" (KPI da Análise do Mês).
+// Critério: revenda em análise SEM anotação (histórico com tag) no período —
+// mês inteiro ou uma semana do mês ativo. Mudança de etapa/edição não conta.
+// null = desligado; {semana:0} = mês inteiro; {semana:n} = semana n do mês.
+let _kbFiltroSemAtual = null;
+
+// Semanas (seg–dom) do mês ativo, cortadas nas bordas do mês, até a semana atual
+function _amSemanasDoMes(){
+  const h = new Date(), y = h.getFullYear(), m = h.getMonth();
+  const ultimoDia = new Date(y, m+1, 0).getDate();
+  const p2 = n => String(n).padStart(2,'0');
+  // Monta os blocos seg–dom do mês inteiro
+  const blocos = [];
+  let ini = 1;
+  while(ini <= ultimoDia){
+    const dow = (new Date(y, m, ini).getDay()+6)%7; // 0 = segunda
+    const fimDia = Math.min(ini + (6-dow), ultimoDia);
+    blocos.push([ini, fimDia]);
+    ini = fimDia + 1;
+  }
+  // Ponta do mês muito curta (≤2 dias, ex: só o domingo dia 1) é anexada à semana vizinha
+  if(blocos.length>1 && blocos[0][1]-blocos[0][0] < 2){ blocos[1][0] = blocos[0][0]; blocos.shift(); }
+  const ult = blocos.length-1;
+  if(ult>0 && blocos[ult][1]-blocos[ult][0] < 2){ blocos[ult-1][1] = blocos[ult][1]; blocos.pop(); }
+
+  const semanas = [];
+  for(const [di, df] of blocos){
+    const dIni = new Date(y, m, di);
+    if(dIni > h) break; // semanas futuras não fazem sentido
+    semanas.push({n:semanas.length+1, ini:dIni, fim:new Date(y, m, df, 23, 59, 59, 999),
+      label:`${p2(di)}–${p2(df)}/${p2(m+1)}`});
+  }
+  return semanas;
+}
+
+// IDs das revendas em análise sem anotação no período (semana 0 = mês inteiro)
+function _amSemAtualizacaoIds(semana){
+  const sem = semana ? _amSemanasDoMes().find(s=>s.n===semana) : null;
+  return _amDiagnosticos.filter(d=>{
+    const datas = d.datasNoMes || [];
+    if(!sem) return !datas.length;
+    return !datas.some(dt=>{ const x = new Date(dt); return x>=sem.ini && x<=sem.fim; });
+  }).map(d=>d.revenda.id);
+}
 
 function irParaPipelineSemAtualizacaoMes(){
-  const ids = _amDiagnosticos.filter(d=>!d.atualizadoNoMes).map(d=>d.revenda.id);
-  if(!ids.length){ toast('Todas as revendas em análise já têm atualização neste mês 🎉'); return; }
+  if(!_amSemAtualizacaoIds(0).length){ toast('Todas as revendas em análise já têm atualização neste mês 🎉'); return; }
   clearKbFilters();
-  _kbFiltroIds = new Set(ids);
-  _kbFiltroIdsLabel = `Sem atualização no histórico em ${MESES_NOMES[new Date().getMonth()+1]}`;
+  _kbFiltroSemAtual = {semana:0};
   go('pipeline');
 }
 
-function limparKbFiltroIds(){
-  _kbFiltroIds = null;
-  _kbFiltroIdsLabel = '';
+function setKbFiltroSemana(n){
+  if(!_kbFiltroSemAtual) return;
+  _kbFiltroSemAtual.semana = n;
   renderKanban();
 }
 
-// Revendas que acabaram de receber anotação saem do filtro "sem atualização"
+function limparKbFiltroIds(){
+  _kbFiltroSemAtual = null;
+  renderKanban();
+}
+
+// Anotação nova: atualiza o diagnóstico em memória (KPI e filtro ficam
+// coerentes sem precisar recarregar o histórico do banco)
 function _kbFiltroIdsMarcarAtualizado(ids){
-  if(!_kbFiltroIds) return;
-  (ids||[]).forEach(id=>_kbFiltroIds.delete(id));
-  if(document.getElementById('p-pipeline')?.classList.contains('on')) renderKanban();
+  const agora = new Date().toISOString();
+  (ids||[]).forEach(id=>{
+    const d = _amDiagnosticos.find(x=>x.revenda.id===id);
+    if(d){ (d.datasNoMes = d.datasNoMes||[]).push(agora); d.atualizadoNoMes = true; }
+  });
+  if(_kbFiltroSemAtual && document.getElementById('p-pipeline')?.classList.contains('on')) renderKanban();
 }
 
 function _renderKbFiltroIdsBanner(){
   const el = document.getElementById('kb-filtro-ids');
   if(!el) return;
-  if(!_kbFiltroIds){ el.style.display = 'none'; el.innerHTML = ''; return; }
+  if(!_kbFiltroSemAtual){ el.style.display = 'none'; el.innerHTML = ''; return; }
+  const mesNome = MESES_NOMES[new Date().getMonth()+1];
+  const sel = _kbFiltroSemAtual.semana;
+  const opcoes = [{n:0, label:`Mês inteiro`}, ..._amSemanasDoMes().map(s=>({n:s.n, label:`Sem. ${s.n} (${s.label})`}))];
+  const chip = o => {
+    const ativo = o.n===sel;
+    return `<button class="btn btn-sm" onclick="setKbFiltroSemana(${o.n})" style="font-size:11px;${ativo
+      ? 'background:var(--acc);color:#fff;border:1px solid var(--acc)'
+      : 'background:var(--card2);color:var(--txt2);border:1px solid var(--bdr2)'}">${safe(o.label)} · <b>${_amSemAtualizacaoIds(o.n).length}</b></button>`;
+  };
+  const periodo = sel ? `na semana ${sel} de ${mesNome}` : `em ${mesNome}`;
   el.style.display = 'flex';
-  el.innerHTML = `<span>📞 <b>${safe(_kbFiltroIdsLabel)}</b> — ${_kbFiltroIds.size} revenda(s) faltando contato</span>
-    <button class="btn btn-s btn-sm" style="margin-left:auto" onclick="limparKbFiltroIds()">✕ Remover filtro</button>`;
+  el.innerHTML = `<span>📞 <b>Sem anotação no histórico ${safe(periodo)}</b> — ${_amSemAtualizacaoIds(sel).length} revenda(s) faltando contato</span>
+    <button class="btn btn-s btn-sm" style="margin-left:auto" onclick="limparKbFiltroIds()">✕ Remover filtro</button>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;width:100%">${opcoes.map(chip).join('')}</div>`;
 }
 
 // Abre o Pipeline com o filtro do KPI clicado (somente os cards filtrados)
@@ -3555,7 +3612,7 @@ function getKbFilters(){
     dateTo:document.getElementById('kb-date-to')?.value||'',
     contratos:document.getElementById('kb-contratos')?.value||'',
     reativacao:document.getElementById('kb-reativacao')?.value||'',
-    ids:_kbFiltroIds,
+    ids:_kbFiltroSemAtual ? new Set(_amSemAtualizacaoIds(_kbFiltroSemAtual.semana)) : null,
   };
 }
 
@@ -3592,8 +3649,7 @@ function clearKbFilters(){
   ['kb-search','kb-cs','kb-date-from','kb-date-to','kb-contratos','kb-reativacao','kb-grupo'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
-  _kbFiltroIds = null;
-  _kbFiltroIdsLabel = '';
+  _kbFiltroSemAtual = null;
   renderKanban();
 }
 
@@ -7376,7 +7432,7 @@ function classificarRevendaAnaliseMes(historico){
   if(!historico.length){
     return {prioridade:'P4', engajamento:'BAIXO', tagAtual:null, diasSemAtualizacao:null,
       clientePrevistoAtivo:null, evolucao:'sem_historico', alertas:['Nenhuma atualização com tag registrada'],
-      atualizadoNoMes:false};
+      atualizadoNoMes:false, datasNoMes:[]};
   }
 
   const ultimo = historico[historico.length-1];
@@ -7443,10 +7499,12 @@ function classificarRevendaAnaliseMes(historico){
   }
   if(tagAtual==='CLIENTE_EM_NEGOCIACAO' && !ultimo.data_prevista) alertas.push('Negociação sem próxima ação definida');
 
-  // Última anotação (histórico tagueado) caiu no mês corrente?
-  const atualizadoNoMes = _amNoMesAtual(ultimo.criado_em);
+  // Anotações (histórico tagueado) feitas no mês corrente — base do KPI
+  // "Sem atualização no mês" e do refinamento por semana no Pipeline
+  const datasNoMes = historico.filter(h=>_amNoMesAtual(h.criado_em)).map(h=>h.criado_em);
+  const atualizadoNoMes = datasNoMes.length > 0;
 
-  return {prioridade, engajamento, tagAtual, diasSemAtualizacao, clientePrevistoAtivo, evolucao, alertas, ultimo, atualizadoNoMes};
+  return {prioridade, engajamento, tagAtual, diasSemAtualizacao, clientePrevistoAtivo, evolucao, alertas, ultimo, atualizadoNoMes, datasNoMes};
 }
 
 let _amDiagnosticos = [];
@@ -7473,16 +7531,34 @@ async function carregarDiagnosticosAnaliseMes(){
 
   if(!revendasEscopo.length){ _amDiagnosticos = []; return; }
 
-  // Uma única query em lote (não uma por revenda) — só as linhas já tagueadas
-  const {data: hist, error} = await sb.from('historico_cards')
-    .select('revenda_id,tag,descricao,data_prevista,quantidade,criado_em')
-    .in('revenda_id', revendasEscopo.map(r=>r.id))
-    .not('tag','is',null)
-    .order('criado_em', {ascending:true});
-  if(error){ console.error('Análise do Mês:', error.message); _amDiagnosticos = []; return; }
+  // Query em lote (não uma por revenda) — só as linhas já tagueadas.
+  // PAGINADA: o Supabase devolve no máx. 1000 linhas por requisição; sem
+  // paginar, as anotações mais NOVAS eram cortadas (ordem crescente) e o
+  // card aparecia como "sem atualização" mesmo tendo anotação no mês.
+  // Os IDs vão em blocos pra não estourar o tamanho da URL do filtro .in().
+  const PG = 1000, BLOCO_IDS = 150;
+  const idsEscopo = revendasEscopo.map(r=>r.id);
+  const hist = [];
+  for(let b=0; b<idsEscopo.length; b+=BLOCO_IDS){
+    const bloco = idsEscopo.slice(b, b+BLOCO_IDS);
+    for(let pag=0; ; pag++){
+      const {data, error} = await sb.from('historico_cards')
+        .select('revenda_id,tag,data_prevista,quantidade,criado_em') // sem descricao: não é usada aqui e é o campo mais pesado
+        .in('revenda_id', bloco)
+        .not('tag','is',null)
+        .order('criado_em', {ascending:true})
+        .order('id', {ascending:true}) // desempate estável entre páginas
+        .range(pag*PG, (pag+1)*PG - 1);
+      if(error){ console.error('Análise do Mês:', error.message); _amDiagnosticos = []; return; }
+      hist.push(...(data||[]));
+      if(!data || data.length < PG) break;
+    }
+  }
+  // Blocos diferentes chegam fora de ordem global — a classificação usa a
+  // ordem por revenda, que continua crescente dentro de cada bloco.
 
   const porRevenda = {};
-  (hist||[]).forEach(h=>{ (porRevenda[h.revenda_id] = porRevenda[h.revenda_id]||[]).push(h); });
+  hist.forEach(h=>{ (porRevenda[h.revenda_id] = porRevenda[h.revenda_id]||[]).push(h); });
 
   _amDiagnosticos = revendasEscopo.map(r=>({revenda:r, ...classificarRevendaAnaliseMes(porRevenda[r.id]||[])}));
 }
