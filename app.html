@@ -3349,10 +3349,15 @@ function renderDashboard(){
   kpis.push({label:'Em Reativação', val:_reat.length, cls:_reatVenc?'rd':'bl', icon:'🔄',
     sub: _reatVenc ? `⛔ ${_reatVenc} vencida(s)` : 'Ver no Pipeline →',
     onclick:"irParaPipelineReativacao('ativa')", title:'Ver revendas em reativação no Pipeline'});
+  // Sem atualização no Mês — valor preenchido quando a Análise do Mês (mini)
+  // termina de carregar abaixo (mesma consulta, sem leitura extra no banco)
+  kpis.push({label:'Sem atualização no Mês', val:'…', cls:'yw', icon:'📞', valId:'dash-kpi-sem-atual',
+    sub:'Ver no Pipeline →', onclick:'irParaPipelineSemAtualizacaoMes()',
+    title:'Revendas em análise (Nova Revenda → Qualificação) sem anotação no histórico neste mês'});
   renderAlertaReativacao(rv);
 
   const kEl=document.getElementById('dash-kpis');
-  if(kEl)kEl.innerHTML=kpis.map(k=>`<div class="mc ${k.cls}"${k.onclick?` style="cursor:pointer" onclick="${k.onclick}" title="${safe(k.title||'')}"`:''}><div style="font-size:24px;margin-bottom:8px">${safe(k.icon)}</div><div class="mv">${k.val}</div><div class="ml">${safe(k.label)}</div>${k.sub?`<div style="font-size:10px;color:var(--txt3);margin-top:4px">${safe(k.sub)}</div>`:''}</div>`).join('');
+  if(kEl)kEl.innerHTML=kpis.map(k=>`<div class="mc ${k.cls}"${k.onclick?` style="cursor:pointer" onclick="${k.onclick}" title="${safe(k.title||'')}"`:''}><div style="font-size:24px;margin-bottom:8px">${safe(k.icon)}</div><div class="mv"${k.valId?` id="${k.valId}"`:''}>${k.val}</div><div class="ml">${safe(k.label)}</div>${k.sub?`<div style="font-size:10px;color:var(--txt3);margin-top:4px">${safe(k.sub)}</div>`:''}</div>`).join('');
 
   // Distribuição por etapa — KPI clicável por etapa (leva pra Revendas já filtrado)
   const etapasEl = document.getElementById('dash-etapas');
@@ -3378,6 +3383,8 @@ function renderDashboard(){
     const gridEl = document.getElementById('dash-am-mini');
     try {
       await carregarDiagnosticosAnaliseMes();
+      const semAtualEl = document.getElementById('dash-kpi-sem-atual');
+      if(semAtualEl) semAtualEl.textContent = _amDiagnosticos.filter(d=>!d.atualizadoNoMes).length;
       if(loadEl) loadEl.style.display = 'none';
       if(!gridEl) return;
       gridEl.style.display = 'grid';
@@ -3401,6 +3408,7 @@ function renderDashboard(){
         <div class="ml" style="font-size:10px">${safe(k.label)}</div>
       </div>`).join('');
     } catch(e) {
+      const semAtualErr = document.getElementById('dash-kpi-sem-atual'); if(semAtualErr) semAtualErr.textContent = '—';
       if(loadEl){ loadEl.style.display='block'; loadEl.textContent='Erro ao carregar Análise do Mês'; }
     }
   })();
@@ -7624,7 +7632,6 @@ async function renderAnaliseMes(){
   const comPrevisto   = _amDiagnosticos.filter(d=>d.clientePrevistoAtivo);
   const qtdPrevistos  = comPrevisto.reduce((s,d)=>s+(d.clientePrevistoAtivo.quantidade||1),0);
   const semAtualMes   = _amDiagnosticos.filter(d=>!d.atualizadoNoMes).length;
-  const mesNome       = MESES_NOMES[new Date().getMonth()+1];
   const kpis=[
     {label:'Em análise',                     val:_amDiagnosticos.length, cls:'bl', icon:'🧭', tipo:'TOTAL'},
     {label:'P1 — Quente',                    val:cnt('P1'), cls:'rd', icon:'🔥', tipo:'P1'},
@@ -7633,7 +7640,7 @@ async function renderAnaliseMes(){
     {label:'P4 — Risco',                     val:cnt('P4'), cls:'rd', icon:'🚨', tipo:'P4'},
     {label:'Revendas c/ cliente previsto',   val:comPrevisto.length, cls:'pu', icon:'🔮', tipo:'CLIENTE_PREVISTO'},
     {label:'Qtd. clientes previstos',        val:qtdPrevistos, cls:'gn', icon:'👥', tipo:'CLIENTE_PREVISTO'},
-    {label:`Sem atualização em ${mesNome}`,  val:semAtualMes, cls:'yw', icon:'📞', acao:'irParaPipelineSemAtualizacaoMes()',
+    {label:'Sem atualização no Mês',         val:semAtualMes, cls:'yw', icon:'📞', acao:'irParaPipelineSemAtualizacaoMes()',
      title:'Revendas sem nova anotação no histórico neste mês — clique para abrir o Pipeline só com elas'},
   ];
   kEl.innerHTML = kpis.map(k=>`<div class="mc ${k.cls}" style="cursor:pointer"${k.title?` title="${safe(k.title)}"`:''} onclick="${k.acao||`abrirDetalheAnaliseMes('${k.tipo}','${safe(k.label)}')`}"><div style="font-size:24px;margin-bottom:8px">${k.icon}</div><div class="mv">${k.val}</div><div class="ml">${safe(k.label)}</div></div>`).join('');
