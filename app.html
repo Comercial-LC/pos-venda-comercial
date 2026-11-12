@@ -3537,11 +3537,49 @@ function _amSemAtualizacaoIds(semana){
   }).map(d=>d.revenda.id);
 }
 
-function irParaPipelineSemAtualizacaoMes(){
+// Momento da última leitura do histórico pro filtro (mostrado no banner)
+let _kbSemAtualCarregadoEm = null;
+let _kbSemAtualCanal = null;
+let _kbSemAtualRenderTimer = null;
+
+async function irParaPipelineSemAtualizacaoMes(){
+  // Sempre relê o histórico: o _amDiagnosticos da tela pode estar velho
+  // (anotações feitas por outros usuários depois que a Análise foi aberta)
+  await carregarDiagnosticosAnaliseMes();
+  _kbSemAtualCarregadoEm = new Date();
   if(!_amSemAtualizacaoIds(0).length){ toast('Todas as revendas em análise já têm atualização neste mês 🎉'); return; }
   clearKbFilters();
   _kbFiltroSemAtual = {semana:0};
+  _kbSemAtualAssinarRealtime();
   go('pipeline');
+}
+
+// Botão "Atualizar" do banner — relê o histórico do banco
+async function recarregarKbFiltroSemAtual(){
+  if(!_kbFiltroSemAtual) return;
+  await carregarDiagnosticosAnaliseMes();
+  _kbSemAtualCarregadoEm = new Date();
+  renderKanban();
+  toast('🔄 Filtro atualizado');
+}
+
+// Enquanto o filtro está ligado, escuta anotações novas de QUALQUER usuário
+// (Realtime) e atualiza em memória — sem reconsultar o histórico inteiro.
+// 1 mensagem de realtime por anotação; o canal fecha quando o filtro sai.
+function _kbSemAtualAssinarRealtime(){
+  if(_kbSemAtualCanal) return;
+  _kbSemAtualCanal = sb.channel('kb-sem-atual')
+    .on('postgres_changes', {event:'INSERT', schema:'public', table:'historico_cards'}, payload=>{
+      const h = payload.new || {};
+      if(!h.tag || !h.revenda_id || !_amNoMesAtual(h.criado_em || new Date())) return;
+      _kbFiltroIdsMarcarAtualizado([h.revenda_id], h.criado_em);
+    })
+    .subscribe();
+}
+
+function _kbSemAtualDesligar(){
+  _kbFiltroSemAtual = null;
+  if(_kbSemAtualCanal){ try { sb.removeChannel(_kbSemAtualCanal); } catch(e){} _kbSemAtualCanal = null; }
 }
 
 function setKbFiltroSemana(n){
@@ -3551,19 +3589,23 @@ function setKbFiltroSemana(n){
 }
 
 function limparKbFiltroIds(){
-  _kbFiltroSemAtual = null;
+  _kbSemAtualDesligar();
   renderKanban();
 }
 
 // Anotação nova: atualiza o diagnóstico em memória (KPI e filtro ficam
 // coerentes sem precisar recarregar o histórico do banco)
-function _kbFiltroIdsMarcarAtualizado(ids){
-  const agora = new Date().toISOString();
+function _kbFiltroIdsMarcarAtualizado(ids, quando){
+  const dt = quando || new Date().toISOString();
   (ids||[]).forEach(id=>{
     const d = _amDiagnosticos.find(x=>x.revenda.id===id);
-    if(d){ (d.datasNoMes = d.datasNoMes||[]).push(agora); d.atualizadoNoMes = true; }
+    if(d){ (d.datasNoMes = d.datasNoMes||[]).push(dt); d.atualizadoNoMes = true; }
   });
-  if(_kbFiltroSemAtual && document.getElementById('p-pipeline')?.classList.contains('on')) renderKanban();
+  // Debounce: lançamento em lote dispara vários eventos de uma vez
+  if(_kbFiltroSemAtual && document.getElementById('p-pipeline')?.classList.contains('on')){
+    clearTimeout(_kbSemAtualRenderTimer);
+    _kbSemAtualRenderTimer = setTimeout(renderKanban, 400);
+  }
 }
 
 function _renderKbFiltroIdsBanner(){
@@ -3582,7 +3624,9 @@ function _renderKbFiltroIdsBanner(){
   const periodo = sel ? `na semana ${sel} de ${mesNome}` : `em ${mesNome}`;
   el.style.display = 'flex';
   el.innerHTML = `<span>📞 <b>Sem anotação no histórico ${safe(periodo)}</b> — ${_amSemAtualizacaoIds(sel).length} revenda(s) faltando contato</span>
-    <button class="btn btn-s btn-sm" style="margin-left:auto" onclick="limparKbFiltroIds()">✕ Remover filtro</button>
+    <span style="margin-left:auto;font-size:11px;color:var(--txt3)">${_kbSemAtualCarregadoEm ? 'lido às '+_kbSemAtualCarregadoEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+' · ao vivo' : ''}</span>
+    <button class="btn btn-s btn-sm" onclick="recarregarKbFiltroSemAtual()" title="Reler o histórico do banco">🔄 Atualizar</button>
+    <button class="btn btn-s btn-sm" onclick="limparKbFiltroIds()">✕ Remover filtro</button>
     <div style="display:flex;gap:6px;flex-wrap:wrap;width:100%">${opcoes.map(chip).join('')}</div>`;
 }
 
@@ -3649,7 +3693,7 @@ function clearKbFilters(){
   ['kb-search','kb-cs','kb-date-from','kb-date-to','kb-contratos','kb-reativacao','kb-grupo'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
-  _kbFiltroSemAtual = null;
+  _kbSemAtualDesligar();
   renderKanban();
 }
 
